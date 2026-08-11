@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net35</TargetFramework>
+    <AssemblyName>AIImprove</AssemblyName>
+    <RootNamespace>AIImprove</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- Where the compiled DLL is auto-copied to after each build, so the game can load it directly. -->
+    <CSDataPath>$(LOCALAPPDATA)\Colossal Order\Cities_Skylines\Addons\Mods\AIImprove</CSDataPath>
+    <!-- Cities: Skylines install folder. Override in a local .user file if your install path differs. -->
+    <CSInstallPath>H:\SteamLibrary\steamapps\common\Cities_Skylines</CSInstallPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Game managed assemblies. HintPath points at the actual game install; not copied to output. -->
+    <Reference Include="ICities">
+      <HintPath>$(CSInstallPath)\Cities_Data\Managed\ICities.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="ColossalManaged">
+      <HintPath>$(CSInstallPath)\Cities_Data\Managed\ColossalManaged.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(CSInstallPath)\Cities_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(CSInstallPath)\Cities_Data\Managed\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- CitiesHarmony.API: thin wrapper that waits for the CitiesHarmony workshop mod to load real Harmony at
+         runtime, AND bundles its own compile-time Harmony types (HarmonyLib namespace). Do not also add a
+         separate Lib.Harmony package reference - it defines the same "Harmony" type and causes CS0433. -->
+    <PackageReference Include="CitiesHarmony.API" Version="2.2.0" />
+  </ItemGroup>
+
+  <!-- Copy the built DLL straight into the local Mods folder so the game picks it up on next launch. -->
+  <Target Name="CopyToMods" AfterTargets="Build">
+    <MakeDir Directories="$(CSDataPath)" Condition="!Exists('$(CSDataPath)')" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(CSDataPath)" />
+  </Target>
+
+</Project>
