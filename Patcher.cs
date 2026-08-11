@@ -25,6 +25,9 @@ namespace AIImprove
             harmony.PatchAll(Assembly.GetExecutingAssembly());
 
             PatchEmergencyVehiclePriority(harmony);
+            TryPatchEmergencyIgnoreCosts(harmony, typeof(AmbulanceAI), typeof(AmbulanceIgnoreCostsPatch));
+            TryPatchEmergencyIgnoreCosts(harmony, typeof(FireTruckAI), typeof(FireTruckIgnoreCostsPatch));
+            TryPatchEmergencyIgnoreCosts(harmony, typeof(PoliceCarAI), typeof(PoliceCarIgnoreCostsPatch));
 
             Debug.Log("[AIImprove] Harmony patches applied.");
         }
@@ -32,6 +35,12 @@ namespace AIImprove
         // Soft dependency: prefer the TMPE-aware patch when TMPE is present and it actually
         // applies cleanly, otherwise fall back to the vanilla PathFind transpiler. Resilient
         // to either path failing for any reason - the other is still attempted.
+        //
+        // KNOWN DEAD as of 2026-08-12 (kept in place; see Cities_Skylines_1_AI_Improve_Document/03
+        // "策略性轉向"): the TMPE branch fails on a Mono JIT limitation, and the vanilla branch
+        // patches successfully but is never actually called when TMPE is active - TMPE's
+        // CustomPathFind replaces PathFind entirely for real pathfinding. Superseded by
+        // TryPatchAmbulanceIgnoreCosts below, which works whether or not TMPE is installed.
         private static void PatchEmergencyVehiclePriority(Harmony harmony)
         {
             if (TryPatchTmpeEmergencyVehiclePriority(harmony))
@@ -40,6 +49,42 @@ namespace AIImprove
             }
 
             TryPatchVanillaEmergencyCongestion(harmony);
+        }
+
+        // Vehicle-level, TMPE-independent emergency priority patch - see EmergencyIgnoreCostsPatch.cs.
+        // Same shared transpiler body applied to AmbulanceAI, FireTruckAI and PoliceCarAI, each
+        // via its own thin wrapper class (Harmony transpilers must be plain static methods).
+        private static bool TryPatchEmergencyIgnoreCosts(Harmony harmony, Type vehicleAiType, Type patchWrapperType)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    vehicleAiType,
+                    "StartPathFind",
+                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType(), typeof(Vector3), typeof(Vector3), typeof(bool), typeof(bool), typeof(bool) });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] " + vehicleAiType.Name + ".StartPathFind(7-arg) not found - game " +
+                        "version may have changed. Skipping ignore-costs patch for " + vehicleAiType.Name + ".");
+                    return false;
+                }
+
+                MethodInfo transpiler = patchWrapperType.GetMethod("Transpiler", BindingFlags.Public | BindingFlags.Static);
+
+                harmony.Patch(original, transpiler: new HarmonyMethod(transpiler));
+
+                Debug.Log("[AIImprove] Ignore-costs patch applied for " + vehicleAiType.Name + ".");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Ignore-costs patch failed to apply for " + vehicleAiType.Name +
+                    ", skipping it. Rest of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
         }
 
         // Reflection-only patch: no compile-time reference to TMPE exists anywhere in this

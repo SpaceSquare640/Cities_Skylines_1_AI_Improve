@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
 using UnityEngine;
@@ -21,6 +23,34 @@ namespace AIImprove
         // How much of the congestion penalty to keep for emergency-priority path requests.
         // 0 = ignore congestion entirely, 1 = no change from vanilla's calculated cost.
         private const float EmergencyCongestionRetention = 0.25f;
+
+        // How often to log a hit while validating that this patch actually fires during real
+        // play (see Cities_Skylines_1_AI_Improve_Document/03, "待驗證：效果驗收"). ProcessItemCosts
+        // runs extremely often, so logging every single hit would flood the log and cost real
+        // frame time - only every Nth hit is logged.
+        private const int DiagnosticLogInterval = 200;
+        private static long emergencyHitCount;
+        private static bool loggedFirstCall;
+
+        // Cached once instead of using Traverse per-call (this method runs on a very hot path -
+        // every path cost calculation, for every candidate segment, for every vehicle).
+        private static readonly Func<PathFind, VehicleInfo.VehicleCategory> GetVehicleCategory =
+            BuildVehicleCategoryGetter();
+
+        private static Func<PathFind, VehicleInfo.VehicleCategory> BuildVehicleCategoryGetter()
+        {
+            MethodInfo getter = AccessTools.PropertyGetter(typeof(PathFind), "vehicleCategory");
+            if (getter == null)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] PathFind.vehicleCategory getter not found - emergency vehicle " +
+                    "detection will always report false. Game version may have changed.");
+                return _ => VehicleInfo.VehicleCategory.None;
+            }
+
+            return (Func<PathFind, VehicleInfo.VehicleCategory>)Delegate.CreateDelegate(
+                typeof(Func<PathFind, VehicleInfo.VehicleCategory>), getter);
+        }
 
         public static IEnumerable<CodeInstruction> Transpiler(
             IEnumerable<CodeInstruction> instructions,
@@ -103,9 +133,28 @@ namespace AIImprove
         // the congestion-driven portion back toward 1x for emergency-priority path requests.
         private static float AdjustCost(float preCongestionCost, float postCongestionCost, PathFind pathFind)
         {
+            // Sanity check: proves the injected call itself is executing at all, independent of
+            // whether any emergency vehicle has been dispatched yet. Logged once ever, not
+            // throttled, since it should fire almost immediately after load if the transpiler
+            // worked - if this line never appears, the transpiler patched nothing, silently.
+            if (!loggedFirstCall)
+            {
+                loggedFirstCall = true;
+                Debug.Log("[AIImprove] VanillaEmergencyCongestionPatch.AdjustCost is executing (sanity check, fires for all vehicles, not just emergency ones).");
+            }
+
             if (!IsEmergencyPriorityRequest(pathFind))
             {
                 return postCongestionCost;
+            }
+
+            long hitNumber = System.Threading.Interlocked.Increment(ref emergencyHitCount);
+            if (hitNumber % DiagnosticLogInterval == 1)
+            {
+                Debug.Log(
+                    "[AIImprove] Emergency priority cost adjustment fired (hit #" + hitNumber +
+                    "): " + postCongestionCost + " -> " +
+                    (preCongestionCost + (postCongestionCost - preCongestionCost) * EmergencyCongestionRetention));
             }
 
             return preCongestionCost + (postCongestionCost - preCongestionCost) * EmergencyCongestionRetention;
@@ -115,12 +164,7 @@ namespace AIImprove
         {
             // AmbulanceAI/FireTruckAI widen this to VehicleCategory.All specifically when
             // responding to an emergency (see Cities_Skylines_1_AI_Improve_Document/03).
-            // vehicleCategory's getter is private, hence Traverse instead of direct access.
-            var category = Traverse.Create(pathFind)
-                .Property("vehicleCategory")
-                .GetValue<VehicleInfo.VehicleCategory>();
-
-            return category == VehicleInfo.VehicleCategory.All;
+            return GetVehicleCategory(pathFind) == VehicleInfo.VehicleCategory.All;
         }
     }
 }
