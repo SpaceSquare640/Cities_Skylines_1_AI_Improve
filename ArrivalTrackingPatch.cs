@@ -28,7 +28,7 @@ namespace AIImprove
             float? elapsed = EmergencyDispatchTracker.TakeElapsedSeconds(vehicleId);
             if (elapsed.HasValue)
             {
-                Debug.Log("[AIImprove] " + ownerTypeName + " vehicle " + vehicleId + " arrived " + elapsed.Value.ToString("F1") + "s after dispatch (ignoreCosts patch active).");
+                Debug.Log("[AIImprove] " + ownerTypeName + " vehicle " + vehicleId + " arrived " + elapsed.Value.ToString("F1") + "s after dispatch.");
             }
         }
 
@@ -48,6 +48,28 @@ namespace AIImprove
         {
             public static void Postfix(bool __result, ushort __0, ref Vehicle __1) =>
                 RecordArrival(nameof(PoliceCarAI), __result, __0, ref __1);
+        }
+
+        // Helicopters: dispatch start comes from HelicopterDispatchTrackingPatch instead of
+        // EmergencyIgnoreCostsPatch (helicopters have no path-cost concept to hook - see that
+        // file), but arrival tracking itself is identical since all three copter types override
+        // ArriveAtDestination(ushort, ref Vehicle) individually.
+        internal static class AmbulanceCopter
+        {
+            public static void Postfix(bool __result, ushort __0, ref Vehicle __1) =>
+                RecordArrival(nameof(AmbulanceCopterAI), __result, __0, ref __1);
+        }
+
+        internal static class FireCopter
+        {
+            public static void Postfix(bool __result, ushort __0, ref Vehicle __1) =>
+                RecordArrival(nameof(FireCopterAI), __result, __0, ref __1);
+        }
+
+        internal static class PoliceCopter
+        {
+            public static void Postfix(bool __result, ushort __0, ref Vehicle __1) =>
+                RecordArrival(nameof(PoliceCopterAI), __result, __0, ref __1);
         }
     }
 }

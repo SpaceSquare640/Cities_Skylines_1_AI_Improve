@@ -31,10 +31,89 @@ namespace AIImprove
             TryPatchArrivalTracking(harmony, typeof(AmbulanceAI), typeof(ArrivalTrackingPatch.Ambulance));
             TryPatchArrivalTracking(harmony, typeof(FireTruckAI), typeof(ArrivalTrackingPatch.FireTruck));
             TryPatchArrivalTracking(harmony, typeof(PoliceCarAI), typeof(ArrivalTrackingPatch.PoliceCar));
+            TryPatchArrivalTracking(harmony, typeof(AmbulanceCopterAI), typeof(ArrivalTrackingPatch.AmbulanceCopter));
+            TryPatchArrivalTracking(harmony, typeof(FireCopterAI), typeof(ArrivalTrackingPatch.FireCopter));
+            TryPatchArrivalTracking(harmony, typeof(PoliceCopterAI), typeof(ArrivalTrackingPatch.PoliceCopter));
+            TryPatchHelicopterDispatchTracking(harmony);
             TryPatchTrainPlatformAssignment(harmony);
             TryPatchAircraftGateAssignment(harmony);
+            TryPatchFlexibleReroute(harmony, typeof(TrainAI), typeof(FlexibleReroutePatch.Train));
+            TryPatchFlexibleReroute(harmony, typeof(AircraftAI), typeof(FlexibleReroutePatch.Aircraft));
 
             Debug.Log("[AIImprove] Harmony patches applied.");
+        }
+
+        // Bounded "mid-route dynamic reroute" v1 - see FlexibleReroutePatch.cs /
+        // StuckRerouteTracker.cs. Postfixes SimulationStep(ushort, ref Vehicle, Vector3), which
+        // both TrainAI and AircraftAI override directly with that exact signature.
+        private static bool TryPatchFlexibleReroute(Harmony harmony, Type vehicleAiType, Type patchWrapperType)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    vehicleAiType,
+                    "SimulationStep",
+                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType(), typeof(Vector3) });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] " + vehicleAiType.Name + ".SimulationStep(ushort, ref Vehicle, " +
+                        "Vector3) not found - game version may have changed. Skipping flexible " +
+                        "reroute patch for " + vehicleAiType.Name + ".");
+                    return false;
+                }
+
+                MethodInfo postfix = patchWrapperType.GetMethod("Postfix", BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, postfix: new HarmonyMethod(postfix));
+
+                Debug.Log("[AIImprove] Flexible reroute patch applied for " + vehicleAiType.Name + ".");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Flexible reroute patch failed to apply for " + vehicleAiType.Name +
+                    ", skipping it. Rest of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
+        }
+
+        // Dispatch-start half of helicopter effect measurement - see
+        // HelicopterDispatchTrackingPatch.cs for why this patches the shared HelicopterAI base
+        // method (declaring-type requirement, same reasoning as the ReleaseVehicle fix below) and
+        // filters by instance type instead of patching each copter type individually.
+        private static bool TryPatchHelicopterDispatchTracking(Harmony harmony)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    typeof(HelicopterAI),
+                    "StartPathFind",
+                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType(), typeof(Vector3), typeof(Vector3), typeof(float) });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] HelicopterAI.StartPathFind(5-arg) not found - game version may " +
+                        "have changed. Skipping helicopter dispatch tracking patch.");
+                    return false;
+                }
+
+                MethodInfo postfix = typeof(HelicopterDispatchTrackingPatch).GetMethod(
+                    nameof(HelicopterDispatchTrackingPatch.Postfix), BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, postfix: new HarmonyMethod(postfix));
+
+                Debug.Log("[AIImprove] Helicopter dispatch tracking patch applied.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Helicopter dispatch tracking patch failed to apply, skipping it. " +
+                    "Rest of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
         }
 
         // Occupancy-aware ATC-style platform assignment for trains - upgraded from the earlier

@@ -18,9 +18,26 @@ namespace AIImprove
         private const float SearchRadius = 40f;
         private const float ProbeMaxDistance = 16f; // matches AircraftAI's own FindPathPosition call
 
+        // "Problem 3": if every candidate gate is at or above this occupancy, the airport is
+        // treated as saturated and the landing is refused (see below) rather than piling the
+        // plane in anyway.
+        //
+        // INTERIM VALUE (2026-08-12): first live test at threshold=8 refused 1889/2332 landings
+        // (81%) - far too aggressive, planes were vanishing constantly instead of this being a
+        // rare "truly jammed" fallback. Raised substantially as a stopgap. The real fix is a
+        // proper holding-pattern system (queue + periodic gate re-check + a real place for the
+        // plane to loiter) instead of an outright refusal that despawns the plane - deferred,
+        // see Cities_Skylines_1_AI_Improve_Document/01 "未來規劃：真正的盤旋等待 ATC".
+        private const int SaturationThreshold = 40;
+
         private static bool loggedFirstCall;
 
-        public static void Prefix(ushort vehicleID, AircraftAI __instance, ref Vector3 endPos)
+        // Returning false skips AircraftAI's own StartPathFind body entirely and forces its
+        // result to whatever __result is set to (Harmony convention for boolean Prefixes).
+        // Callers (SetTarget etc.) already handle a false StartPathFind result by calling
+        // data.Unspawn(vehicleID) - the same vanilla path used for "no path found" - so refusing
+        // a landing here is not a new failure mode, just reusing an existing, well-exercised one.
+        public static bool Prefix(ushort vehicleID, AircraftAI __instance, ref Vector3 endPos, ref bool __result)
         {
             if (!loggedFirstCall)
             {
@@ -83,13 +100,23 @@ namespace AIImprove
 
             if (!found)
             {
-                return;
+                return true;
+            }
+
+            if (bestOccupancy >= SaturationThreshold)
+            {
+                Debug.Log(
+                    "[AIImprove] Aircraft " + vehicleID + " refused landing - airport saturated " +
+                    "(best candidate gate occupancy " + bestOccupancy + " >= " + SaturationThreshold + ").");
+                __result = false;
+                return false;
             }
 
             AirTrafficControlManager.AssignGate(vehicleID, bestSegment);
             endPos = bestPos;
 
             Debug.Log("[AIImprove] Aircraft " + vehicleID + " assigned gate segment " + bestSegment + " (occupancy was " + bestOccupancy + ").");
+            return true;
         }
     }
 
