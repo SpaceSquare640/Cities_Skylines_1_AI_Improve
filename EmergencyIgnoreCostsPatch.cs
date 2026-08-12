@@ -80,6 +80,7 @@ namespace AIImprove
                 new CodeInstruction(OpCodes.Ldarg_2),
                 new CodeInstruction(OpCodes.Call, isEmergency),
                 new CodeInstruction(OpCodes.Ldstr, ownerType.Name),
+                new CodeInstruction(OpCodes.Ldarg_1),
                 new CodeInstruction(OpCodes.Call, logAndReturn));
 
             Debug.Log("[AIImprove] EmergencyIgnoreCostsPatch (" + ownerType.Name + ") transpiler applied successfully.");
@@ -95,8 +96,9 @@ namespace AIImprove
         private static readonly HashSet<string> LoggedFirstCall = new HashSet<string>();
 
         // Called from the injected IL, once per StartPathFind call. Returns isEmergency
-        // unchanged - this only exists to prove the patch is actually executing.
-        private static bool LogAndReturn(bool isEmergency, string ownerTypeName)
+        // unchanged - this only exists to prove the patch is actually executing, and (when
+        // isEmergency) to mark the dispatch start time for ArrivalTrackingPatch to consume.
+        private static bool LogAndReturn(bool isEmergency, string ownerTypeName, ushort vehicleId)
         {
             if (LoggedFirstCall.Add(ownerTypeName))
             {
@@ -107,6 +109,13 @@ namespace AIImprove
             {
                 return false;
             }
+
+            // StartPathFind is called for both the outbound (to target) and return (to depot)
+            // legs, and can be called more than once per leg on reroutes. Each call re-stamps
+            // the start time, so what ArrivalTrackingPatch measures is "time since the most
+            // recent path (re)calculation", not strictly "time since original dispatch" - close
+            // enough for a first-pass effect check, see Cities_Skylines_1_AI_Improve_Document/03.
+            EmergencyDispatchTracker.RecordDispatchStart(vehicleId);
 
             long count;
             HitCounts.TryGetValue(ownerTypeName, out count);

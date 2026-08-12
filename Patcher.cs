@@ -28,8 +28,45 @@ namespace AIImprove
             TryPatchEmergencyIgnoreCosts(harmony, typeof(AmbulanceAI), typeof(AmbulanceIgnoreCostsPatch));
             TryPatchEmergencyIgnoreCosts(harmony, typeof(FireTruckAI), typeof(FireTruckIgnoreCostsPatch));
             TryPatchEmergencyIgnoreCosts(harmony, typeof(PoliceCarAI), typeof(PoliceCarIgnoreCostsPatch));
+            TryPatchArrivalTracking(harmony, typeof(AmbulanceAI), typeof(ArrivalTrackingPatch.Ambulance));
+            TryPatchArrivalTracking(harmony, typeof(FireTruckAI), typeof(ArrivalTrackingPatch.FireTruck));
+            TryPatchArrivalTracking(harmony, typeof(PoliceCarAI), typeof(ArrivalTrackingPatch.PoliceCar));
 
             Debug.Log("[AIImprove] Harmony patches applied.");
+        }
+
+        // Effect measurement for the ignore-costs patch above - see ArrivalTrackingPatch.cs.
+        private static bool TryPatchArrivalTracking(Harmony harmony, Type vehicleAiType, Type patchWrapperType)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    vehicleAiType,
+                    "ArriveAtDestination",
+                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType() });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] " + vehicleAiType.Name + ".ArriveAtDestination not found - game " +
+                        "version may have changed. Skipping arrival tracking patch for " + vehicleAiType.Name + ".");
+                    return false;
+                }
+
+                MethodInfo postfix = patchWrapperType.GetMethod("Postfix", BindingFlags.Public | BindingFlags.Static);
+
+                harmony.Patch(original, postfix: new HarmonyMethod(postfix));
+
+                Debug.Log("[AIImprove] Arrival tracking patch applied for " + vehicleAiType.Name + ".");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Arrival tracking patch failed to apply for " + vehicleAiType.Name +
+                    ", skipping it. Rest of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
         }
 
         // Soft dependency: prefer the TMPE-aware patch when TMPE is present and it actually
