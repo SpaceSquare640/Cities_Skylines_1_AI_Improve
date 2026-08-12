@@ -31,15 +31,62 @@ namespace AIImprove
             TryPatchArrivalTracking(harmony, typeof(AmbulanceAI), typeof(ArrivalTrackingPatch.Ambulance));
             TryPatchArrivalTracking(harmony, typeof(FireTruckAI), typeof(ArrivalTrackingPatch.FireTruck));
             TryPatchArrivalTracking(harmony, typeof(PoliceCarAI), typeof(ArrivalTrackingPatch.PoliceCar));
-            TryPatchPlatformGateJitter(harmony, typeof(TrainAI));
+            TryPatchTrainPlatformAssignment(harmony);
             TryPatchAircraftGateAssignment(harmony);
 
             Debug.Log("[AIImprove] Harmony patches applied.");
         }
 
-        // Occupancy-aware ATC-style gate assignment for planes - supersedes the blind jitter
-        // applied to trains above. See AirTrafficControlManager.cs / AircraftGateAssignmentPatch.cs.
+        // Occupancy-aware ATC-style platform assignment for trains - upgraded from the earlier
+        // blind-jitter PlatformGateJitterPatch after in-game testing. See
+        // TrainPlatformAssignmentPatch.cs. Shares AirTrafficControlManager and the
+        // VehicleAI.ReleaseVehicle release patch with the aircraft version below.
+        private static bool TryPatchTrainPlatformAssignment(Harmony harmony)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    typeof(TrainAI),
+                    "StartPathFind",
+                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType(), typeof(Vector3), typeof(Vector3), typeof(bool), typeof(bool) });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] TrainAI.StartPathFind(6-arg) not found - game version may have " +
+                        "changed. Skipping train platform assignment patch.");
+                    return false;
+                }
+
+                MethodInfo prefix = typeof(TrainPlatformAssignmentPatch).GetMethod(
+                    nameof(TrainPlatformAssignmentPatch.Prefix), BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
+
+                Debug.Log("[AIImprove] Train platform assignment patch applied.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Train platform assignment patch failed to apply, skipping it. " +
+                    "Rest of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
+        }
+
+        // Occupancy-aware ATC-style gate assignment for planes - see
+        // AirTrafficControlManager.cs / AircraftGateAssignmentPatch.cs.
+        // Split into two independent try/catch blocks (gate assignment, release tracking) so a
+        // failure in one can never take down the other - see the ReleaseVehicle bug below,
+        // caught by the try/catch exactly as designed rather than crashing anything.
         private static bool TryPatchAircraftGateAssignment(Harmony harmony)
+        {
+            bool gateAssigned = TryPatchAircraftGatePrefix(harmony);
+            TryPatchAircraftGateRelease(harmony);
+            return gateAssigned;
+        }
+
+        private static bool TryPatchAircraftGatePrefix(Harmony harmony)
         {
             try
             {
@@ -60,22 +107,6 @@ namespace AIImprove
                     nameof(AircraftGateAssignmentPatch.Prefix), BindingFlags.Public | BindingFlags.Static);
                 harmony.Patch(startPathFind, prefix: new HarmonyMethod(gatePrefix));
 
-                MethodInfo releaseVehicle = AccessTools.Method(
-                    typeof(AircraftAI), "ReleaseVehicle", new[] { typeof(ushort), typeof(Vehicle).MakeByRefType() });
-
-                if (releaseVehicle != null)
-                {
-                    MethodInfo releasePostfix = typeof(AircraftReleasePatch).GetMethod(
-                        nameof(AircraftReleasePatch.Postfix), BindingFlags.Public | BindingFlags.Static);
-                    harmony.Patch(releaseVehicle, postfix: new HarmonyMethod(releasePostfix));
-                }
-                else
-                {
-                    Debug.LogWarning(
-                        "[AIImprove] AircraftAI.ReleaseVehicle not found - gate occupancy counts " +
-                        "will leak (never freed) until the mod or game restarts. Non-fatal.");
-                }
-
                 Debug.Log("[AIImprove] Aircraft gate assignment patch applied.");
                 return true;
             }
@@ -88,39 +119,42 @@ namespace AIImprove
             }
         }
 
-        // Spreads train platform / plane gate selection across multiple lanes instead of every
-        // vehicle converging on the same one - see PlatformGateJitterPatch.cs.
-        private static bool TryPatchPlatformGateJitter(Harmony harmony, Type vehicleAiType)
+        // KNOWN ISSUE (2026-08-12, fixed): AircraftAI doesn't override ReleaseVehicle, so
+        // AccessTools.Method(typeof(AircraftAI), "ReleaseVehicle", ...) resolves to a MethodInfo
+        // whose ReflectedType is AircraftAI but DeclaringType is VehicleAI - the bundled Harmony
+        // version refuses to patch that ("Patch the declared method ... VehicleAI::ReleaseVehicle
+        // instead"). Fix: patch VehicleAI.ReleaseVehicle directly (the actual declaring type).
+        // This runs for every vehicle in the game, not just aircraft, but that's harmless -
+        // AirTrafficControlManager.ReleaseVehicle no-ops for any vehicle ID it never assigned a
+        // gate to, so cars/buses/trains/etc. passing through cost one dictionary lookup and
+        // nothing else.
+        private static bool TryPatchAircraftGateRelease(Harmony harmony)
         {
             try
             {
-                MethodInfo original = AccessTools.Method(
-                    vehicleAiType,
-                    "StartPathFind",
-                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType(), typeof(Vector3), typeof(Vector3), typeof(bool), typeof(bool) });
+                MethodInfo releaseVehicle = AccessTools.Method(
+                    typeof(VehicleAI), "ReleaseVehicle", new[] { typeof(ushort), typeof(Vehicle).MakeByRefType() });
 
-                if (original == null)
+                if (releaseVehicle == null)
                 {
                     Debug.LogWarning(
-                        "[AIImprove] " + vehicleAiType.Name + ".StartPathFind(6-arg) not found - game " +
-                        "version may have changed. Skipping platform/gate jitter patch for " + vehicleAiType.Name + ".");
+                        "[AIImprove] VehicleAI.ReleaseVehicle not found - gate occupancy counts " +
+                        "will leak (never freed) until the mod or game restarts. Non-fatal.");
                     return false;
                 }
 
-                MethodInfo prefix = typeof(PlatformGateJitterPatch).GetMethod(
-                    nameof(PlatformGateJitterPatch.Prefix),
-                    BindingFlags.Public | BindingFlags.Static);
+                MethodInfo releasePostfix = typeof(AircraftReleasePatch).GetMethod(
+                    nameof(AircraftReleasePatch.Postfix), BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(releaseVehicle, postfix: new HarmonyMethod(releasePostfix));
 
-                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
-
-                Debug.Log("[AIImprove] Platform/gate jitter patch applied for " + vehicleAiType.Name + ".");
+                Debug.Log("[AIImprove] Gate release tracking patch applied (VehicleAI.ReleaseVehicle, all vehicle types).");
                 return true;
             }
             catch (Exception ex)
             {
                 Debug.LogWarning(
-                    "[AIImprove] Platform/gate jitter patch failed to apply for " + vehicleAiType.Name +
-                    ", skipping it. Rest of the mod is unaffected. Reason: " + ex.Message);
+                    "[AIImprove] Gate release tracking patch failed to apply, skipping it. Gate " +
+                    "occupancy counts will leak. Rest of the mod is unaffected. Reason: " + ex.Message);
                 return false;
             }
         }
