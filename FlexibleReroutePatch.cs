@@ -101,6 +101,78 @@ namespace AIImprove
             return method;
         }
 
+        // BusAI.m_targetBuilding does NOT consistently mean "a Building ID" the way it does for
+        // TrainAI/AircraftAI - dnSpy showed BusAI's own StartPathFind(ushort, ref Vehicle) picks
+        // between three different interpretations of that field (a real Building when GoingBack
+        // or DummyTraffic, but a NetManager node ID for a normal transport-line-following bus,
+        // which is what a real intercity bus is). Re-deriving that branching ourselves here would
+        // risk resolving the wrong position and rerouting the bus somewhere nonsensical. Instead,
+        // this reflectively calls BusAI's own 2-arg StartPathFind(ushort, ref Vehicle) - the exact
+        // same convenience method vanilla itself uses to restart pathfinding toward "wherever this
+        // vehicle is currently supposed to be going" - so vanilla's own branching handles target
+        // resolution and we only ever have to decide *whether* to trigger a reroute, not *where to*.
+        private static MethodInfo FindSelfStartPathFind(Type vehicleAiType)
+        {
+            MethodInfo method = AccessTools.Method(
+                vehicleAiType,
+                "StartPathFind",
+                new[] { typeof(ushort), typeof(Vehicle).MakeByRefType() });
+
+            if (method == null)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] " + vehicleAiType.Name + ".StartPathFind(ushort, ref Vehicle) not " +
+                    "found - game version may have changed. Flexible reroute disabled for " +
+                    vehicleAiType.Name + ".");
+            }
+
+            return method;
+        }
+
+        private static void TryRerouteViaSelf(
+            string ownerTypeName,
+            MethodInfo selfStartPathFind,
+            object aiInstance,
+            ushort vehicleID,
+            ref Vehicle vehicleData)
+        {
+            if (selfStartPathFind == null)
+            {
+                return;
+            }
+
+            if (LoggedFirstCall.Add(ownerTypeName))
+            {
+                Debug.Log("[AIImprove] FlexibleReroutePatch (" + ownerTypeName + ") is executing.");
+            }
+
+            if ((vehicleData.m_flags & (Vehicle.Flags.Stopped | Vehicle.Flags.WaitingPath)) != 0)
+            {
+                StuckRerouteTracker.Clear(vehicleID);
+                return;
+            }
+
+            if (vehicleData.m_targetBuilding == 0 && vehicleData.m_sourceBuilding == 0)
+            {
+                return;
+            }
+
+            float aheadDensity = SegmentCongestionQuery.GetAverageAheadDensity(ref vehicleData);
+            if (aheadDensity < 0f || !StuckRerouteTracker.ShouldReroute(vehicleID, aheadDensity))
+            {
+                return;
+            }
+
+            object[] args = { vehicleID, vehicleData };
+            bool success = (bool)selfStartPathFind.Invoke(aiInstance, args);
+            vehicleData = (Vehicle)args[1];
+
+            Debug.Log(
+                "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " ahead segment density " +
+                aheadDensity.ToString("F0") + " too high, requested reroute (via self StartPathFind): " +
+                (success ? "accepted" : "failed"));
+        }
+
         internal static class Train
         {
             private static readonly MethodInfo StartPathFindMethod = FindStartPathFind(typeof(TrainAI));
@@ -123,6 +195,27 @@ namespace AIImprove
                 }
 
                 TryReroute(nameof(AircraftAI), StartPathFindMethod, __instance, vehicleID, ref data);
+            }
+        }
+
+        // Patched on CarAI (the declaring type of SimulationStep(ushort, ref Vehicle, Vector3) -
+        // BusAI doesn't override that exact overload, only the ref-Frame one) and filtered to
+        // BusAI instances, further filtered to intercity buses only - per the explicit request
+        // scope ("城際巴士"), not ordinary in-city bus routes, which already work fine and have a
+        // much higher vehicle count where added reroute-search overhead would matter more.
+        internal static class Bus
+        {
+            private static readonly MethodInfo StartPathFindMethod = FindSelfStartPathFind(typeof(BusAI));
+
+            public static void Postfix(ushort vehicleID, CarAI __instance, ref Vehicle data)
+            {
+                var busAi = __instance as BusAI;
+                if (busAi == null || !TransportStationAI.IsIntercity(busAi.m_info.m_class))
+                {
+                    return;
+                }
+
+                TryRerouteViaSelf(nameof(BusAI), StartPathFindMethod, busAi, vehicleID, ref data);
             }
         }
     }

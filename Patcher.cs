@@ -39,6 +39,10 @@ namespace AIImprove
             TryPatchAircraftGateAssignment(harmony);
             TryPatchFlexibleReroute(harmony, typeof(TrainAI), typeof(FlexibleReroutePatch.Train));
             TryPatchFlexibleReroute(harmony, typeof(AircraftAI), typeof(FlexibleReroutePatch.Aircraft));
+            // CarAI (not BusAI) is the declaring type of SimulationStep(ushort, ref Vehicle,
+            // Vector3) - BusAI only overrides the ref-Frame overload - so this patches CarAI and
+            // FlexibleReroutePatch.Bus.Postfix itself filters to BusAI + intercity buses only.
+            TryPatchFlexibleReroute(harmony, typeof(CarAI), typeof(FlexibleReroutePatch.Bus));
             TryPatchFireResponseCap(harmony, typeof(FireTruckAI), typeof(FireResponseCapPatch.Truck));
             TryPatchFireResponseCap(harmony, typeof(FireCopterAI), typeof(FireResponseCapPatch.Copter));
 
