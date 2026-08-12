@@ -39,8 +39,43 @@ namespace AIImprove
             TryPatchAircraftGateAssignment(harmony);
             TryPatchFlexibleReroute(harmony, typeof(TrainAI), typeof(FlexibleReroutePatch.Train));
             TryPatchFlexibleReroute(harmony, typeof(AircraftAI), typeof(FlexibleReroutePatch.Aircraft));
+            TryPatchFireResponseCap(harmony, typeof(FireTruckAI), typeof(FireResponseCapPatch.Truck));
+            TryPatchFireResponseCap(harmony, typeof(FireCopterAI), typeof(FireResponseCapPatch.Copter));
 
             Debug.Log("[AIImprove] Harmony patches applied.");
+        }
+
+        // Caps responders per burning building - see FireResponseTracker.cs / FireResponseCapPatch.cs.
+        private static bool TryPatchFireResponseCap(Harmony harmony, Type vehicleAiType, Type patchWrapperType)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    vehicleAiType,
+                    "SetTarget",
+                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType(), typeof(ushort) });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] " + vehicleAiType.Name + ".SetTarget not found - game version " +
+                        "may have changed. Skipping fire response cap patch for " + vehicleAiType.Name + ".");
+                    return false;
+                }
+
+                MethodInfo prefix = patchWrapperType.GetMethod("Prefix", BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
+
+                Debug.Log("[AIImprove] Fire response cap patch applied for " + vehicleAiType.Name + ".");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Fire response cap patch failed to apply for " + vehicleAiType.Name +
+                    ", skipping it. Rest of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
         }
 
         // Bounded "mid-route dynamic reroute" v1 - see FlexibleReroutePatch.cs /

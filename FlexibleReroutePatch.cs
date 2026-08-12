@@ -117,6 +117,11 @@ namespace AIImprove
 
             public static void Postfix(ushort vehicleID, AircraftAI __instance, ref Vehicle data)
             {
+                if (HoldingPatternPatch.TryUpdateHolding(StartPathFindMethod, __instance, vehicleID, ref data))
+                {
+                    return;
+                }
+
                 TryReroute(nameof(AircraftAI), StartPathFindMethod, __instance, vehicleID, ref data);
             }
         }
