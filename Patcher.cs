@@ -32,9 +32,60 @@ namespace AIImprove
             TryPatchArrivalTracking(harmony, typeof(FireTruckAI), typeof(ArrivalTrackingPatch.FireTruck));
             TryPatchArrivalTracking(harmony, typeof(PoliceCarAI), typeof(ArrivalTrackingPatch.PoliceCar));
             TryPatchPlatformGateJitter(harmony, typeof(TrainAI));
-            TryPatchPlatformGateJitter(harmony, typeof(AircraftAI));
+            TryPatchAircraftGateAssignment(harmony);
 
             Debug.Log("[AIImprove] Harmony patches applied.");
+        }
+
+        // Occupancy-aware ATC-style gate assignment for planes - supersedes the blind jitter
+        // applied to trains above. See AirTrafficControlManager.cs / AircraftGateAssignmentPatch.cs.
+        private static bool TryPatchAircraftGateAssignment(Harmony harmony)
+        {
+            try
+            {
+                MethodInfo startPathFind = AccessTools.Method(
+                    typeof(AircraftAI),
+                    "StartPathFind",
+                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType(), typeof(Vector3), typeof(Vector3), typeof(bool), typeof(bool) });
+
+                if (startPathFind == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] AircraftAI.StartPathFind(6-arg) not found - game version may " +
+                        "have changed. Skipping aircraft gate assignment patch.");
+                    return false;
+                }
+
+                MethodInfo gatePrefix = typeof(AircraftGateAssignmentPatch).GetMethod(
+                    nameof(AircraftGateAssignmentPatch.Prefix), BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(startPathFind, prefix: new HarmonyMethod(gatePrefix));
+
+                MethodInfo releaseVehicle = AccessTools.Method(
+                    typeof(AircraftAI), "ReleaseVehicle", new[] { typeof(ushort), typeof(Vehicle).MakeByRefType() });
+
+                if (releaseVehicle != null)
+                {
+                    MethodInfo releasePostfix = typeof(AircraftReleasePatch).GetMethod(
+                        nameof(AircraftReleasePatch.Postfix), BindingFlags.Public | BindingFlags.Static);
+                    harmony.Patch(releaseVehicle, postfix: new HarmonyMethod(releasePostfix));
+                }
+                else
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] AircraftAI.ReleaseVehicle not found - gate occupancy counts " +
+                        "will leak (never freed) until the mod or game restarts. Non-fatal.");
+                }
+
+                Debug.Log("[AIImprove] Aircraft gate assignment patch applied.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Aircraft gate assignment patch failed to apply, skipping it. " +
+                    "Rest of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
         }
 
         // Spreads train platform / plane gate selection across multiple lanes instead of every
