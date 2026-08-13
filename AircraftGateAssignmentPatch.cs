@@ -45,7 +45,8 @@ namespace AIImprove
         // proper holding-pattern system (queue + periodic gate re-check + a real place for the
         // plane to loiter) instead of an outright refusal that despawns the plane - deferred,
         // see Cities_Skylines_1_AI_Improve_Document/01 "未來規劃：真正的盤旋等待 ATC".
-        private const int SaturationThreshold = 44;
+        // TUNED (2026-08-13, +10% again per request): 44 -> 48.
+        private const int SaturationThreshold = 48;
 
         private static bool loggedFirstCall;
 
