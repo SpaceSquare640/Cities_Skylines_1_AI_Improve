@@ -13,6 +13,7 @@ Most existing "improved AI" mods for Cities: Skylines change one narrow slice of
 [*] Emergency vehicles ignore path costs when actively dispatched, so they take the fastest route instead of the "safest/cheapest" one vanilla picks.
 [*] Dispatch-to-arrival timing tracked for all six emergency vehicle/helicopter types.
 [*] Fire trucks and fire helicopters are capped at 10 responders per burning building (independently) - vanilla has no such cap and a severe fire can pull in an unbounded number of vehicles. Vehicles blocked by the cap are force-redirected to another building that's still burning and still has room, instead of idling at the station. The cap lifts entirely for any building that's been burning continuously for 15+ minutes.
+[*] Idle/returning fire trucks and helicopters also check for nearby still-burning buildings before accepting idle, prioritizing the closest fire - this incorporates and extends the core idea of the Workshop mod [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2346565561]Smarter Firefighters: Improved AI[/url], combined with this mod's own 10-responder cap and 15-minute-uncap system. [b]You do not need to subscribe to Smarter Firefighters separately if you're using AI_Improve[/b] - its behavior is already built in.
 [*] Not gated behind any DLC - police, medical, and fire helicopters work whether or not you own the DLC that introduced them.
 [/list]
 
@@ -72,13 +73,13 @@ Most existing "improved AI" mods for Cities: Skylines change one narrow slice of
 [list]
 [*] [b]TM:PE[/b]: soft dependency, detected at runtime - no compile-time reference exists anywhere in this project. Some features (e.g. emergency vehicle priority) only activate when TM:PE is present and its Advanced Vehicle AI option is enabled.
 [*] [b]Transfer Manager CE[/b]: overlapping scope on service vehicle dispatch. This mod does not try to replace it; it targets problems Transfer Manager CE doesn't solve rather than re-implementing its path-distance matching.
-[*] [b]Smarter Firefighters[/b]: overlapping scope on fire truck behavior, likely safe to run alongside since it only retargets trucks that are already idle/returning.
+[*] [b]Smarter Firefighters[/b]: its core AI feature has been integrated into and extended by AI_Improve - see the Emergency vehicles section above. [b]No need to subscribe to it separately if you're running AI_Improve[/b]; safe to also keep it subscribed if you want, but redundant.
 [/list]
 
 [h2]License[/h2]
 GPL-3.0.
 
 [h2]Links[/h2]
-Discord: https://discord.gg/aaUQVJeCgC
-GitHub: https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve
-PayPal: https://paypal.me/SpaceSquare640
+[*] [b]Discord[/b]: https://discord.gg/aaUQVJeCgC
+[*] [b]GitHub[/b]: https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve
+[*] [b]PayPal[/b]: https://paypal.me/SpaceSquare640

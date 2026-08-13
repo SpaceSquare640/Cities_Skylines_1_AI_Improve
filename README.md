@@ -27,6 +27,13 @@ spawn time.
   force-redirected to another building that's still burning and still has
   room, instead of idling at the station. The cap lifts entirely for any
   building that's been burning continuously for 15+ minutes.
+- Idle/returning fire trucks and helicopters also check for nearby still-
+  burning buildings before accepting idle, prioritizing the closest fire -
+  this incorporates and extends the core idea of the Steam Workshop mod
+  [Smarter Firefighters: Improved AI](https://steamcommunity.com/sharedfiles/filedetails/?id=2346565561),
+  combined with this mod's own 10-responder cap and 15-minute-uncap system.
+  **You do not need to subscribe to Smarter Firefighters separately if
+  you're using AI_Improve** - its behavior is already built in.
 - Not gated behind any DLC - police, medical, and fire helicopters work
   whether or not you own the DLC that introduced them.
 
@@ -88,7 +95,7 @@ spawn time.
 
 - **[TM:PE](https://github.com/CitiesSkylinesMods/TMPE)**: soft dependency, detected at runtime via reflection - no compile-time reference exists anywhere in this project. Some features (e.g. emergency vehicle priority) only activate when TM:PE is present and its Advanced Vehicle AI option is enabled; a TM:PE-independent fallback is planned but not yet implemented for all features.
 - **[Transfer Manager CE](https://github.com/Sleepy334/TransferManagerCE)**: overlapping scope on service vehicle dispatch. This mod does not try to replace it; it targets problems Transfer Manager CE doesn't solve (multi-demand allocation, risk-weighted dispatch) rather than re-implementing its path-distance matching.
-- **[Smarter Firefighters](https://github.com/themonthlydaily/Cities-Skylines---Smarter-Firefighters-Improved-AI)**: overlapping scope on fire truck behavior, likely safe to run alongside since it only retargets trucks that are already idle/returning.
+- **[Smarter Firefighters](https://steamcommunity.com/sharedfiles/filedetails/?id=2346565561)**: its core AI feature (redirecting idle/returning fire trucks and helicopters to nearby still-burning buildings) has been integrated into and extended by AI_Improve - see the Emergency vehicles section above. **No need to subscribe to it separately if you're running AI_Improve**; safe to also keep it subscribed if you want, but redundant.
 
 Known overlaps are documented, not avoided - see the Compatibility section
 above for what each mod actually does differently.
