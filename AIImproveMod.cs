@@ -9,7 +9,7 @@ namespace AIImprove
     {
         public string Name => "AI_Improve";
 
-        public string Description => "Improves traffic, citizen and service vehicle AI decision quality.";
+        public string Description => "Improves traffic, citizen and service vehicle AI decision quality. By SpaceSquare.";
 
         public void OnEnabled()
         {

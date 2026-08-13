@@ -1,7 +1,7 @@
 # AI_Improve
 
 A Cities: Skylines (2015) mod that improves the game's traffic, citizen, and
-service vehicle AI decision quality.
+service vehicle AI decision quality - by SpaceSquare.
 
 ## Why this mod exists
 
@@ -14,12 +14,70 @@ it's made, and never revisit it as conditions change. `AI_Improve` focuses on
 reconsider their decisions as the city around them changes, not just once at
 spawn time.
 
-## Current status
+## Features
 
-Early development. See open issues / commit history for progress. The first
-working feature is emergency vehicle path priority (ambulances and fire
-trucks weight road congestion less heavily when TM:PE's Advanced Vehicle AI
-is active).
+### Emergency vehicles (ambulance / fire truck / police car + helicopters)
+- Emergency vehicles ignore path costs when actively dispatched, so they take
+  the fastest route instead of the "safest/cheapest" one vanilla picks.
+- Dispatch-to-arrival timing tracked for all six emergency vehicle/helicopter
+  types.
+- Fire trucks and fire helicopters are capped at 10 responders per burning
+  building (independently) - vanilla has no such cap and a severe fire can
+  pull in an unbounded number of vehicles. Vehicles blocked by the cap are
+  force-redirected to another building that's still burning and still has
+  room, instead of idling at the station. The cap lifts entirely for any
+  building that's been burning continuously for 15+ minutes.
+- Not gated behind any DLC - police, medical, and fire helicopters work
+  whether or not you own the DLC that introduced them.
+
+### Trains, intercity trains, and metro
+- Occupancy-aware platform assignment - trains actively spread across a
+  station's available tracks instead of all piling onto the same platform.
+- Real-time congestion-density-based dynamic rerouting mid-journey, not just
+  a one-time route chosen at departure.
+- Correctly distinguishes departing trains from arriving ones, so leaving
+  trains are never mistakenly funneled into platform-assignment logic meant
+  for landing.
+- Stations approaching saturation aren't forced onto the least-bad already-
+  jammed platform.
+- New incoming intercity trains are throttled when their destination station
+  is already saturated, instead of continuing to spawn into an already-full
+  station.
+
+### Aircraft
+- Occupancy-aware gate assignment across a wide, two-ring candidate search,
+  so planes spread across an airport's real gate capacity instead of piling
+  onto a handful of segments.
+- Real-time congestion-based mid-flight rerouting.
+- Correctly distinguishes departing flights (heading to an outside
+  connection) from arriving ones, so departures are never mistaken for gate-
+  seeking landings.
+- Airports refuse new landings once saturated rather than piling planes onto
+  an already-jammed taxiway.
+- **Thunderstorm response**: airports refuse new landings and departures,
+  and emergency helicopters ground new dispatches, for the duration of an
+  active thunderstorm disaster.
+
+### Intercity and city buses
+- Real-time congestion-density-based dynamic rerouting.
+
+### Ordinary city traffic (cars, taxis, cargo trucks)
+- Every ordinary road vehicle in the city (private cars, taxis, cargo trucks,
+  buses) dynamically reroutes around real-time congestion mid-journey,
+  not just once at trip start.
+- Rate-limited to a small number of actual reroute computations per
+  simulation frame, so a burst of vehicles crossing the congestion threshold
+  at once doesn't cause a visible stutter.
+
+### Citizens
+- Citizens are less likely to drive their own car into an already-congested
+  destination, nudging more trips toward walking or public transit instead.
+- Taxi usage increased on trips where a citizen has already decided not to
+  drive themselves.
+
+### Race cars
+- Removed the per-racer top-speed cap - corners still slow cars down
+  realistically, but straights are no longer artificially capped.
 
 ## Requirements
 
