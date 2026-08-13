@@ -119,9 +119,21 @@ namespace AIImprove
         // still actually on fire (live check, not trusting the pool alone) and still has
         // capacity for this vehicle type (or has passed the 15-minute uncapped threshold).
         // Returns 0 if nothing suitable is found - caller should fall back to idling.
-        public static ushort TryFindAlternateBurningBuilding(bool isCopter, ushort excludeBuilding)
+        //
+        // REVISED (2026-08-14): now picks the CLOSEST valid candidate to fromPosition instead of
+        // just the first one found in the pool's (arbitrary hash-set) iteration order - "距離" is
+        // the entire point of retargeting an idle vehicle rather than letting it idle/return, per
+        // Smarter Firefighters' own stated rationale (a truck finishing a job should look for
+        // fires *nearby*, not get sent clear across the map). Used both for cap-overflow
+        // redirects and, since this same call, for genuinely idle vehicles - see
+        // FireResponseCapPatch's targetBuilding == 0 branch.
+        public static ushort TryFindAlternateBurningBuilding(bool isCopter, ushort excludeBuilding, Vector3 fromPosition)
         {
             Dictionary<ushort, int> counts = isCopter ? CopterResponseCount : TruckResponseCount;
+            Building[] buildings = Singleton<BuildingManager>.instance.m_buildings.m_buffer;
+
+            ushort best = 0;
+            float bestDistSqr = float.MaxValue;
 
             foreach (ushort candidate in KnownBurningBuildings)
             {
@@ -137,18 +149,28 @@ namespace AIImprove
 
                 if (!IsCapped(candidate))
                 {
-                    return candidate;
+                    // Already past the 15-minute uncapped threshold - always eligible, but still
+                    // compete on distance against other eligible candidates below.
+                }
+                else
+                {
+                    int current;
+                    counts.TryGetValue(candidate, out current);
+                    if (current >= MaxRespondersPerBuilding)
+                    {
+                        continue;
+                    }
                 }
 
-                int current;
-                counts.TryGetValue(candidate, out current);
-                if (current < MaxRespondersPerBuilding)
+                float distSqr = (buildings[candidate].m_position - fromPosition).sqrMagnitude;
+                if (distSqr < bestDistSqr)
                 {
-                    return candidate;
+                    bestDistSqr = distSqr;
+                    best = candidate;
                 }
             }
 
-            return 0;
+            return best;
         }
 
         // Call when a vehicle despawns, so counts don't leak upward forever.
