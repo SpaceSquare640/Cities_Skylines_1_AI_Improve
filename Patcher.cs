@@ -48,8 +48,44 @@ namespace AIImprove
             TryPatchFireResponseCap(harmony, typeof(FireTruckAI), typeof(FireResponseCapPatch.Truck));
             TryPatchFireResponseCap(harmony, typeof(FireCopterAI), typeof(FireResponseCapPatch.Copter));
             TryPatchTrainSpawnThrottle(harmony);
+            TryPatchCitizenCarProbability(harmony);
 
             Debug.Log("[AIImprove] Harmony patches applied.");
+        }
+
+        // Makes citizens' walk/drive/transit split respond to real-time road congestion - see
+        // CitizenCarProbabilityPatch.cs. GetCarProbability is private, hence BindingFlags.NonPublic.
+        private static bool TryPatchCitizenCarProbability(Harmony harmony)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    typeof(ResidentAI),
+                    "GetCarProbability",
+                    new[] { typeof(ushort), typeof(CitizenInstance).MakeByRefType(), typeof(Citizen.AgeGroup) });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] ResidentAI.GetCarProbability not found - game version may have " +
+                        "changed. Skipping citizen car probability patch.");
+                    return false;
+                }
+
+                MethodInfo postfix = typeof(CitizenCarProbabilityPatch).GetMethod(
+                    nameof(CitizenCarProbabilityPatch.Postfix), BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, postfix: new HarmonyMethod(postfix));
+
+                Debug.Log("[AIImprove] Citizen car probability patch applied.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Citizen car probability patch failed to apply, skipping it. Rest " +
+                    "of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
         }
 
         // Skips spawning a new incoming intercity train when its destination station is already
