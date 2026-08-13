@@ -42,9 +42,16 @@ namespace AIImprove
             // CarAI is the declaring type of SimulationStep(ushort, ref Vehicle, Vector3) - some
             // subtypes (e.g. BusAI) only override the ref-Frame overload - so this patches CarAI
             // directly; FlexibleReroutePatch.Car.Postfix covers every ordinary road vehicle
-            // (private cars, taxis, cargo trucks, in-city and intercity buses) and excludes
-            // emergency vehicles, which are handled separately.
+            // (private cars, taxis, in-city and intercity buses) and excludes emergency vehicles,
+            // which are handled separately.
             TryPatchFlexibleReroute(harmony, typeof(CarAI), typeof(FlexibleReroutePatch.Car));
+            // CargoTruckAI is a CarAI subtype but overrides this exact SimulationStep(ushort, ref
+            // Vehicle, Vector3) overload with its own implementation - the CarAI patch above never
+            // actually runs for cargo trucks (this is the "must patch the declaring/overriding
+            // type" rule from earlier in this project, not a new lesson) - so it needs its own
+            // registration, reusing the same Car wrapper (it already resolves each vehicle's own
+            // StartPathFind by its actual runtime type).
+            TryPatchFlexibleReroute(harmony, typeof(CargoTruckAI), typeof(FlexibleReroutePatch.Car));
             TryPatchFireResponseCap(harmony, typeof(FireTruckAI), typeof(FireResponseCapPatch.Truck));
             TryPatchFireResponseCap(harmony, typeof(FireCopterAI), typeof(FireResponseCapPatch.Copter));
             TryPatchTrainSpawnThrottle(harmony);
