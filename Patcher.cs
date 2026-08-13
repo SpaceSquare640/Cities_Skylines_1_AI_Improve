@@ -58,8 +58,44 @@ namespace AIImprove
             TryPatchCitizenCarProbability(harmony);
             TryPatchCitizenTaxiProbability(harmony);
             TryPatchHelicopterWeatherHalt(harmony);
+            TryPatchRaceCarSpeed(harmony);
 
             Debug.Log("[AIImprove] Harmony patches applied.");
+        }
+
+        // Removes each racer's individual top-speed cap - see RaceCarSpeedPatch.cs.
+        // CalculateTargetSpeed is protected, hence BindingFlags.NonPublic.
+        private static bool TryPatchRaceCarSpeed(Harmony harmony)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    typeof(RaceCarAI),
+                    "CalculateTargetSpeed",
+                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType(), typeof(float), typeof(float) });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] RaceCarAI.CalculateTargetSpeed not found - game version may " +
+                        "have changed. Skipping race car speed patch.");
+                    return false;
+                }
+
+                MethodInfo prefix = typeof(RaceCarSpeedPatch).GetMethod(
+                    nameof(RaceCarSpeedPatch.Prefix), BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
+
+                Debug.Log("[AIImprove] Race car speed patch applied.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Race car speed patch failed to apply, skipping it. Rest of the " +
+                    "mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
         }
 
         // Grounds new emergency-helicopter dispatches during an active thunderstorm - see
