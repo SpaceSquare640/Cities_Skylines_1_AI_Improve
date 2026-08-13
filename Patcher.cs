@@ -65,6 +65,9 @@ namespace AIImprove
             TryPatchFlexibleReroute(harmony, typeof(PassengerHelicopterAI), typeof(FlexibleReroutePatch.PassengerHelicopter));
             TryPatchPassengerHelicopterCapacity(harmony);
             TryPatchIntercityBusCapacity(harmony);
+            TryPatchTransitStationSkip(harmony, typeof(BusAI), typeof(TransitStationSkipPatch.Bus));
+            TryPatchTransitStationSkip(harmony, typeof(PassengerHelicopterAI), typeof(TransitStationSkipPatch.PassengerHelicopter));
+            TryPatchTransitStationSkip(harmony, typeof(PassengerTrainAI), typeof(TransitStationSkipPatch.Metro));
 
             Debug.Log("[AIImprove] Harmony patches applied.");
         }
@@ -99,6 +102,44 @@ namespace AIImprove
                 Debug.LogWarning(
                     "[AIImprove] Intercity bus capacity patch failed to apply, skipping it. Rest " +
                     "of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
+        }
+
+        // "Fly past a congested/empty stop" - see TransitStationSkipPatch.cs. ArriveAtTarget is
+        // private on every target type here, hence BindingFlags.NonPublic (needed for the
+        // instance-method search since it's not public). Both Prefix (captures pre-call state)
+        // and Postfix (does the actual skip decision) patch the same original method.
+        private static bool TryPatchTransitStationSkip(Harmony harmony, Type vehicleAiType, Type patchWrapperType)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    vehicleAiType,
+                    "ArriveAtTarget",
+                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType() });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] " + vehicleAiType.Name + ".ArriveAtTarget not found - game " +
+                        "version may have changed. Skipping transit station skip patch for " +
+                        vehicleAiType.Name + ".");
+                    return false;
+                }
+
+                MethodInfo prefix = patchWrapperType.GetMethod("Prefix", BindingFlags.Public | BindingFlags.Static);
+                MethodInfo postfix = patchWrapperType.GetMethod("Postfix", BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, prefix: new HarmonyMethod(prefix), postfix: new HarmonyMethod(postfix));
+
+                Debug.Log("[AIImprove] Transit station skip patch applied for " + vehicleAiType.Name + ".");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Transit station skip patch failed to apply for " + vehicleAiType.Name +
+                    ", skipping it. Rest of the mod is unaffected. Reason: " + ex.Message);
                 return false;
             }
         }
