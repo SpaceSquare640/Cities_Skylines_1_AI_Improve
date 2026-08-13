@@ -65,7 +65,7 @@ namespace AIImprove
             // the right signal for "where is this vehicle currently headed."
             ushort targetBuilding = vehicleData.m_targetBuilding;
 
-            if (targetBuilding == 0)
+            if (targetBuilding == 0 || StuckRerouteTracker.IsOnCooldown(vehicleID))
             {
                 return;
             }
@@ -157,7 +157,7 @@ namespace AIImprove
                 return;
             }
 
-            if (vehicleData.m_targetBuilding == 0 && vehicleData.m_sourceBuilding == 0)
+            if ((vehicleData.m_targetBuilding == 0 && vehicleData.m_sourceBuilding == 0) || StuckRerouteTracker.IsOnCooldown(vehicleID))
             {
                 return;
             }

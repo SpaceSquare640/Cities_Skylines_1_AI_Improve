@@ -33,6 +33,23 @@ namespace AIImprove
 
         private static readonly Dictionary<ushort, State> States = new Dictionary<ushort, State>();
 
+        // Cheap pre-check with no density input, so callers can skip the real (segment-walking)
+        // density computation entirely for a vehicle that's still on cooldown. Added 2026-08-13
+        // as a hot-path optimization once FlexibleReroutePatch started running for every ordinary
+        // CarAI vehicle in the city every tick - SegmentCongestionQuery.GetAverageAheadDensity
+        // was being computed unconditionally even for the common case of a vehicle that just
+        // rerouted and can't act again for another ~40 seconds regardless.
+        public static bool IsOnCooldown(ushort vehicleId)
+        {
+            State state;
+            if (!States.TryGetValue(vehicleId, out state))
+            {
+                return false;
+            }
+
+            return Time.realtimeSinceStartup - state.LastRerouteTime < RerouteCooldownSeconds;
+        }
+
         // Call every SimulationStep with the average congestion density ahead of the vehicle
         // (see SegmentCongestionQuery.GetAverageAheadDensity). Returns true at most once per
         // RerouteCooldownSeconds, whenever that density is at or above DensityThreshold.
