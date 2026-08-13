@@ -61,8 +61,83 @@ namespace AIImprove
             TryPatchRaceCarSpeed(harmony);
             TryPatchTrainPassengerCapacity(harmony);
             TryPatchRaceBuildingAttractiveness(harmony);
+            TryPatchPassengerHelicopterGateAssignment(harmony);
+            TryPatchFlexibleReroute(harmony, typeof(PassengerHelicopterAI), typeof(FlexibleReroutePatch.PassengerHelicopter));
+            TryPatchPassengerHelicopterCapacity(harmony);
 
             Debug.Log("[AIImprove] Harmony patches applied.");
+        }
+
+        // Occupancy-aware landing-point assignment for passenger helicopters - see
+        // PassengerHelicopterGateAssignmentPatch.cs. Release tracking is already covered by the
+        // existing global VehicleAI.ReleaseVehicle patch (TryPatchAircraftGateRelease) -
+        // PassengerHelicopterAI's own ReleaseVehicle override calls base.ReleaseVehicle, so that
+        // patch fires for it too.
+        private static bool TryPatchPassengerHelicopterGateAssignment(Harmony harmony)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    typeof(PassengerHelicopterAI),
+                    "StartPathFind",
+                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType(), typeof(Vector3), typeof(Vector3), typeof(bool), typeof(bool), typeof(bool) });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] PassengerHelicopterAI.StartPathFind(7-arg) not found - game " +
+                        "version may have changed. Skipping passenger helicopter gate assignment patch.");
+                    return false;
+                }
+
+                MethodInfo prefix = typeof(PassengerHelicopterGateAssignmentPatch).GetMethod(
+                    nameof(PassengerHelicopterGateAssignmentPatch.Prefix), BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
+
+                Debug.Log("[AIImprove] Passenger helicopter gate assignment patch applied.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Passenger helicopter gate assignment patch failed to apply, " +
+                    "skipping it. Rest of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
+        }
+
+        // Boosts passenger helicopter capacity - see PassengerHelicopterCapacityPatch.cs.
+        private static bool TryPatchPassengerHelicopterCapacity(Harmony harmony)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    typeof(PassengerHelicopterAI),
+                    "CreateVehicle",
+                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType() });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] PassengerHelicopterAI.CreateVehicle not found - game version " +
+                        "may have changed. Skipping passenger helicopter capacity patch.");
+                    return false;
+                }
+
+                MethodInfo prefix = typeof(PassengerHelicopterCapacityPatch).GetMethod(
+                    nameof(PassengerHelicopterCapacityPatch.Prefix), BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
+
+                Debug.Log("[AIImprove] Passenger helicopter capacity patch applied.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Passenger helicopter capacity patch failed to apply, skipping it. " +
+                    "Rest of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
         }
 
         // Boosts intercity/regional train passenger capacity - see

@@ -247,5 +247,23 @@ namespace AIImprove
                 TryRerouteViaSelf(actualType.Name, startPathFind, __instance, vehicleID, ref data);
             }
         }
+
+        // PassengerHelicopterAI is a genuinely different vehicle class from the emergency copters
+        // (AmbulanceCopterAI/FireCopterAI/PoliceCopterAI, which are HelicopterAI and never touch
+        // PathManager/CreatePath at all) - it inherits VehicleAI directly and does real
+        // PathManager.FindPathPosition/CreatePath pathfinding, confirmed via dnSpy, so real-time
+        // congestion-based rerouting applies the same way it does for buses/cargo trucks. Its own
+        // StartPathFind(ushort, ref Vehicle) has the same "m_targetBuilding is a NetManager node
+        // ID, not a Building ID" quirk BusAI has, so this reuses the same self-StartPathFind
+        // reflection trick rather than resolving a destination position itself.
+        internal static class PassengerHelicopter
+        {
+            private static readonly MethodInfo StartPathFindMethod = FindSelfStartPathFind(typeof(PassengerHelicopterAI));
+
+            public static void Postfix(ushort vehicleID, PassengerHelicopterAI __instance, ref Vehicle data)
+            {
+                TryRerouteViaSelf(nameof(PassengerHelicopterAI), StartPathFindMethod, __instance, vehicleID, ref data);
+            }
+        }
     }
 }
