@@ -3,13 +3,13 @@ using UnityEngine;
 
 namespace AIImprove
 {
-    // "賽車的 AI 我想他的駕駛速度為無上限" (2026-08-13): removes each racer's individual top-speed
-    // cap. dnSpy showed RaceCarAI.CalculateTargetSpeed computes a curve/turning-based cornering
-    // speed (num, from the car's RacerData.m_turning) and then clamps it with
-    // Mathf.Min(num, racerData.m_maxSpeed) - that clamp is the actual "top speed" stat being
-    // removed here. The cornering math itself is left untouched, so cars still slow realistically
-    // for turns; only the flat ceiling on straights (and anywhere the corner math would otherwise
-    // allow more) is lifted.
+    // "賽車的 AI 我想他的駕駛速度為無上限" (2026-08-13), REVISED (2026-08-14) to "賽車AI固定速度為
+    // 120以內" - originally removed each racer's individual top-speed cap entirely (set to a very
+    // large value); now instead fixes it at a flat 120 ceiling for every racer. dnSpy showed
+    // RaceCarAI.CalculateTargetSpeed computes a curve/turning-based cornering speed (num, from the
+    // car's RacerData.m_turning) and then clamps it with Mathf.Min(num, racerData.m_maxSpeed) -
+    // that clamp is what's being overridden here. The cornering math itself is left untouched, so
+    // cars still slow realistically for turns; only the flat top-speed ceiling changes.
     //
     // RacerData is a class (reference type), not a struct - eventData.m_raceEventData.m_racerData
     // returns a live reference to the same object CalculateTargetSpeed itself reads moments later,
@@ -17,10 +17,7 @@ namespace AIImprove
     // duplicate the cornering formula or otherwise touch the original method's logic.
     internal static class RaceCarSpeedPatch
     {
-        // Not float.MaxValue - kept merely "unreasonably high for this game" rather than the
-        // literal float ceiling, to avoid any risk of overflow/NaN in downstream squaring
-        // (CalculateMaxSpeed's braking-distance math uses targetSpeed^2) or oscillation math.
-        private const float UnlimitedMaxSpeed = 100000f;
+        private const float MaxSpeed = 120f;
 
         private static bool loggedFirstCall;
 
@@ -51,7 +48,7 @@ namespace AIImprove
                 Debug.Log("[AIImprove] RaceCarSpeedPatch is executing.");
             }
 
-            racerData.m_maxSpeed = UnlimitedMaxSpeed;
+            racerData.m_maxSpeed = MaxSpeed;
         }
     }
 }
