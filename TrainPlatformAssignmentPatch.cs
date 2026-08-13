@@ -1,3 +1,4 @@
+using ColossalFramework;
 using UnityEngine;
 
 namespace AIImprove
@@ -12,20 +13,96 @@ namespace AIImprove
     // Uses TrainAI's own FindPathPosition overload (train pathfinding takes m_netService /
     // m_secondaryNetService instead of a single ItemClass.Service like aircraft) so probed
     // candidates resolve to the same kind of lane the real pathfind would pick.
+    //
+    // REVISED (2026-08-13), mirroring the aircraft fixes from the same day:
+    //  - StartPathFind is called for both arriving AT a station and departing to an outside
+    //    connection. The old code ran the same platform search either way with no way to tell
+    //    them apart, so a departing train's endPos (an outside connection, whose track segment
+    //    every departing train on that connection converges on) could get treated as just
+    //    another "platform" candidate and pulled into this logic pointlessly. Now resolves the
+    //    real destination building by matching endPos against source/target position (position-
+    //    based, not a GoingBack-flag guess - see AircraftGateAssignmentPatch's notes on why that
+    //    guess turned out wrong) and skips entirely unless it's a real station, not an outside
+    //    connection.
+    //  - Widened from a single 30m/8-candidate ring to two rings (matching the aircraft gate
+    //    search), so a busy multi-platform station actually gets spread across more of its real
+    //    track capacity instead of a small nearby sample.
+    //  - Added a saturation threshold: if every candidate is heavily occupied, this now leaves
+    //    endPos untouched (same as the !found case) instead of actively directing the train into
+    //    the least-bad but still-jammed option. Trains don't have the aircraft's despawn risk on
+    //    a rejected path (real track/signal blocking already queues them safely), so no
+    //    holding-pattern equivalent is needed - just not making the jam worse by picking for it.
     internal static class TrainPlatformAssignmentPatch
     {
-        private const int CandidateCount = 8;
-        private const float SearchRadius = 30f;
+        private const int CandidateCount = 24;
+        private static readonly float[] SearchRadii = { 30f, 60f };
         private const float ProbeMaxDistance = 32f; // matches TrainAI's own FindPathPosition call
+
+        // Same rationale/value as AircraftGateAssignmentPatch.SaturationThreshold - "every nearby
+        // candidate already has this many trains assigned" is treated as saturated.
+        private const int SaturationThreshold = 40;
 
         private static bool loggedFirstCall;
 
-        public static void Prefix(ushort vehicleID, TrainAI __instance, ref Vector3 endPos)
+        // Records the most recent saturation reading per station, taken as a side effect of this
+        // Prefix's own real candidate search below - not a separate check. TrainSpawnThrottlePatch
+        // reads this to decide whether OutsideConnectionAI should even bother spawning a new
+        // incoming intercity train, without needing to duplicate the (relatively expensive)
+        // FindPathPosition candidate search itself, and without needing a VehicleInfo/TransportInfo
+        // at spawn time (StartTransfer doesn't have one yet - the vehicle prefab is picked inside
+        // the very call this would need to run before). Absence of an entry (a station nothing has
+        // recently pathed to) defaults to "not saturated" in the reader - fails open, same
+        // philosophy as every occupancy estimate elsewhere in this project.
+        private static readonly System.Collections.Generic.Dictionary<ushort, bool> StationSaturated =
+            new System.Collections.Generic.Dictionary<ushort, bool>();
+
+        public static bool IsStationLikelySaturated(ushort stationBuildingId)
+        {
+            bool saturated;
+            return StationSaturated.TryGetValue(stationBuildingId, out saturated) && saturated;
+        }
+
+        private static bool IsRealStation(ushort buildingId)
+        {
+            if (buildingId == 0)
+            {
+                return false;
+            }
+
+            BuildingInfo info = Singleton<BuildingManager>.instance.m_buildings.m_buffer[buildingId].Info;
+            return info != null && !(info.m_buildingAI is OutsideConnectionAI);
+        }
+
+        // Which of m_sourceBuilding/m_targetBuilding is actually this leg's destination,
+        // determined by matching endPos against each building's real position rather than
+        // guessing from Vehicle.Flags.GoingBack - see AircraftGateAssignmentPatch's
+        // ResolveDestinationBuilding for why the flag-based guess isn't reliable here.
+        private static ushort ResolveDestinationBuilding(ref Vehicle vehicleData, Vector3 endPos)
+        {
+            ushort target = vehicleData.m_targetBuilding;
+            ushort source = vehicleData.m_sourceBuilding;
+
+            Building[] buildings = Singleton<BuildingManager>.instance.m_buildings.m_buffer;
+            float targetDistSqr = target != 0 ? (buildings[target].m_position - endPos).sqrMagnitude : float.MaxValue;
+            float sourceDistSqr = source != 0 ? (buildings[source].m_position - endPos).sqrMagnitude : float.MaxValue;
+
+            return targetDistSqr <= sourceDistSqr ? target : source;
+        }
+
+        public static void Prefix(ushort vehicleID, TrainAI __instance, ref Vehicle vehicleData, ref Vector3 endPos)
         {
             if (!loggedFirstCall)
             {
                 loggedFirstCall = true;
                 Debug.Log("[AIImprove] TrainPlatformAssignmentPatch is executing.");
+            }
+
+            ushort targetBuilding = ResolveDestinationBuilding(ref vehicleData, endPos);
+            if (!IsRealStation(targetBuilding))
+            {
+                // Not arriving at a real station this leg (e.g. departing to an outside
+                // connection) - leave vanilla's own endPos untouched.
+                return;
             }
 
             VehicleInfo info = __instance.m_info;
@@ -36,56 +113,73 @@ namespace AIImprove
             ushort bestSegment = 0;
             int bestOccupancy = int.MaxValue;
             bool found = false;
+            var seenSegments = new System.Collections.Generic.HashSet<ushort>();
 
-            for (int i = 0; i < CandidateCount; i++)
+            foreach (float searchRadius in SearchRadii)
             {
-                float angle = i * (360f / CandidateCount) * Mathf.Deg2Rad;
-                Vector3 candidate = originalEndPos + new Vector3(Mathf.Cos(angle) * SearchRadius, 0f, Mathf.Sin(angle) * SearchRadius);
-
-                PathUnit.Position position;
-                PathUnit.Position position2;
-                float distance;
-                float distance2;
-                bool resolved = PathManager.FindPathPosition(
-                    candidate,
-                    transportInfo.m_netService,
-                    transportInfo.m_secondaryNetService,
-                    NetInfo.LaneType.Vehicle,
-                    info.m_vehicleType,
-                    info.vehicleCategory,
-                    VehicleInfo.VehicleType.None,
-                    false,
-                    false,
-                    ProbeMaxDistance,
-                    false,
-                    false,
-                    out position,
-                    out position2,
-                    out distance,
-                    out distance2);
-
-                if (!resolved)
+                for (int i = 0; i < CandidateCount; i++)
                 {
-                    continue;
-                }
+                    float angle = i * (360f / CandidateCount) * Mathf.Deg2Rad;
+                    Vector3 candidate = originalEndPos + new Vector3(Mathf.Cos(angle) * searchRadius, 0f, Mathf.Sin(angle) * searchRadius);
 
-                int occupancy = AirTrafficControlManager.GetOccupancy(position.m_segment);
-                if (occupancy < bestOccupancy)
-                {
-                    bestOccupancy = occupancy;
-                    bestPos = candidate;
-                    bestSegment = position.m_segment;
-                    found = true;
+                    PathUnit.Position position;
+                    PathUnit.Position position2;
+                    float distance;
+                    float distance2;
+                    bool resolved = PathManager.FindPathPosition(
+                        candidate,
+                        transportInfo.m_netService,
+                        transportInfo.m_secondaryNetService,
+                        NetInfo.LaneType.Vehicle,
+                        info.m_vehicleType,
+                        info.vehicleCategory,
+                        VehicleInfo.VehicleType.None,
+                        false,
+                        false,
+                        ProbeMaxDistance,
+                        false,
+                        false,
+                        out position,
+                        out position2,
+                        out distance,
+                        out distance2);
 
-                    if (occupancy == 0)
+                    if (!resolved || !seenSegments.Add(position.m_segment))
                     {
-                        break;
+                        continue;
+                    }
+
+                    int occupancy = AirTrafficControlManager.GetOccupancy(position.m_segment);
+                    if (occupancy < bestOccupancy)
+                    {
+                        bestOccupancy = occupancy;
+                        bestPos = candidate;
+                        bestSegment = position.m_segment;
+                        found = true;
+
+                        if (occupancy == 0)
+                        {
+                            goto searchDone;
+                        }
                     }
                 }
             }
 
+            searchDone:
             if (!found)
             {
+                return;
+            }
+
+            bool saturated = bestOccupancy >= SaturationThreshold;
+            StationSaturated[targetBuilding] = saturated;
+
+            if (saturated)
+            {
+                Debug.Log(
+                    "[AIImprove] Train " + vehicleID + " approaching saturated station (best candidate " +
+                    "occupancy " + bestOccupancy + " >= " + SaturationThreshold + ") - leaving vanilla " +
+                    "platform choice untouched instead of forcing it into the least-bad option.");
                 return;
             }
 

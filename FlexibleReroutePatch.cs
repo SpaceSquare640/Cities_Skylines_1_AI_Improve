@@ -56,9 +56,14 @@ namespace AIImprove
                 return;
             }
 
-            ushort targetBuilding = (vehicleData.m_flags & Vehicle.Flags.GoingBack) != 0
-                ? vehicleData.m_sourceBuilding
-                : vehicleData.m_targetBuilding;
+            // REVISED (2026-08-13): used to pick source vs target based on Vehicle.Flags.GoingBack,
+            // mirroring a pattern borrowed from the emergency-vehicle dispatch code. dnSpy showed
+            // that's not how the base VehicleAI.StartPathFind(ushort, ref Vehicle) - which TrainAI
+            // doesn't override, and which many vehicle AIs including AircraftAI's own equivalent
+            // built-in logic ultimately mirror - actually decides where to go: it unconditionally
+            // trusts vehicleData.m_targetBuilding, GoingBack or not. That flag toggling was never
+            // the right signal for "where is this vehicle currently headed."
+            ushort targetBuilding = vehicleData.m_targetBuilding;
 
             if (targetBuilding == 0)
             {
@@ -66,7 +71,7 @@ namespace AIImprove
             }
 
             float aheadDensity = SegmentCongestionQuery.GetAverageAheadDensity(ref vehicleData);
-            if (aheadDensity < 0f || !StuckRerouteTracker.ShouldReroute(vehicleID, aheadDensity))
+            if (aheadDensity < 0f || !RerouteRateLimiter.TryConsumeBudget() || !StuckRerouteTracker.ShouldReroute(vehicleID, aheadDensity))
             {
                 return;
             }
@@ -158,7 +163,7 @@ namespace AIImprove
             }
 
             float aheadDensity = SegmentCongestionQuery.GetAverageAheadDensity(ref vehicleData);
-            if (aheadDensity < 0f || !StuckRerouteTracker.ShouldReroute(vehicleID, aheadDensity))
+            if (aheadDensity < 0f || !RerouteRateLimiter.TryConsumeBudget() || !StuckRerouteTracker.ShouldReroute(vehicleID, aheadDensity))
             {
                 return;
             }
@@ -199,23 +204,47 @@ namespace AIImprove
         }
 
         // Patched on CarAI (the declaring type of SimulationStep(ushort, ref Vehicle, Vector3) -
-        // BusAI doesn't override that exact overload, only the ref-Frame one) and filtered to
-        // BusAI instances, further filtered to intercity buses only - per the explicit request
-        // scope ("城際巴士"), not ordinary in-city bus routes, which already work fine and have a
-        // much higher vehicle count where added reroute-search overhead would matter more.
-        internal static class Bus
+        // several subtypes, e.g. BusAI, only override the ref-Frame overload) and covers every
+        // ordinary road vehicle: private cars, taxis, cargo trucks, service vehicles, and both
+        // in-city and intercity buses. Started out intercity-bus-only (2026-08-12) then widened to
+        // "all ordinary city traffic" per explicit request (2026-08-13) - "跟巴士/火車一樣的邏輯"
+        // applied to normal CarAI traffic, only excluding emergency vehicles (Ambulance/FireTruck/
+        // PoliceCar), which already have their own ignore-costs dispatch handling and are out of
+        // scope here.
+        //
+        // Different concrete CarAI subtypes override StartPathFind(ushort, ref Vehicle)
+        // differently (e.g. BusAI's own override branches on GoingBack/DummyTraffic/transport-line
+        // in ways a plain CarAI never would - see FindSelfStartPathFind's notes) - so the method to
+        // invoke must be resolved per the vehicle's *actual* runtime type, not just typeof(CarAI).
+        // Results are cached per type since AccessTools.Method itself isn't especially cheap and
+        // this covers every car in the city.
+        internal static class Car
         {
-            private static readonly MethodInfo StartPathFindMethod = FindSelfStartPathFind(typeof(BusAI));
+            private static readonly System.Collections.Generic.Dictionary<Type, MethodInfo> StartPathFindCache =
+                new System.Collections.Generic.Dictionary<Type, MethodInfo>();
+
+            private static MethodInfo GetSelfStartPathFind(Type vehicleAiType)
+            {
+                MethodInfo method;
+                if (!StartPathFindCache.TryGetValue(vehicleAiType, out method))
+                {
+                    method = FindSelfStartPathFind(vehicleAiType);
+                    StartPathFindCache[vehicleAiType] = method; // cache null too - avoid re-resolving every call
+                }
+
+                return method;
+            }
 
             public static void Postfix(ushort vehicleID, CarAI __instance, ref Vehicle data)
             {
-                var busAi = __instance as BusAI;
-                if (busAi == null || !TransportStationAI.IsIntercity(busAi.m_info.m_class))
+                if (__instance is AmbulanceAI || __instance is FireTruckAI || __instance is PoliceCarAI)
                 {
                     return;
                 }
 
-                TryRerouteViaSelf(nameof(BusAI), StartPathFindMethod, busAi, vehicleID, ref data);
+                Type actualType = __instance.GetType();
+                MethodInfo startPathFind = GetSelfStartPathFind(actualType);
+                TryRerouteViaSelf(actualType.Name, startPathFind, __instance, vehicleID, ref data);
             }
         }
     }

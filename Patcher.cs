@@ -39,14 +39,52 @@ namespace AIImprove
             TryPatchAircraftGateAssignment(harmony);
             TryPatchFlexibleReroute(harmony, typeof(TrainAI), typeof(FlexibleReroutePatch.Train));
             TryPatchFlexibleReroute(harmony, typeof(AircraftAI), typeof(FlexibleReroutePatch.Aircraft));
-            // CarAI (not BusAI) is the declaring type of SimulationStep(ushort, ref Vehicle,
-            // Vector3) - BusAI only overrides the ref-Frame overload - so this patches CarAI and
-            // FlexibleReroutePatch.Bus.Postfix itself filters to BusAI + intercity buses only.
-            TryPatchFlexibleReroute(harmony, typeof(CarAI), typeof(FlexibleReroutePatch.Bus));
+            // CarAI is the declaring type of SimulationStep(ushort, ref Vehicle, Vector3) - some
+            // subtypes (e.g. BusAI) only override the ref-Frame overload - so this patches CarAI
+            // directly; FlexibleReroutePatch.Car.Postfix covers every ordinary road vehicle
+            // (private cars, taxis, cargo trucks, in-city and intercity buses) and excludes
+            // emergency vehicles, which are handled separately.
+            TryPatchFlexibleReroute(harmony, typeof(CarAI), typeof(FlexibleReroutePatch.Car));
             TryPatchFireResponseCap(harmony, typeof(FireTruckAI), typeof(FireResponseCapPatch.Truck));
             TryPatchFireResponseCap(harmony, typeof(FireCopterAI), typeof(FireResponseCapPatch.Copter));
+            TryPatchTrainSpawnThrottle(harmony);
 
             Debug.Log("[AIImprove] Harmony patches applied.");
+        }
+
+        // Skips spawning a new incoming intercity train when its destination station is already
+        // saturated - see TrainSpawnThrottlePatch.cs. Single `ref Building` param, safe shape.
+        private static bool TryPatchTrainSpawnThrottle(Harmony harmony)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    typeof(OutsideConnectionAI),
+                    "StartTransfer",
+                    new[] { typeof(ushort), typeof(Building).MakeByRefType(), typeof(TransferManager.TransferReason), typeof(TransferManager.TransferOffer) });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] OutsideConnectionAI.StartTransfer not found - game version may " +
+                        "have changed. Skipping train spawn throttle patch.");
+                    return false;
+                }
+
+                MethodInfo prefix = typeof(TrainSpawnThrottlePatch).GetMethod(
+                    nameof(TrainSpawnThrottlePatch.Prefix), BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
+
+                Debug.Log("[AIImprove] Train spawn throttle patch applied.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Train spawn throttle patch failed to apply, skipping it. Rest of " +
+                    "the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
         }
 
         // Caps responders per burning building - see FireResponseTracker.cs / FireResponseCapPatch.cs.
