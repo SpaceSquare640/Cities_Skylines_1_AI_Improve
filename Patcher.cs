@@ -64,8 +64,43 @@ namespace AIImprove
             TryPatchPassengerHelicopterGateAssignment(harmony);
             TryPatchFlexibleReroute(harmony, typeof(PassengerHelicopterAI), typeof(FlexibleReroutePatch.PassengerHelicopter));
             TryPatchPassengerHelicopterCapacity(harmony);
+            TryPatchIntercityBusCapacity(harmony);
 
             Debug.Log("[AIImprove] Harmony patches applied.");
+        }
+
+        // Boosts intercity bus capacity - see IntercityBusCapacityPatch.cs.
+        private static bool TryPatchIntercityBusCapacity(Harmony harmony)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    typeof(BusAI),
+                    "CreateVehicle",
+                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType() });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] BusAI.CreateVehicle not found - game version may have changed. " +
+                        "Skipping intercity bus capacity patch.");
+                    return false;
+                }
+
+                MethodInfo prefix = typeof(IntercityBusCapacityPatch).GetMethod(
+                    nameof(IntercityBusCapacityPatch.Prefix), BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
+
+                Debug.Log("[AIImprove] Intercity bus capacity patch applied.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Intercity bus capacity patch failed to apply, skipping it. Rest " +
+                    "of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
         }
 
         // Occupancy-aware landing-point assignment for passenger helicopters - see

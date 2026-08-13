@@ -154,7 +154,8 @@ namespace AIImprove
             MethodInfo selfStartPathFind,
             object aiInstance,
             ushort vehicleID,
-            ref Vehicle vehicleData)
+            ref Vehicle vehicleData,
+            float densityThreshold = StuckRerouteTracker.DensityThreshold)
         {
             if (selfStartPathFind == null)
             {
@@ -187,7 +188,7 @@ namespace AIImprove
             }
 
             float aheadDensity = SegmentCongestionQuery.GetAverageAheadDensity(ref vehicleData);
-            if (aheadDensity < 0f || !RerouteRateLimiter.TryConsumeBudget() || !StuckRerouteTracker.ShouldReroute(vehicleID, aheadDensity))
+            if (aheadDensity < 0f || !RerouteRateLimiter.TryConsumeBudget() || !StuckRerouteTracker.ShouldReroute(vehicleID, aheadDensity, densityThreshold))
             {
                 return;
             }
@@ -259,6 +260,11 @@ namespace AIImprove
                 return method;
             }
 
+            // Intercity buses get a lower density threshold than the shared global default -
+            // per explicit request (2026-08-14), "讓巴士更容易觸發改道" - so they reroute around
+            // congestion sooner than ordinary city traffic does.
+            private const float IntercityBusDensityThreshold = 60f;
+
             public static void Postfix(ushort vehicleID, CarAI __instance, ref Vehicle data)
             {
                 if (__instance is AmbulanceAI || __instance is FireTruckAI || __instance is PoliceCarAI)
@@ -268,7 +274,13 @@ namespace AIImprove
 
                 Type actualType = __instance.GetType();
                 MethodInfo startPathFind = GetSelfStartPathFind(actualType);
-                TryRerouteViaSelf(actualType.Name, startPathFind, __instance, vehicleID, ref data);
+
+                var busAi = __instance as BusAI;
+                float densityThreshold = (busAi != null && TransportStationAI.IsIntercity(busAi.m_info.m_class))
+                    ? IntercityBusDensityThreshold
+                    : StuckRerouteTracker.DensityThreshold;
+
+                TryRerouteViaSelf(actualType.Name, startPathFind, __instance, vehicleID, ref data, densityThreshold);
             }
         }
 

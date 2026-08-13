@@ -23,7 +23,7 @@ namespace AIImprove
         // wasted work. Raised both values to cut down how often we even try, while keeping the
         // mechanism responsive to genuinely severe congestion. Still not a principled
         // derivation - needs further real-world calibration.
-        private const float DensityThreshold = 80f;
+        public const float DensityThreshold = 80f;
         private const float RerouteCooldownSeconds = 40f;
 
         private class State
@@ -52,10 +52,12 @@ namespace AIImprove
 
         // Call every SimulationStep with the average congestion density ahead of the vehicle
         // (see SegmentCongestionQuery.GetAverageAheadDensity). Returns true at most once per
-        // RerouteCooldownSeconds, whenever that density is at or above DensityThreshold.
-        public static bool ShouldReroute(ushort vehicleId, float aheadDensity)
+        // RerouteCooldownSeconds, whenever that density is at or above densityThreshold (the
+        // shared global DensityThreshold by default - pass an override for vehicle types that
+        // need a different sensitivity, e.g. intercity buses per explicit request 2026-08-14).
+        public static bool ShouldReroute(ushort vehicleId, float aheadDensity, float densityThreshold = DensityThreshold)
         {
-            if (aheadDensity < DensityThreshold)
+            if (aheadDensity < densityThreshold)
             {
                 return false;
             }
