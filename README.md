@@ -103,3 +103,9 @@ above for what each mod actually does differently.
 ## License
 
 GPL-3.0. See [LICENSE](LICENSE).
+
+## Links
+
+- Discord: https://discord.gg/aaUQVJeCgC
+- GitHub: https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve
+- PayPal: https://paypal.me/SpaceSquare640

@@ -59,8 +59,82 @@ namespace AIImprove
             TryPatchCitizenTaxiProbability(harmony);
             TryPatchHelicopterWeatherHalt(harmony);
             TryPatchRaceCarSpeed(harmony);
+            TryPatchTrainPassengerCapacity(harmony);
+            TryPatchRaceBuildingAttractiveness(harmony);
 
             Debug.Log("[AIImprove] Harmony patches applied.");
+        }
+
+        // Boosts intercity/regional train passenger capacity - see
+        // TrainPassengerCapacityPatch.cs. CreateVehicle is public, but PassengerTrainAI is the
+        // declaring/overriding type (MetroTrainAI has its own separate override), so this must
+        // patch PassengerTrainAI specifically to naturally exclude metro.
+        private static bool TryPatchTrainPassengerCapacity(Harmony harmony)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    typeof(PassengerTrainAI),
+                    "CreateVehicle",
+                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType() });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] PassengerTrainAI.CreateVehicle not found - game version may " +
+                        "have changed. Skipping train passenger capacity patch.");
+                    return false;
+                }
+
+                MethodInfo prefix = typeof(TrainPassengerCapacityPatch).GetMethod(
+                    nameof(TrainPassengerCapacityPatch.Prefix), BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
+
+                Debug.Log("[AIImprove] Train passenger capacity patch applied.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Train passenger capacity patch failed to apply, skipping it. Rest " +
+                    "of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
+        }
+
+        // Boosts the motorsport race complex's tourism attractiveness - see
+        // RaceBuildingAttractivenessPatch.cs.
+        private static bool TryPatchRaceBuildingAttractiveness(Harmony harmony)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    typeof(RaceBuildingAI),
+                    "GetAttractivenessAccumulation",
+                    new[] { typeof(ushort), typeof(Building).MakeByRefType() });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] RaceBuildingAI.GetAttractivenessAccumulation not found - game " +
+                        "version may have changed. Skipping race building attractiveness patch.");
+                    return false;
+                }
+
+                MethodInfo postfix = typeof(RaceBuildingAttractivenessPatch).GetMethod(
+                    nameof(RaceBuildingAttractivenessPatch.Postfix), BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, postfix: new HarmonyMethod(postfix));
+
+                Debug.Log("[AIImprove] Race building attractiveness patch applied.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Race building attractiveness patch failed to apply, skipping it. " +
+                    "Rest of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
         }
 
         // Removes each racer's individual top-speed cap - see RaceCarSpeedPatch.cs.
