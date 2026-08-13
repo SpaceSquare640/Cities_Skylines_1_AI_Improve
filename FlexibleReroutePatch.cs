@@ -47,12 +47,27 @@ namespace AIImprove
                 Debug.Log("[AIImprove] FlexibleReroutePatch (" + ownerTypeName + ") is executing.");
             }
 
-            // Only vehicles actually in transit toward a real destination. Stations/gates
-            // intentionally stop vehicles (Vehicle.Flags.Stopped) - that is not "stuck", and
-            // WaitingPath means a path request is already in flight.
-            if ((vehicleData.m_flags & (Vehicle.Flags.Stopped | Vehicle.Flags.WaitingPath)) != 0)
+            // Stations/gates intentionally stop vehicles (Vehicle.Flags.Stopped) - that is not
+            // "stuck", and a fresh stop is a reasonable point to reset stuck-tracking state.
+            if ((vehicleData.m_flags & Vehicle.Flags.Stopped) != 0)
             {
                 StuckRerouteTracker.Clear(vehicleID);
+                return;
+            }
+
+            // WaitingPath means a path request is already in flight - including, critically, the
+            // one THIS reroute itself just started: StartPathFind sets WaitingPath on success, so
+            // the very next tick after a successful reroute always sees this flag set. Root cause
+            // of a live-tested rapid-reroute loop (2026-08-14): this used to be folded into the
+            // Stopped check above and called StuckRerouteTracker.Clear() here too, which wiped out
+            // the cooldown this same reroute had just set moments earlier - a vehicle whose
+            // density was still high got to reroute again on literally the next opportunity
+            // instead of waiting out the cooldown (confirmed: one cargo truck rerouted 52 times in
+            // 44 seconds, roughly once a second, against a 40-second cooldown). Skipping without
+            // clearing preserves the cooldown that was just set, while still correctly not
+            // double-rerouting a vehicle that's already mid-repath for any reason.
+            if ((vehicleData.m_flags & Vehicle.Flags.WaitingPath) != 0)
+            {
                 return;
             }
 
@@ -151,9 +166,18 @@ namespace AIImprove
                 Debug.Log("[AIImprove] FlexibleReroutePatch (" + ownerTypeName + ") is executing.");
             }
 
-            if ((vehicleData.m_flags & (Vehicle.Flags.Stopped | Vehicle.Flags.WaitingPath)) != 0)
+            // See TryReroute's notes on why Stopped and WaitingPath are handled differently -
+            // clearing on WaitingPath here too caused the exact same rapid-reroute-loop bug for
+            // vehicles that go through this self-StartPathFind path (buses, passenger
+            // helicopters).
+            if ((vehicleData.m_flags & Vehicle.Flags.Stopped) != 0)
             {
                 StuckRerouteTracker.Clear(vehicleID);
+                return;
+            }
+
+            if ((vehicleData.m_flags & Vehicle.Flags.WaitingPath) != 0)
+            {
                 return;
             }
 

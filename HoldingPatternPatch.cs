@@ -80,9 +80,11 @@ namespace AIImprove
             Vector3 bestPos;
             ushort bestSegment;
             int bestOccupancy;
-            bool found = AircraftGateAssignmentPatch.TryFindBestGate(aiInstance.m_info, airportCenter, out bestPos, out bestSegment, out bestOccupancy);
+            int foundGateCount;
+            bool found = AircraftGateAssignmentPatch.TryFindBestGate(aiInstance.m_info, airportCenter, out bestPos, out bestSegment, out bestOccupancy, out foundGateCount);
 
-            return found && !AircraftGateAssignmentPatch.IsSaturated(bestOccupancy);
+            int buildingOccupancy = AirTrafficControlManager.GetBuildingOccupancy(targetBuilding);
+            return found && !AircraftGateAssignmentPatch.IsSaturated(buildingOccupancy, foundGateCount);
         }
 
         private static void EndHoldingAndLand(

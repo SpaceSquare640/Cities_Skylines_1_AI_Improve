@@ -35,9 +35,8 @@ namespace AIImprove
         // inner and outer ring covers both without doubling the per-search cost.
         private static readonly float[] SearchRadii = { 66f, 132f };
 
-        // "Problem 3": if every candidate gate is at or above this occupancy, the airport is
-        // treated as saturated and the landing is refused (see below) rather than piling the
-        // plane in anyway.
+        // "Problem 3": if the airport as a whole is at or above this occupancy, it's treated as
+        // saturated and the landing is refused (see below) rather than piling the plane in anyway.
         //
         // INTERIM VALUE (2026-08-12): first live test at threshold=8 refused 1889/2332 landings
         // (81%) - far too aggressive, planes were vanishing constantly instead of this being a
@@ -46,7 +45,21 @@ namespace AIImprove
         // plane to loiter) instead of an outright refusal that despawns the plane - deferred,
         // see Cities_Skylines_1_AI_Improve_Document/01 "未來規劃：真正的盤旋等待 ATC".
         // TUNED (2026-08-13, +10% again per request): 44 -> 48.
-        private const int SaturationThreshold = 48;
+        //
+        // REVISED (2026-08-14): this used to be one flat constant compared against a single
+        // gate segment's occupancy - on a map with multiple airports at different locations, that
+        // meant a small airport (few real gates) and a giant hub (many gates) were held to the
+        // identical absolute ceiling. Light traffic could push a small airport's one or two gates
+        // to 48 while a hub's load, spread across a dozen segments, never came close on any one
+        // of them - so a whole airport could sit permanently "saturated" and dead while another
+        // one on the same map stayed wide open. Saturation is now judged against the
+        // *airport's own aggregate* occupancy (AirTrafficControlManager.GetBuildingOccupancy,
+        // summed across every gate currently assigned at that specific building) against a
+        // threshold that scales with how many distinct gates this search actually found there
+        // (foundGateCount) - a small airport with 2 real gates gets a proportionally small
+        // ceiling, a large one with a dozen gets a proportionally large one, instead of every
+        // airport on the map being judged against the same number regardless of its own size.
+        private const int PerGateCapacity = 6;
 
         private static bool loggedFirstCall;
 
@@ -75,6 +88,15 @@ namespace AIImprove
         // a plane is holding, to find out whether it's actually worth trying to land yet -
         // rather than only ever exiting a hold via the timeout.
         public static bool TryFindBestGate(VehicleInfo info, Vector3 airportCenter, out Vector3 bestPos, out ushort bestSegment, out int bestOccupancy)
+        {
+            int foundGateCount;
+            return TryFindBestGate(info, airportCenter, out bestPos, out bestSegment, out bestOccupancy, out foundGateCount);
+        }
+
+        // foundGateCount (distinct segments actually resolved this search) is how many real
+        // gates this specific airport appears to have, used to scale the saturation threshold per
+        // airport - see PerGateCapacity's notes.
+        public static bool TryFindBestGate(VehicleInfo info, Vector3 airportCenter, out Vector3 bestPos, out ushort bestSegment, out int bestOccupancy, out int foundGateCount)
         {
             bestPos = airportCenter;
             bestSegment = 0;
@@ -121,21 +143,18 @@ namespace AIImprove
                         bestPos = candidate;
                         bestSegment = position.m_segment;
                         found = true;
-
-                        if (occupancy == 0)
-                        {
-                            return true;
-                        }
                     }
                 }
             }
 
+            foundGateCount = seenSegments.Count;
             return found;
         }
 
-        public static bool IsSaturated(int occupancy)
+        public static bool IsSaturated(int buildingOccupancy, int foundGateCount)
         {
-            return occupancy >= SaturationThreshold;
+            int threshold = Mathf.Max(PerGateCapacity, foundGateCount * PerGateCapacity);
+            return buildingOccupancy >= threshold;
         }
 
         // Gate assignment / holding only make sense when this StartPathFind call is choosing
@@ -224,14 +243,16 @@ namespace AIImprove
             Vector3 bestPos;
             ushort bestSegment;
             int bestOccupancy;
-            bool found = TryFindBestGate(info, originalEndPos, out bestPos, out bestSegment, out bestOccupancy);
+            int foundGateCount;
+            bool found = TryFindBestGate(info, originalEndPos, out bestPos, out bestSegment, out bestOccupancy, out foundGateCount);
 
             if (!found)
             {
                 return true;
             }
 
-            if (IsSaturated(bestOccupancy))
+            int buildingOccupancy = AirTrafficControlManager.GetBuildingOccupancy(targetBuilding);
+            if (IsSaturated(buildingOccupancy, foundGateCount))
             {
                 // REVERTED (2026-08-13): saturation used to put the plane into a real, visible
                 // holding pattern (HoldingPatternManager/HoldingPatternPatch) instead of refusing
@@ -252,18 +273,21 @@ namespace AIImprove
                 // deprecated patches - nothing calls BeginHolding anymore, so IsHolding always
                 // returns false and TryUpdateHolding's own call site is a cheap no-op.
                 Debug.Log(
-                    "[AIImprove] Aircraft " + vehicleID + " refused landing - airport saturated " +
-                    "(best candidate gate occupancy " + bestOccupancy + " >= " + SaturationThreshold +
-                    "), vehicle will unspawn.");
+                    "[AIImprove] Aircraft " + vehicleID + " refused landing - airport " + targetBuilding +
+                    " saturated (building occupancy " + buildingOccupancy + " >= " +
+                    (foundGateCount * PerGateCapacity) + " across " + foundGateCount + " found gates), " +
+                    "vehicle will unspawn.");
                 return false;
             }
 
-            AirTrafficControlManager.AssignGate(vehicleID, bestSegment);
+            AirTrafficControlManager.AssignGate(vehicleID, bestSegment, targetBuilding);
             endPos = bestPos;
 
             Debug.Log(
                 "[AIImprove] Aircraft " + vehicleID + " assigned gate segment " + bestSegment +
-                " (occupancy was " + bestOccupancy + (ForceAssign.Contains(vehicleID) ? ", forced after hold timeout" : "") + ").");
+                " at airport " + targetBuilding + " (segment occupancy was " + bestOccupancy +
+                ", airport occupancy " + buildingOccupancy + "/" + (foundGateCount * PerGateCapacity) +
+                (ForceAssign.Contains(vehicleID) ? ", forced after hold timeout" : "") + ").");
             return true;
         }
     }
