@@ -106,6 +106,6 @@ GPL-3.0. See [LICENSE](LICENSE).
 
 ## Links
 
-- Discord: https://discord.gg/aaUQVJeCgC
-- GitHub: https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve
-- PayPal: https://paypal.me/SpaceSquare640
+[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/aaUQVJeCgC)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve)
+[![PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.me/SpaceSquare640)
