@@ -3,6 +3,12 @@ using UnityEngine;
 
 namespace AIImprove
 {
+    // KNOWN UNUSED as of 2026-08-13 - see HoldingPatternManager.cs for why. TryUpdateHolding's
+    // call site in FlexibleReroutePatch.Aircraft.Postfix is still wired up, but
+    // HoldingPatternManager.IsHolding always returns false now (nothing ever calls
+    // BeginHolding), so this is a cheap no-op every call - kept in place as a record rather than
+    // torn out, same convention as this project's other deprecated patches.
+    //
     // Per-tick driver for HoldingPatternManager - called from FlexibleReroutePatch.Aircraft's
     // existing SimulationStep Postfix (reusing that hook rather than registering a second
     // Harmony patch on the same method) so holding planes don't also get evaluated for

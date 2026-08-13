@@ -56,6 +56,7 @@ namespace AIImprove
             TryPatchFireResponseCap(harmony, typeof(FireCopterAI), typeof(FireResponseCapPatch.Copter));
             TryPatchTrainSpawnThrottle(harmony);
             TryPatchCitizenCarProbability(harmony);
+            TryPatchCitizenTaxiProbability(harmony);
 
             Debug.Log("[AIImprove] Harmony patches applied.");
         }
@@ -90,6 +91,41 @@ namespace AIImprove
             {
                 Debug.LogWarning(
                     "[AIImprove] Citizen car probability patch failed to apply, skipping it. Rest " +
+                    "of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
+        }
+
+        // Increases taxi usage - see CitizenTaxiProbabilityPatch.cs. GetTaxiProbability is
+        // private, hence BindingFlags.NonPublic.
+        private static bool TryPatchCitizenTaxiProbability(Harmony harmony)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    typeof(ResidentAI),
+                    "GetTaxiProbability",
+                    new[] { typeof(ushort), typeof(CitizenInstance).MakeByRefType(), typeof(Citizen.AgeGroup) });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] ResidentAI.GetTaxiProbability not found - game version may " +
+                        "have changed. Skipping citizen taxi probability patch.");
+                    return false;
+                }
+
+                MethodInfo postfix = typeof(CitizenTaxiProbabilityPatch).GetMethod(
+                    nameof(CitizenTaxiProbabilityPatch.Postfix), BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, postfix: new HarmonyMethod(postfix));
+
+                Debug.Log("[AIImprove] Citizen taxi probability patch applied.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Citizen taxi probability patch failed to apply, skipping it. Rest " +
                     "of the mod is unaffected. Reason: " + ex.Message);
                 return false;
             }

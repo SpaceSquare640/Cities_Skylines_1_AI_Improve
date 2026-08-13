@@ -3,6 +3,18 @@ using UnityEngine;
 
 namespace AIImprove
 {
+    // KNOWN UNUSED as of 2026-08-13 - kept in place as a record, same convention as this
+    // project's other deprecated patches (see VanillaEmergencyCongestionPatch.cs /
+    // EmergencyVehiclePriorityPatch.cs for precedent). Nothing calls BeginHolding anymore -
+    // AircraftGateAssignmentPatch.Prefix reverted to refusing a saturated landing outright
+    // (Unspawn) instead of entering a hold. Reason: live-test logs found a real, non-fatal
+    // vanilla bug this exposed - PassengerPlaneAI.SimulationStep reads vehicleData.m_targetBuilding
+    // as a NetManager *node* index whenever GoingBack/DummyTraffic aren't set, and restoring a
+    // real building ID into that field while holding left the vehicle in exactly that state -
+    // "Array index is out of range" whenever the building ID exceeded the map's node buffer size.
+    // Also, per explicit user request, unspawning saturated arrivals keeps the live vehicle-model
+    // count lower during saturation than keeping them alive and circling.
+    //
     // Real, visible circling for aircraft waiting for a free gate - v2 of the "problem 3"
     // airport-saturation handling (see AircraftGateAssignmentPatch.cs and
     // Cities_Skylines_1_AI_Improve_Document/01). Directly manipulates the same flight target
@@ -11,10 +23,6 @@ namespace AIImprove
     // every tick - the same technique HelicopterAI itself uses to fly point-to-point (see
     // PlatformGateJitterPatch's notes on that), applied here to hold a circular pattern instead
     // of a single destination.
-    //
-    // EXPERIMENTAL: this overlaps with the game's own flight-state machine in a way that hasn't
-    // been exercised by any known mod - expect this to need live-test iteration, unlike most of
-    // this project's other patches which worked close to first try.
     internal static class HoldingPatternManager
     {
         private const float HoldRadius = 300f;

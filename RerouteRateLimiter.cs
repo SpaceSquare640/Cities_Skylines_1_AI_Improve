@@ -1,10 +1,8 @@
-using ColossalFramework;
-
 namespace AIImprove
 {
     // Caps how many vehicles can actually invoke a real StartPathFind reroute within the same
     // simulation frame, across ALL of FlexibleReroutePatch (trains, aircraft, and - since
-    // 2026-08-13 - every ordinary CarAI vehicle in the city).
+    // 2026-08-13 - every ordinary CarAI vehicle in the city, including cargo trucks).
     //
     // Root cause of a reported periodic stutter (2026-08-13): StuckRerouteTracker's per-vehicle
     // cooldown has no reason to desynchronize vehicles from each other - when congestion builds up
@@ -21,27 +19,11 @@ namespace AIImprove
     // frames instead of landing all at once).
     internal static class RerouteRateLimiter
     {
-        private const int MaxReroutesPerFrame = 3;
-
-        private static uint lastFrameIndex;
-        private static int reroutesThisFrame;
+        private static readonly PerFrameBudget Budget = new PerFrameBudget(3);
 
         public static bool TryConsumeBudget()
         {
-            uint currentFrame = Singleton<SimulationManager>.instance.m_currentFrameIndex;
-            if (currentFrame != lastFrameIndex)
-            {
-                lastFrameIndex = currentFrame;
-                reroutesThisFrame = 0;
-            }
-
-            if (reroutesThisFrame >= MaxReroutesPerFrame)
-            {
-                return false;
-            }
-
-            reroutesThisFrame++;
-            return true;
+            return Budget.TryConsume();
         }
     }
 }

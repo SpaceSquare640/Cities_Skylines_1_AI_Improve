@@ -23,14 +23,17 @@ namespace AIImprove
         // real stands further out entirely), so "least occupied of 8" kept picking from a small
         // pool instead of using the whole airport. Widened both knobs so the search actually
         // reaches distinct stands around a large airport footprint.
-        private const int CandidateCount = 24;
+        // TUNED (2026-08-13, +10% per request): CandidateCount 24->26, both search radii and
+        // SaturationThreshold also raised ~10% - widening the search a bit further and giving a
+        // bit more headroom before treating the airport as saturated.
+        private const int CandidateCount = 26;
         private const float ProbeMaxDistance = 24f;
 
         // Two concentric rings instead of one - a single ring at a fixed radius tends to skim
         // past an airport's actual stand layout (too tight and it only reaches taxiways right at
         // the terminal; too wide and it misses close-in stands). Splitting candidates across an
         // inner and outer ring covers both without doubling the per-search cost.
-        private static readonly float[] SearchRadii = { 60f, 120f };
+        private static readonly float[] SearchRadii = { 66f, 132f };
 
         // "Problem 3": if every candidate gate is at or above this occupancy, the airport is
         // treated as saturated and the landing is refused (see below) rather than piling the
@@ -42,7 +45,7 @@ namespace AIImprove
         // proper holding-pattern system (queue + periodic gate re-check + a real place for the
         // plane to loiter) instead of an outright refusal that despawns the plane - deferred,
         // see Cities_Skylines_1_AI_Improve_Document/01 "未來規劃：真正的盤旋等待 ATC".
-        private const int SaturationThreshold = 40;
+        private const int SaturationThreshold = 44;
 
         private static bool loggedFirstCall;
 
@@ -214,44 +217,30 @@ namespace AIImprove
                 return true;
             }
 
-            if (IsSaturated(bestOccupancy) && !ForceAssign.Contains(vehicleID))
+            if (IsSaturated(bestOccupancy))
             {
-                HoldingPatternManager.BeginHolding(vehicleID, targetBuilding, originalEndPos);
-
-                // Root cause of the "planes frozen in the air" bug: vehicleData.m_path and
-                // m_targetBuilding were left pointing at the real, saturated destination while
-                // only m_targetPos0/1 were overwritten below. AircraftAI.SimulationStep's own
-                // Flying-state code re-derives m_targetPos0..3 from m_path/m_targetBuilding
-                // every tick once the plane is "close enough" to its current target, which kept
-                // snapping our circle position straight back to the stale real destination -
-                // fighting this patch's own update and making the plane appear stuck in place.
-                // Releasing the path and clearing m_targetBuilding while holding removes that
-                // stale data entirely, so there is nothing left for vanilla code to snap back
-                // to; both are restored/replaced with a real path in
-                // HoldingPatternPatch.EndHoldingAndLand once a gate actually opens up.
-                if (vehicleData.m_path != 0)
-                {
-                    Singleton<PathManager>.instance.ReleasePath(vehicleData.m_path);
-                    vehicleData.m_path = 0;
-                }
-                vehicleData.m_targetBuilding = 0;
-                vehicleData.m_flags &= ~Vehicle.Flags.WaitingPath;
-
-                Vector4 trailing;
-                Vector4 circlePos = HoldingPatternManager.GetCirclePosition(vehicleID, out trailing);
-                vehicleData.m_targetPos1 = trailing;
-                vehicleData.SetTargetPos(0, circlePos);
-                vehicleData.m_flags |= Vehicle.Flags.Flying;
-                vehicleData.m_flags &= ~(Vehicle.Flags.Landing | Vehicle.Flags.TakingOff | Vehicle.Flags.WaitingPath);
-
+                // REVERTED (2026-08-13): saturation used to put the plane into a real, visible
+                // holding pattern (HoldingPatternManager/HoldingPatternPatch) instead of refusing
+                // the landing outright. Two things changed that: (1) live logs showed a real,
+                // non-fatal vanilla bug this exposed - PassengerPlaneAI.SimulationStep reads
+                // vehicleData.m_targetBuilding as a NetManager *node* index (not a building index)
+                // whenever GoingBack/DummyTraffic aren't set, and restoring a real building ID
+                // into that field while holding (in EndHoldingAndLand) left the vehicle in exactly
+                // that state for the following tick - "Array index is out of range" whenever that
+                // building ID happened to exceed the map's node buffer size; (2) per explicit user
+                // request, cutting the affected planes instead of keeping them alive and circling
+                // also reduces the live vehicle-model count during saturation, which was
+                // contributing to lag on top of the crash risk. Reverted to the original refusal
+                // behavior: return false with __result left false, which the caller (AircraftAI's
+                // own StartPathFind wrapper) turns into an Unspawn - the plane simply vanishes
+                // instead of entering holding. HoldingPatternManager/HoldingPatternPatch are kept
+                // in the codebase (unused) as a record, same convention as this project's other
+                // deprecated patches - nothing calls BeginHolding anymore, so IsHolding always
+                // returns false and TryUpdateHolding's own call site is a cheap no-op.
                 Debug.Log(
-                    "[AIImprove] Aircraft " + vehicleID + " entering holding pattern - airport " +
-                    "saturated (best candidate gate occupancy " + bestOccupancy + " >= " + SaturationThreshold + ").");
-
-                // Report success (not a real path, but a valid flight state we just set up
-                // directly) so the caller doesn't Unspawn the plane - same trick HelicopterAI's
-                // own StartPathFind uses (see PlatformGateJitterPatch's notes).
-                __result = true;
+                    "[AIImprove] Aircraft " + vehicleID + " refused landing - airport saturated " +
+                    "(best candidate gate occupancy " + bestOccupancy + " >= " + SaturationThreshold +
+                    "), vehicle will unspawn.");
                 return false;
             }
 

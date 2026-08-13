@@ -28,6 +28,15 @@ namespace AIImprove
         // value pending live-test calibration, same as every other threshold in this project.
         private const float MaxReductionFraction = 0.6f;
 
+        // Root cause of a second stutter report (2026-08-13), same shape as the one
+        // RerouteRateLimiter already fixed for vehicle reroutes: GetNearbyRoadDensity is a real
+        // PathManager.FindPathPosition call, and this Postfix ran completely unthrottled once per
+        // citizen trip decision - a busy city can start many trips in the same simulation frame.
+        // Denied citizens simply keep vanilla's unmodified probability for this one decision -
+        // there's no cooldown state to preserve here (unlike vehicle reroutes), so no special
+        // handling is needed beyond just skipping the density check for this call.
+        private static readonly PerFrameBudget Budget = new PerFrameBudget(5);
+
         private static bool loggedFirstCall;
 
         public static void Postfix(ref CitizenInstance citizenData, ref int __result)
@@ -38,7 +47,7 @@ namespace AIImprove
                 Debug.Log("[AIImprove] CitizenCarProbabilityPatch is executing.");
             }
 
-            if (__result <= 0)
+            if (__result <= 0 || !Budget.TryConsume())
             {
                 return;
             }
