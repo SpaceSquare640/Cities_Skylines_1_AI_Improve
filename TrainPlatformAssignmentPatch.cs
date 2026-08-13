@@ -38,9 +38,15 @@ namespace AIImprove
         private static readonly float[] SearchRadii = { 30f, 60f };
         private const float ProbeMaxDistance = 32f; // matches TrainAI's own FindPathPosition call
 
-        // Same rationale/value as AircraftGateAssignmentPatch.SaturationThreshold - "every nearby
-        // candidate already has this many trains assigned" is treated as saturated.
-        private const int SaturationThreshold = 40;
+        // Same rationale as AircraftGateAssignmentPatch.SaturationThreshold - "every nearby
+        // candidate already has this many trains assigned" is treated as saturated. This also
+        // gates TrainSpawnThrottlePatch (via IsStationLikelySaturated), so it's the actual lever
+        // for "城際火車入城流量限制" - lowering it makes stations count as saturated sooner, both
+        // refusing to force a train onto an already-busy platform and skipping new incoming
+        // intercity train spawns toward that station.
+        //
+        // TUNED (2026-08-14, tightened per request): 40 -> 25.
+        private const int SaturationThreshold = 25;
 
         private static bool loggedFirstCall;
 
