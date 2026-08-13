@@ -196,6 +196,19 @@ namespace AIImprove
                 Debug.Log("[AIImprove] AircraftGateAssignmentPatch is executing.");
             }
 
+            // "Close any airports" during a thunderstorm (per user request, 2026-08-13): checked
+            // against both source and target so it catches this leg regardless of direction -
+            // landing (target is the airport) or departing (source is the airport, target is an
+            // outside connection and would otherwise skip the check below entirely). Refusing
+            // here reuses the same "return false, __result stays false" refusal path as ordinary
+            // saturation - the caller Unspawns the vehicle either way.
+            if (WeatherDisasterDetector.IsThunderstormActive() &&
+                (IsAirportBuilding(vehicleData.m_sourceBuilding) || IsAirportBuilding(vehicleData.m_targetBuilding)))
+            {
+                Debug.Log("[AIImprove] Aircraft " + vehicleID + " refused - airport closed for thunderstorm.");
+                return false;
+            }
+
             ushort targetBuilding = ResolveDestinationBuilding(ref vehicleData, endPos);
 
             if (!IsAirportBuilding(targetBuilding))

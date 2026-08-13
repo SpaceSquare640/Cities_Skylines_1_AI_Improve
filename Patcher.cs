@@ -57,8 +57,48 @@ namespace AIImprove
             TryPatchTrainSpawnThrottle(harmony);
             TryPatchCitizenCarProbability(harmony);
             TryPatchCitizenTaxiProbability(harmony);
+            TryPatchHelicopterWeatherHalt(harmony);
 
             Debug.Log("[AIImprove] Harmony patches applied.");
+        }
+
+        // Grounds new emergency-helicopter dispatches during an active thunderstorm - see
+        // WeatherDisasterDetector.cs / HelicopterWeatherHaltPatch.cs. Prefix on the same
+        // HelicopterAI.StartPathFind(5-arg) method HelicopterDispatchTrackingPatch already
+        // Postfixes - Harmony supports independent prefix/postfix registrations on the same
+        // method from different call sites, so this is a separate Patch() call rather than
+        // folding into the existing one.
+        private static bool TryPatchHelicopterWeatherHalt(Harmony harmony)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    typeof(HelicopterAI),
+                    "StartPathFind",
+                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType(), typeof(Vector3), typeof(Vector3), typeof(float) });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] HelicopterAI.StartPathFind(5-arg) not found - game version may " +
+                        "have changed. Skipping helicopter weather halt patch.");
+                    return false;
+                }
+
+                MethodInfo prefix = typeof(HelicopterWeatherHaltPatch).GetMethod(
+                    nameof(HelicopterWeatherHaltPatch.Prefix), BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
+
+                Debug.Log("[AIImprove] Helicopter weather halt patch applied.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Helicopter weather halt patch failed to apply, skipping it. Rest " +
+                    "of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
         }
 
         // Makes citizens' walk/drive/transit split respond to real-time road congestion - see
