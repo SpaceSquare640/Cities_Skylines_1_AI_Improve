@@ -29,6 +29,11 @@ namespace AIImprove
 
         public static void Postfix(ref int __result)
         {
+            if (!ModSettings.CitizensEnabled.value)
+            {
+                return;
+            }
+
             // Skip entirely without After Dark, which is what introduced taxis (per user request,
             // 2026-08-14). Vanilla already degrades gracefully on its own here - GetVehicleInfo
             // looks up a PublicTransportTaxi prefab and falls through to "no vehicle" (walk or

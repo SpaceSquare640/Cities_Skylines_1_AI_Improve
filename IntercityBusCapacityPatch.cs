@@ -31,6 +31,14 @@ namespace AIImprove
                 return;
             }
 
+            // Not currently registered (see Patcher.PatchAll's comment), but wired to the
+            // intercity bus toggle now that it exists, so it respects the panel immediately if
+            // ever re-enabled (2026-08-15).
+            if (!ModSettings.IntercityBusEnabled.value)
+            {
+                return;
+            }
+
             // Defer to Advanced Vehicle Options if it's installed - see CompanionModCompat.cs
             // and TrainPassengerCapacityPatch.cs's notes for the real-world case this fixed.
             if (CompanionModCompat.IsAdvancedVehicleOptionsLoaded())

@@ -31,6 +31,11 @@ namespace AIImprove
 
         public static bool Prefix(ushort vehicleID, PassengerHelicopterAI __instance, ref Vector3 endPos)
         {
+            if (!ModSettings.BusesAndHelicoptersEnabled.value)
+            {
+                return true;
+            }
+
             if (!loggedFirstCall)
             {
                 loggedFirstCall = true;

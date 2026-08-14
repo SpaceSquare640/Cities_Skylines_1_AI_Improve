@@ -41,6 +41,11 @@ namespace AIImprove
 
         public static void Postfix(ref CitizenInstance citizenData, ref int __result)
         {
+            if (!ModSettings.CitizensEnabled.value)
+            {
+                return;
+            }
+
             if (!loggedFirstCall)
             {
                 loggedFirstCall = true;

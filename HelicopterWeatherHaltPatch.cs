@@ -19,6 +19,11 @@ namespace AIImprove
 
         public static bool Prefix(ushort vehicleID, HelicopterAI __instance, ref Vehicle vehicleData, ref bool __result)
         {
+            if (!ModSettings.EmergencyVehiclesEnabled.value)
+            {
+                return true;
+            }
+
             if (!(__instance is AmbulanceCopterAI) && !(__instance is FireCopterAI) && !(__instance is PoliceCopterAI))
             {
                 return true;

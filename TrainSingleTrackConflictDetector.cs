@@ -62,8 +62,16 @@ namespace AIImprove
             return false;
         }
 
-        public static void CheckAhead(string ownerTypeName, ushort vehicleID, ref Vehicle vehicleData)
+        public static void CheckAhead(string ownerTypeName, bool isMetro, ushort vehicleID, ref Vehicle vehicleData)
         {
+            // Metro vs intercity train split, same reasoning as TrainPlatformAssignmentPatch
+            // (2026-08-15, per user request).
+            bool categoryEnabled = isMetro ? ModSettings.TrainsAndMetroEnabled.value : ModSettings.IntercityTrainEnabled.value;
+            if (!categoryEnabled)
+            {
+                return;
+            }
+
             if (!loggedFirstCall)
             {
                 loggedFirstCall = true;
@@ -134,7 +142,8 @@ namespace AIImprove
 
         internal static class Train
         {
-            public static void Postfix(ushort __0, ref Vehicle __1) => CheckAhead(nameof(TrainAI), __0, ref __1);
+            public static void Postfix(TrainAI __instance, ushort __0, ref Vehicle __1) =>
+                CheckAhead(nameof(TrainAI), __instance is MetroTrainAI, __0, ref __1);
         }
     }
 }

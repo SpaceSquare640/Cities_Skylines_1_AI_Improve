@@ -211,6 +211,16 @@ namespace AIImprove
 
             public static void Postfix(ushort vehicleID, TrainAI __instance, ref Vehicle data)
             {
+                // Metro vs intercity train split, same reasoning as TrainPlatformAssignmentPatch
+                // (2026-08-15, per user request).
+                bool categoryEnabled = __instance is MetroTrainAI
+                    ? ModSettings.TrainsAndMetroEnabled.value
+                    : (__instance is PassengerTrainAI ? ModSettings.IntercityTrainEnabled.value : ModSettings.TrainsAndMetroEnabled.value);
+                if (!categoryEnabled)
+                {
+                    return;
+                }
+
                 TryReroute(nameof(TrainAI), StartPathFindMethod, __instance, vehicleID, ref data);
             }
         }
@@ -221,6 +231,11 @@ namespace AIImprove
 
             public static void Postfix(ushort vehicleID, AircraftAI __instance, ref Vehicle data)
             {
+                if (!ModSettings.AircraftEnabled.value)
+                {
+                    return;
+                }
+
                 if (HoldingPatternPatch.TryUpdateHolding(StartPathFindMethod, __instance, vehicleID, ref data))
                 {
                     return;
@@ -274,11 +289,24 @@ namespace AIImprove
                     return;
                 }
 
+                // This wrapper covers "一般市內交通" (private cars, taxis, cargo trucks), local
+                // buses, and intercity buses (BusAI is a CarAI subtype) - which options-panel
+                // toggle applies depends on the vehicle's actual runtime type and, for buses,
+                // whether it's intercity (split into its own toggle 2026-08-15, per user request).
+                var busAi = __instance as BusAI;
+                bool isIntercityBus = busAi != null && TransportStationAI.IsIntercity(busAi.m_info.m_class);
+                bool categoryEnabled = busAi == null
+                    ? ModSettings.OrdinaryTrafficEnabled.value
+                    : (isIntercityBus ? ModSettings.IntercityBusEnabled.value : ModSettings.BusesAndHelicoptersEnabled.value);
+                if (!categoryEnabled)
+                {
+                    return;
+                }
+
                 Type actualType = __instance.GetType();
                 MethodInfo startPathFind = GetSelfStartPathFind(actualType);
 
-                var busAi = __instance as BusAI;
-                float densityThreshold = (busAi != null && TransportStationAI.IsIntercity(busAi.m_info.m_class))
+                float densityThreshold = isIntercityBus
                     ? IntercityBusDensityThreshold
                     : StuckRerouteTracker.DensityThreshold;
 
@@ -300,6 +328,11 @@ namespace AIImprove
 
             public static void Postfix(ushort vehicleID, PassengerHelicopterAI __instance, ref Vehicle data)
             {
+                if (!ModSettings.BusesAndHelicoptersEnabled.value)
+                {
+                    return;
+                }
+
                 TryRerouteViaSelf(nameof(PassengerHelicopterAI), StartPathFindMethod, __instance, vehicleID, ref data);
             }
         }

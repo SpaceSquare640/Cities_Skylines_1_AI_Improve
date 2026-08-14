@@ -209,6 +209,11 @@ namespace AIImprove
         // `vehicleData` parameter.
         public static bool Prefix(ushort vehicleID, AircraftAI __instance, ref Vehicle vehicleData, ref Vector3 endPos, ref bool __result)
         {
+            if (!ModSettings.AircraftEnabled.value)
+            {
+                return true;
+            }
+
             if (!loggedFirstCall)
             {
                 loggedFirstCall = true;

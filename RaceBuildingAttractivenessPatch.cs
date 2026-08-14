@@ -24,6 +24,11 @@ namespace AIImprove
 
         public static void Postfix(ref int __result)
         {
+            if (!ModSettings.RaceCarsEnabled.value)
+            {
+                return;
+            }
+
             if (!loggedFirstCall)
             {
                 loggedFirstCall = true;

@@ -42,6 +42,11 @@ namespace AIImprove
 
         private static void Apply(string ownerTypeName, bool isCopter, ushort vehicleID, ref Vehicle data, ref ushort targetBuilding)
         {
+            if (!ModSettings.EmergencyVehiclesEnabled.value)
+            {
+                return;
+            }
+
             if (!loggedFirstCall)
             {
                 loggedFirstCall = true;

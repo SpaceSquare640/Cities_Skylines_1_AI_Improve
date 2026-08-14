@@ -42,7 +42,11 @@ namespace AIImprove
         // tourists, planes, ships, ...) passes through untouched.
         public static bool Prefix(ushort buildingID, TransferManager.TransferReason material, TransferManager.TransferOffer offer)
         {
-            if (material != TransferManager.TransferReason.DummyTrain)
+            // DummyTrain only ever fires for trains arriving from an outside connection, which
+            // per this project's own terminology are always "intercity trains" - metro never uses
+            // this transfer reason - so this is gated on IntercityTrainEnabled alone, not the
+            // metro/general toggle (2026-08-15, split per user request).
+            if (material != TransferManager.TransferReason.DummyTrain || !ModSettings.IntercityTrainEnabled.value)
             {
                 return true;
             }

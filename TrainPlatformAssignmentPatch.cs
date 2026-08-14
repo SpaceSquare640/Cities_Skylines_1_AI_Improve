@@ -97,6 +97,18 @@ namespace AIImprove
 
         public static void Prefix(ushort vehicleID, TrainAI __instance, ref Vehicle vehicleData, ref Vector3 endPos)
         {
+            // Metro and intercity trains got split into independent toggles (2026-08-15, per user
+            // request) - both share this one method (declared on TrainAI, not overridden per
+            // subtype), so the instance's actual runtime type decides which setting applies.
+            // Anything that's neither (e.g. cargo trains) falls back to the metro/general toggle.
+            bool categoryEnabled = __instance is MetroTrainAI
+                ? ModSettings.TrainsAndMetroEnabled.value
+                : (__instance is PassengerTrainAI ? ModSettings.IntercityTrainEnabled.value : ModSettings.TrainsAndMetroEnabled.value);
+            if (!categoryEnabled)
+            {
+                return;
+            }
+
             if (!loggedFirstCall)
             {
                 loggedFirstCall = true;
