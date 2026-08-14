@@ -43,6 +43,14 @@ Options).
 - Cities: Skylines (base game)
 - [Harmony (Mod Dependency)](https://steamcommunity.com/workshop/filedetails/?id=2040656402) by boformer, subscribed via Steam Workshop
 
+## Reporting a problem
+
+Open an [issue](https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/issues/new/choose) -
+there are templates for bug reports, feature requests, and mod conflicts.
+
+Please attach your full `Cities_Data/output_log.txt`. Almost nothing can be diagnosed without it,
+and logs from other mods (`TMPE.log`, `GameAnarchy.log`, …) don't contain any AI_Improve information.
+
 ## Building from source
 
 1. Install Visual Studio 2022 (Community edition is fine) with the ".NET desktop development" workload.

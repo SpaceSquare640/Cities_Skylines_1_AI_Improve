@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Wiki - Features & Known issues / 功能與已知問題 / 功能与已知问题
+    url: https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/wiki
+    about: Full feature list, compatibility notes, and currently disabled features. Available in English, 繁體中文 and 简体中文.
+  - name: Steam Workshop page / Steam 工作坊
+    url: https://steamcommunity.com/sharedfiles/filedetails/?id=3782858610
+    about: Comments and general questions are also welcome here.
+  - name: Discord
+    url: https://discord.gg/aaUQVJeCgC
+    about: Chat about the mod.

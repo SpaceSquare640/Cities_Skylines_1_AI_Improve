@@ -1,0 +1,60 @@
+name: Mod conflict / 模組衝突 / 模组冲突
+description: AI_Improve seems to fight with another mod
+title: "[Conflict] "
+labels: ["compatibility"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Harmony lets several mods patch the same game method without any error, so conflicts are **silent** -
+        two mods can quietly overwrite each other's decisions. Reports like this are genuinely useful.
+
+        Please check the [Compatibility page](https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/wiki/Compatibility)
+        first - AI_Improve already steps aside for several mods on purpose.
+
+  - type: input
+    id: other-mod
+    attributes:
+      label: Which mod? / 是哪個模組？/ 是哪个模组？
+      description: Name plus a Workshop link if you have it.
+      placeholder: e.g. Improved Public Transport 2 - https://steamcommunity.com/sharedfiles/filedetails/?id=928128676
+    validations:
+      required: true
+
+  - type: textarea
+    id: symptom
+    attributes:
+      label: What goes wrong with both enabled? / 兩個都啟用時會發生什麼？/ 两个都启用时会发生什么？
+      placeholder: e.g. Buses ignore the stop settings I configured in the other mod.
+    validations:
+      required: true
+
+  - type: textarea
+    id: isolation
+    attributes:
+      label: Does it stop if you disable one of them? / 停用其中一個就正常了嗎？/ 停用其中一个就正常了吗？
+      description: |
+        This is the fastest way to confirm a real conflict. Please test if you can:
+        disable AI_Improve alone, then the other mod alone, and say what happens each time.
+      placeholder: |
+        e.g.
+        - Both enabled: broken
+        - Only AI_Improve: fine
+        - Only the other mod: fine
+    validations:
+      required: false
+
+  - type: textarea
+    id: output-log
+    attributes:
+      label: output_log.txt (REQUIRED / 必填)
+      description: |
+        The full `Cities_Data/output_log.txt`, with both mods enabled.
+        This is where patch conflicts actually show up - some mods print lines like
+        `Detected other patchers on <method>`, which points straight at the overlap.
+
+        請附上**完整的 `Cities_Data/output_log.txt`**（兩個模組都啟用的狀態下）。
+        请附上**完整的 `Cities_Data/output_log.txt`**（两个模组都启用的状态下）。
+      placeholder: Drag the file here, or paste a link to it.
+    validations:
+      required: true

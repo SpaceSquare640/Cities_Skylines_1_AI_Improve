@@ -1,0 +1,70 @@
+name: Feature request / 功能建議 / 功能建议
+description: Suggest an AI behavior improvement
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion! / 感謝你的建議！/ 感谢你的建议！
+
+        This mod's focus is **continuous, dynamic AI adjustment** - vehicles and citizens that reconsider
+        their decisions as the city changes, rather than one-time optimizations at spawn time.
+        Suggestions that fit that theme are the easiest to act on, but everything is welcome.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does the vanilla AI have? / 原版 AI 有什麼問題？/ 原版 AI 有什么问题？
+      description: Describe the in-game behavior that bothers you, not the solution yet.
+      placeholder: |
+        e.g. When a fire breaks out far from any station, trucks from a station right next to it stay parked
+        while trucks from across the map get dispatched.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like it to do instead? / 你希望改成什麼行為？/ 你希望改成什么行为？
+      placeholder: e.g. Always prefer the nearest station that still has an idle truck.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area? / 屬於哪個部分？/ 属于哪个部分？
+      multiple: true
+      options:
+        - Emergency vehicles (fire / police / ambulance)
+        - Public transport (bus / metro / train / tram)
+        - Aircraft / airports
+        - Helicopters / heliports
+        - Ordinary road traffic (cars, taxis, cargo trucks)
+        - Citizens' travel choices
+        - Race cars / race complex
+        - Disasters
+        - Mod options UI
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: existing-mods
+    attributes:
+      label: Does another mod already do this? / 有其他模組已經做到了嗎？/ 有其他模组已经做到了吗？
+      description: |
+        If you know a mod that does something similar, please link it. That is genuinely helpful -
+        it tells me whether to build this, extend it, or deliberately stay out of the way.
+      placeholder: e.g. Mod X does something similar but only for buses.
+    validations:
+      required: false
+
+  - type: input
+    id: dlc
+    attributes:
+      label: Does this need a specific DLC? / 需要特定 DLC 嗎？/ 需要特定 DLC 吗？
+      placeholder: e.g. needs Natural Disasters / no DLC needed / not sure
+    validations:
+      required: false

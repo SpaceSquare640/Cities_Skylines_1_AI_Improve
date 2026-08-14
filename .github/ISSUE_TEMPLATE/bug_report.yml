@@ -1,0 +1,119 @@
+name: Bug report / 錯誤回報 / 错误报告
+description: Something in the game behaves wrongly while AI_Improve is enabled
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! / 感謝回報！/ 感谢报告！
+
+        **Before you start:** please check the
+        [Known issues section](https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/wiki/Features#known-issues--temporarily-disabled)
+        first - a few features are currently disabled on purpose, and your problem may already be explained there.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happens / 發生了什麼事 / 发生了什么事
+      description: Describe what you see in game. Screenshots or a short video help a lot.
+      placeholder: |
+        e.g. Metro trains stop moving completely after a while, and public transport ridership drops to almost zero.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead / 你預期的行為 / 你预期的行为
+      placeholder: e.g. Metro trains should keep running their line normally.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce / 重現步驟 / 复现步骤
+      description: If you know what triggers it, list the steps. "Not sure" is a fine answer.
+      placeholder: |
+        1. Load the save
+        2. Run the game at 3x speed for a few minutes
+        3. Look at any metro line
+    validations:
+      required: false
+
+  - type: textarea
+    id: output-log
+    attributes:
+      label: output_log.txt (REQUIRED / 必填)
+      description: |
+        **This is the single most useful thing you can give me.** Almost no bug can be diagnosed without it.
+
+        Find it here (relative to your game install folder):
+        `Cities_Data/output_log.txt`
+
+        For example: `C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines\Cities_Data\output_log.txt`
+
+        Please attach the **whole file** (drag & drop it into this box, or upload to pastebin/Google Drive and paste the link).
+
+        Do **not** send logs from other mods (e.g. `TMPE.log`, `GameAnarchy.log`, `FPS_Booster.log`) -
+        those do not contain any AI_Improve information.
+
+        請附上**完整的 `Cities_Data/output_log.txt`**，不要傳其他模組自己的 log 檔（那些裡面沒有 AI_Improve 的資訊）。
+        请附上**完整的 `Cities_Data/output_log.txt`**，不要发其他模组自己的 log 文件（那些里面没有 AI_Improve 的信息）。
+      placeholder: Drag the file here, or paste a link to it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: mod-list
+    attributes:
+      label: Your mod list / 你安裝的模組清單 / 你安装的模组清单
+      description: |
+        Paste your full mod list, or a screenshot of your Content Manager mods page.
+        If you use [Skyve](https://steamcommunity.com/workshop/filedetails/?id=2881031511), its report is perfect.
+
+        AI_Improve deliberately steps aside for several other mods, so knowing what you run matters.
+      placeholder: e.g. TM:PE, Transfer Manager CE, Improved Public Transport 2, Advanced Vehicle Options, 81 Tiles 2, ...
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: known-overlaps
+    attributes:
+      label: Do you use any of these? / 你有使用這些模組嗎？/ 你有使用这些模组吗？
+      description: AI_Improve has specific interaction logic for each of these, so please tick any you have enabled.
+      options:
+        - label: "TM:PE (Traffic Manager: President Edition)"
+        - label: "Transfer Manager CE"
+        - label: "Advanced Vehicle Options"
+        - label: "Improved Public Transport 2 (IPT)"
+        - label: "SingleTrainTrackAI / Reversible Tram AI"
+        - label: "Smarter Firefighters"
+
+  - type: input
+    id: mod-version
+    attributes:
+      label: AI_Improve version / date last updated
+      description: If unsure, just say when you last updated it from the Workshop.
+      placeholder: e.g. updated today / 2026-08-14
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area is affected? / 影響到哪個部分？/ 影响到哪个部分？
+      multiple: true
+      options:
+        - Emergency vehicles (fire / police / ambulance)
+        - Public transport (bus / metro / train / tram)
+        - Aircraft / airports
+        - Helicopters / heliports
+        - Ordinary road traffic (cars, taxis, cargo trucks)
+        - Citizens' travel choices
+        - Race cars / race complex
+        - Disasters (thunderstorm response)
+        - Other / not sure
+    validations:
+      required: true
