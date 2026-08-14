@@ -10,12 +10,20 @@ namespace AIImprove
     // those trips, not whether someone drives their own car in the first place.
     internal static class CitizenTaxiProbabilityPatch
     {
-        // Interim values pending live-test calibration, same as every other tunable in this
-        // project. Multiplier first (2% -> 5%, 6% -> 15%), then a flat bonus on top so even the
-        // Child case (which vanilla hardcodes to a flat 0, unaffected by the multiplier) still
-        // gets some baseline taxi usage.
-        private const float Multiplier = 2.5f;
-        private const int FlatBonus = 5;
+        // TUNED DOWN (2026-08-14): was Multiplier 2.5 / FlatBonus 5, i.e. vanilla's 0/2/4/6 became
+        // 5/10/15/20. Investigating a "public transport carries no passengers" report showed that
+        // was working directly against this mod's own goals. Per ResidentAI.GetVehicleInfo, the
+        // citizens who end up using public transport are exactly those who roll "no car" AND then
+        // "no taxi" - GetTaxiProbability is only consulted for people who already decided not to
+        // drive, so every point added here is taken straight out of the walk/transit pool. That
+        // also cannibalized CitizenCarProbabilityPatch, which pushes people out of cars precisely
+        // to move them toward transit - only for this patch to catch up to 20% of them and put
+        // them back on the road in a taxi.
+        //
+        // Halved rather than reverted, per user decision: still noticeably more taxi usage than
+        // vanilla (0/2/4/6 -> 2/5/8/11), without eating so much of the transit ridership.
+        private const float Multiplier = 1.5f;
+        private const int FlatBonus = 2;
 
         private static bool loggedFirstCall;
 
