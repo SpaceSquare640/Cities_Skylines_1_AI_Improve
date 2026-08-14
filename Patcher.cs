@@ -72,6 +72,7 @@ namespace AIImprove
                 harmony, typeof(TransportStationAI), typeof(ThunderstormFacilityShutdownPatch.Transport));
             TryPatchThunderstormFacilityShutdown(
                 harmony, typeof(HelicopterDepotAI), typeof(ThunderstormFacilityShutdownPatch.HelicopterDepot));
+            TryPatchTrainSingleTrackConflictDetector(harmony);
 
             Debug.Log("[AIImprove] Harmony patches applied.");
         }
@@ -179,6 +180,44 @@ namespace AIImprove
                 Debug.LogWarning(
                     "[AIImprove] Thunderstorm facility shutdown patch failed to apply for " +
                     buildingAiType.Name + ", skipping it. Rest of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
+        }
+
+        // Detect-and-log-only single-shared-track conflict detector - see
+        // TrainSingleTrackConflictDetector.cs. Adds its own independent Postfix onto the same
+        // TrainAI.SimulationStep(ushort, ref Vehicle, Vector3) overload FlexibleReroutePatch
+        // already Postfixes for trains - Harmony supports multiple independent registrations on
+        // the same method, same pattern as HelicopterWeatherHaltPatch/HelicopterDispatchTrackingPatch.
+        private static bool TryPatchTrainSingleTrackConflictDetector(Harmony harmony)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    typeof(TrainAI),
+                    "SimulationStep",
+                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType(), typeof(Vector3) });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] TrainAI.SimulationStep(ushort, ref Vehicle, Vector3) not found - " +
+                        "game version may have changed. Skipping single-track conflict detector patch.");
+                    return false;
+                }
+
+                MethodInfo postfix = typeof(TrainSingleTrackConflictDetector.Train).GetMethod(
+                    "Postfix", BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, postfix: new HarmonyMethod(postfix));
+
+                Debug.Log("[AIImprove] Single-track conflict detector patch applied.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Single-track conflict detector patch failed to apply, skipping it. " +
+                    "Rest of the mod is unaffected. Reason: " + ex.Message);
                 return false;
             }
         }
