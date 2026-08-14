@@ -58,11 +58,26 @@ namespace AIImprove
             TryPatchCitizenCarProbability(harmony);
             TryPatchCitizenTaxiProbability(harmony);
             TryPatchHelicopterWeatherHalt(harmony);
-            TryPatchRaceCarSpeed(harmony);
             // TryPatchTrainPassengerCapacity(harmony) - DISABLED (2026-08-14) per user request
             // ("取消對城際火車及城際巴士的乘客改動"). File kept in place, not deleted, in case
             // this gets revisited later - just not registered/active.
-            TryPatchRaceBuildingAttractiveness(harmony);
+
+            // Race features are Races and Parades content - skip registering them outright
+            // without it, so the log reflects what is actually active instead of listing patches
+            // whose target methods can never run (2026-08-14, per user request to DLC-gate the
+            // remaining features). Purely cosmetic/hygienic: an unused patch costs nothing at
+            // runtime, unlike the thunderstorm scan gated in WeatherDisasterDetector.
+            if (DlcDetector.IsRacesAndParadesOwned())
+            {
+                TryPatchRaceCarSpeed(harmony);
+                TryPatchRaceBuildingAttractiveness(harmony);
+            }
+            else
+            {
+                Debug.Log(
+                    "[AIImprove] Races and Parades not owned - skipping the race car speed and " +
+                    "race complex attractiveness patches, there is no race content to affect.");
+            }
             TryPatchPassengerHelicopterGateAssignment(harmony);
             TryPatchFlexibleReroute(harmony, typeof(PassengerHelicopterAI), typeof(FlexibleReroutePatch.PassengerHelicopter));
             TryPatchPassengerHelicopterCapacity(harmony);

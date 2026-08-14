@@ -13,6 +13,16 @@ namespace AIImprove
     {
         public static bool IsThunderstormActive()
         {
+            // Skip the scan entirely without Natural Disasters (2026-08-14, per user request to
+            // DLC-gate the remaining features). This is the one gate that buys something real:
+            // every caller sits on a hot path - HelicopterWeatherHaltPatch runs on each emergency
+            // helicopter dispatch and AircraftGateAssignmentPatch on each aircraft pathfind - and
+            // without the DLC that whole list walk can only ever return false, forever.
+            if (!DlcDetector.IsNaturalDisastersOwned())
+            {
+                return false;
+            }
+
             FastList<DisasterData> disasters = Singleton<DisasterManager>.instance.m_disasters;
             if (disasters == null)
             {
