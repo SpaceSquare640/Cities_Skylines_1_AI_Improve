@@ -21,12 +21,17 @@ spawn time.
   the fastest route instead of the "safest/cheapest" one vanilla picks.
 - Dispatch-to-arrival timing tracked for all six emergency vehicle/helicopter
   types.
-- Fire trucks and fire helicopters are capped at 10 responders per burning
+- Fire trucks and fire helicopters are capped at 20 responders per burning
   building (independently) - vanilla has no such cap and a severe fire can
   pull in an unbounded number of vehicles. Vehicles blocked by the cap are
   force-redirected to another building that's still burning and still has
   room, instead of idling at the station. The cap lifts entirely for any
   building that's been burning continuously for 15+ minutes.
+- When [Transfer Manager CE](https://github.com/Sleepy334/TransferManagerCE)'s
+  own fire dispatch is enabled, target *selection* is left entirely to it
+  (it already does real nearest-fire matching) - this mod only still
+  enforces its own responder cap, instead of both mods fighting over the
+  same `SetTarget` call and producing wrong-truck/not-nearest dispatch.
 - Idle/returning fire trucks and helicopters also check for nearby still-
   burning buildings before accepting idle, prioritizing the closest fire -
   this incorporates and extends the core idea of the Steam Workshop mod
@@ -48,8 +53,21 @@ spawn time.
 - Stations approaching saturation aren't forced onto the least-bad already-
   jammed platform.
 - New incoming intercity trains are throttled when their destination station
-  is already saturated, instead of continuing to spawn into an already-full
-  station.
+  is already saturated, **and now also when city-wide train ridership itself
+  is low** - reads the same smoothed passenger-throughput number the vanilla
+  Public Transport info panel graph uses, so fewer trains spawn when real
+  demand doesn't justify them, not just when a platform looks physically busy.
+- Intercity train (and metro's shared `PassengerTrainAI`) passenger capacity
+  boosted, and newly-spawned intercity trains start with a realistic
+  non-zero "already boarded" passenger count instead of showing 0 - they're
+  arriving from outside the map, so it's unrealistic for them to be empty.
+- Ordinary (non-intercity) buses, passenger helicopters, and metro now fly
+  past a stop instead of dwelling there when it already has 3+ other
+  vehicles assigned to it, or when nobody boards that leg.
+- Capacity boosts (train/intercity bus/passenger helicopter) defer entirely
+  to [Advanced Vehicle Options](https://steamcommunity.com/sharedfiles/filedetails/?id=1548831935)
+  when it's installed, instead of doubling whatever custom capacity it
+  already set on a vehicle asset.
 
 ### Aircraft
 - Occupancy-aware gate assignment across a wide, two-ring candidate search,
@@ -61,9 +79,11 @@ spawn time.
   seeking landings.
 - Airports refuse new landings once saturated rather than piling planes onto
   an already-jammed taxiway.
-- **Thunderstorm response**: airports refuse new landings and departures,
-  and emergency helicopters ground new dispatches, for the duration of an
-  active thunderstorm disaster.
+- **Thunderstorm response**: airports and heliports are flipped directly to
+  "Not Operating" (the same status the game itself uses for e.g. an
+  unpowered building), and emergency helicopter depots too, for the
+  duration of an active thunderstorm disaster - reopened automatically the
+  moment the storm ends.
 
 ### Intercity and city buses
 - Real-time congestion-density-based dynamic rerouting.
@@ -98,6 +118,7 @@ spawn time.
 - **[Smarter Firefighters](https://steamcommunity.com/sharedfiles/filedetails/?id=2346565561)**: its core AI feature (redirecting idle/returning fire trucks and helicopters to nearby still-burning buildings) has been integrated into and extended by AI_Improve - see the Emergency vehicles section above. **No need to subscribe to it separately if you're running AI_Improve**; safe to also keep it subscribed if you want, but redundant.
 - **[SingleTrainTrackAI](https://steamcommunity.com/sharedfiles/filedetails/?id=949504539)**: soft dependency, detected at runtime via reflection. Its own reservation system already redirects `TrainAI.UpdatePathTargetPositions` to solve single-track collision/deadlock avoidance properly (braking trains to a stop via speed control, not refusing pathfinds), and its own page states it's incompatible with any other mod touching that same method. AI_Improve detects it and stays passive instead of reimplementing or conflicting with it - no action needed either way.
 - **[Reversible Tram AI](https://steamcommunity.com/sharedfiles/filedetails/?id=2740907672)**: soft dependency, detected at runtime via reflection, same reasoning as above - it already Harmony-patches tram simulation directly.
+- **[Advanced Vehicle Options](https://steamcommunity.com/sharedfiles/filedetails/?id=1548831935)**: soft dependency, detected at runtime via reflection. This mod's capacity boosts defer entirely to AVO's own explicit per-vehicle capacity settings when it's installed, instead of doubling whatever it already set.
 
 Known overlaps are documented, not avoided - see the Compatibility section
 above for what each mod actually does differently.

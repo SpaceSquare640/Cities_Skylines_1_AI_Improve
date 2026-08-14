@@ -1,3 +1,4 @@
+using ColossalFramework;
 using UnityEngine;
 
 namespace AIImprove
@@ -19,9 +20,21 @@ namespace AIImprove
     // later tick (the same "offer went unfulfilled this round" path vanilla already takes whenever
     // StartConnectionTransferImpl picks no vehicleInfo for a reason it doesn't recognize - not a new
     // failure mode, an existing one).
+    // REVISED (2026-08-14): "根據城市中的吞吐量動態調整...入城流量" - platform occupancy alone
+    // only measures physical crowding, not whether the city actually needs another train. Now
+    // also reads real city-wide train ridership (TransportThroughputTracker) and, when it's low,
+    // probabilistically skips spawns even at stations whose platforms aren't yet flagged
+    // saturated - each incoming train now already carries a large, realistically pre-loaded
+    // passenger count (see TrainPassengerCapacityPatch), so fewer trains are genuinely needed to
+    // serve the same real demand. Interim thresholds pending live-test calibration, same
+    // philosophy as every other tunable in this project.
     internal static class TrainSpawnThrottlePatch
     {
+        private const uint LowRidershipThreshold = 50;
+        private const float LowRidershipSkipChance = 0.5f;
+
         private static bool loggedFirstCall;
+        private static bool loggedRidership;
 
         // Prefix on OutsideConnectionAI.StartTransfer(ushort, ref Building, TransferReason,
         // TransferOffer) - single `ref Building` param, safe shape. Only intervenes for
@@ -38,6 +51,23 @@ namespace AIImprove
             {
                 loggedFirstCall = true;
                 Debug.Log("[AIImprove] TrainSpawnThrottlePatch is executing.");
+            }
+
+            uint ridership = TransportThroughputTracker.GetAverageRidership(TransportInfo.TransportType.Train);
+            if (!loggedRidership)
+            {
+                loggedRidership = true;
+                Debug.Log("[AIImprove] Current average train ridership reading: " + ridership + ".");
+            }
+
+            if (ridership < LowRidershipThreshold &&
+                Singleton<SimulationManager>.instance.m_randomizer.Int32(100U) < (uint)(LowRidershipSkipChance * 100f))
+            {
+                Debug.Log(
+                    "[AIImprove] Skipped spawning an incoming intercity train - city-wide train " +
+                    "ridership (" + ridership + ") is low, fewer trains are needed to serve real " +
+                    "demand now that each one already carries a realistic pre-loaded passenger count.");
+                return false;
             }
 
             ushort destinationStation = offer.Building;

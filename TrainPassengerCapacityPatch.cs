@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using ColossalFramework.Math;
 using UnityEngine;
 
 namespace AIImprove
@@ -34,7 +35,7 @@ namespace AIImprove
 
         private static bool loggedFirstCall;
 
-        public static void Prefix(PassengerTrainAI __instance)
+        public static void Prefix(PassengerTrainAI __instance, ushort vehicleID, ref Vehicle data)
         {
             // Defer to Advanced Vehicle Options if it's installed - see CompanionModCompat.cs.
             // AVO lets players set an explicit custom capacity per vehicle asset; doubling
@@ -54,12 +55,27 @@ namespace AIImprove
 
             __instance.m_passengerCapacity = Mathf.RoundToInt(original * Multiplier);
 
+            // "新生成時的已載客量" (2026-08-14): a newly spawned intercity train came from outside
+            // the map, so it's unrealistic for it to show 0 passengers already aboard - real
+            // trains arrive already carrying out-of-town riders. data.m_transferSize (the
+            // "current" half of GetBufferStatus's current/max display) is purely a display/stat
+            // counter here, not something LoadPassengers/UnloadPassengers increment
+            // arithmetically - TransportArriveAtTarget recomputes it from scratch by counting
+            // actual occupied citizen units at the very first real stop (see BusAI.cs's identical
+            // pattern), so seeding it with a fake starting number is safe: it just gets
+            // overwritten with the real count the moment the train reaches its first stop, no
+            // underflow/desync risk. Same random-half-to-full range GetBufferStatus's own
+            // DummyTraffic special case already uses for the same cosmetic purpose.
+            data.m_transferSize = (ushort)new Randomizer(vehicleID).Int32(
+                __instance.m_passengerCapacity >> 1, __instance.m_passengerCapacity);
+
             if (!loggedFirstCall)
             {
                 loggedFirstCall = true;
                 Debug.Log(
                     "[AIImprove] TrainPassengerCapacityPatch is executing (e.g. " + original +
-                    " -> " + __instance.m_passengerCapacity + ").");
+                    " -> " + __instance.m_passengerCapacity + ", initial boarded " +
+                    data.m_transferSize + ").");
             }
         }
     }

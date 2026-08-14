@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using ColossalFramework.Math;
 using UnityEngine;
 
 namespace AIImprove
@@ -23,7 +24,7 @@ namespace AIImprove
 
         private static bool loggedFirstCall;
 
-        public static void Prefix(BusAI __instance)
+        public static void Prefix(BusAI __instance, ushort vehicleID, ref Vehicle data)
         {
             if (!TransportStationAI.IsIntercity(__instance.m_info.m_class))
             {
@@ -46,12 +47,19 @@ namespace AIImprove
 
             __instance.m_passengerCapacity = Mathf.RoundToInt(original * Multiplier);
 
+            // "新生成時的已載客量" (2026-08-14) - see TrainPassengerCapacityPatch.cs's notes for
+            // the full rationale (why this is safe: m_transferSize is recomputed from scratch at
+            // the vehicle's first real stop, not decremented arithmetically from this seed value).
+            data.m_transferSize = (ushort)new Randomizer(vehicleID).Int32(
+                __instance.m_passengerCapacity >> 1, __instance.m_passengerCapacity);
+
             if (!loggedFirstCall)
             {
                 loggedFirstCall = true;
                 Debug.Log(
                     "[AIImprove] IntercityBusCapacityPatch is executing (e.g. " + original +
-                    " -> " + __instance.m_passengerCapacity + ").");
+                    " -> " + __instance.m_passengerCapacity + ", initial boarded " +
+                    data.m_transferSize + ").");
             }
         }
     }
