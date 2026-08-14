@@ -87,7 +87,7 @@ namespace AIImprove
                 return;
             }
 
-            if (vehicleData.m_path == 0U)
+            if (vehicleData.m_path == 0U || !SimulationStagger.ShouldRunThisFrame(vehicleID))
             {
                 return;
             }
