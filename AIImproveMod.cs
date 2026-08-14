@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using ColossalFramework;
+using ColossalFramework.UI;
 using ICities;
 using UnityEngine;
 
@@ -43,9 +45,14 @@ namespace AIImprove
                 "月台分配、中途改道",
                 ModSettings.TrainsAndMetroEnabled);
 
-            AddFeatureGroup(helper, "城際火車 (Intercity trains)",
+            UIHelperBase intercityTrainGroup = AddFeatureGroup(helper, "城際火車 (Intercity trains)",
                 "月台分配、中途改道、入城流量節流",
                 ModSettings.IntercityTrainEnabled);
+            AddEmptyVehicleScanButton(
+                intercityTrainGroup,
+                "檢測沒有乘客的城際火車 (Scan for empty intercity trains)",
+                EmptyVehicleAuditor.ScanIntercityTrains,
+                "城際火車 (intercity trains)");
 
             AddFeatureGroup(helper, "飛機與機場 (Aircraft & airports)",
                 "登機門分配、中途改道、雷暴雨拒絕起降",
@@ -55,9 +62,14 @@ namespace AIImprove
                 "中途改道、登機點分配、載客量",
                 ModSettings.BusesAndHelicoptersEnabled);
 
-            AddFeatureGroup(helper, "城際巴士 (Intercity buses)",
+            UIHelperBase intercityBusGroup = AddFeatureGroup(helper, "城際巴士 (Intercity buses)",
                 "中途改道閾值調整",
                 ModSettings.IntercityBusEnabled);
+            AddEmptyVehicleScanButton(
+                intercityBusGroup,
+                "檢測沒有乘客的城際巴士 (Scan for empty intercity buses)",
+                EmptyVehicleAuditor.ScanIntercityBuses,
+                "城際巴士 (intercity buses)");
 
             AddFeatureGroup(helper, "一般市內交通 (Ordinary city traffic)",
                 "私家車/計程車/貨車動態改道",
@@ -72,10 +84,45 @@ namespace AIImprove
                 ModSettings.RaceCarsEnabled);
         }
 
-        private static void AddFeatureGroup(UIHelperBase helper, string title, string description, SavedBool setting)
+        private static UIHelperBase AddFeatureGroup(UIHelperBase helper, string title, string description, SavedBool setting)
         {
             UIHelperBase group = helper.AddGroup(title);
             group.AddCheckbox("啟用此功能 (Enable) - " + description, setting.value, value => setting.value = value);
+            return group;
+        }
+
+        // "一鍵檢測沒有乘客的車輛及檢測後讓玩家選擇是否直接刪除" (2026-08-15): scan first
+        // (read-only), then ask via the game's own confirm dialog before deleting anything -
+        // deletion never happens without an explicit click. See EmptyVehicleAuditor.cs for the
+        // scan/delete logic itself.
+        private static void AddEmptyVehicleScanButton(
+            UIHelperBase group, string buttonLabel, System.Func<EmptyVehicleAuditor.ScanResult> scan, string categoryLabel)
+        {
+            group.AddButton(buttonLabel, () =>
+            {
+                EmptyVehicleAuditor.ScanResult result = scan();
+
+                if (result.LeadVehicleIds.Count == 0)
+                {
+                    ConfirmPanel.ShowModal("AI_Improve", "沒有偵測到沒有乘客的" + categoryLabel + "。", null);
+                    return;
+                }
+
+                List<ushort> matchedIds = result.LeadVehicleIds;
+                string message =
+                    "偵測到 " + matchedIds.Count + " 輛沒有乘客的" + categoryLabel +
+                    "（共 " + result.TotalVehicleCount + " 節車廂/車輛實例）。\n\n是否要直接刪除這些車輛？";
+
+                ConfirmPanel.ShowModal("AI_Improve", message, (component, ret) =>
+                {
+                    if (ret != 1)
+                    {
+                        return;
+                    }
+
+                    EmptyVehicleAuditor.DeleteVehicles(matchedIds);
+                });
+            });
         }
     }
 }
