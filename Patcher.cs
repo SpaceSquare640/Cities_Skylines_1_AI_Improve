@@ -59,12 +59,15 @@ namespace AIImprove
             TryPatchCitizenTaxiProbability(harmony);
             TryPatchHelicopterWeatherHalt(harmony);
             TryPatchRaceCarSpeed(harmony);
-            TryPatchTrainPassengerCapacity(harmony);
+            // TryPatchTrainPassengerCapacity(harmony) - DISABLED (2026-08-14) per user request
+            // ("取消對城際火車及城際巴士的乘客改動"). File kept in place, not deleted, in case
+            // this gets revisited later - just not registered/active.
             TryPatchRaceBuildingAttractiveness(harmony);
             TryPatchPassengerHelicopterGateAssignment(harmony);
             TryPatchFlexibleReroute(harmony, typeof(PassengerHelicopterAI), typeof(FlexibleReroutePatch.PassengerHelicopter));
             TryPatchPassengerHelicopterCapacity(harmony);
-            TryPatchIntercityBusCapacity(harmony);
+            // TryPatchIntercityBusCapacity(harmony) - DISABLED (2026-08-14), same reason as
+            // TryPatchTrainPassengerCapacity above.
             TryPatchTransitStationSkip(harmony, typeof(BusAI), typeof(TransitStationSkipPatch.Bus));
             TryPatchTransitStationSkip(harmony, typeof(PassengerHelicopterAI), typeof(TransitStationSkipPatch.PassengerHelicopter));
             TryPatchTransitStationSkip(harmony, typeof(PassengerTrainAI), typeof(TransitStationSkipPatch.Metro));

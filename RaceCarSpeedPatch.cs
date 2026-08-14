@@ -4,8 +4,9 @@ using UnityEngine;
 namespace AIImprove
 {
     // "賽車的 AI 我想他的駕駛速度為無上限" (2026-08-13), REVISED (2026-08-14) to "賽車AI固定速度為
-    // 120以內" - originally removed each racer's individual top-speed cap entirely (set to a very
-    // large value); now instead fixes it at a flat 120 ceiling for every racer. dnSpy showed
+    // 120以內", REVISED AGAIN (2026-08-14) to 80 - felt too fast at 120, lowered per user request.
+    // Originally removed each racer's individual top-speed cap entirely (set to a very large
+    // value); now instead fixes it at a flat ceiling for every racer. dnSpy showed
     // RaceCarAI.CalculateTargetSpeed computes a curve/turning-based cornering speed (num, from the
     // car's RacerData.m_turning) and then clamps it with Mathf.Min(num, racerData.m_maxSpeed) -
     // that clamp is what's being overridden here. The cornering math itself is left untouched, so
@@ -17,7 +18,7 @@ namespace AIImprove
     // duplicate the cornering formula or otherwise touch the original method's logic.
     internal static class RaceCarSpeedPatch
     {
-        private const float MaxSpeed = 120f;
+        private const float MaxSpeed = 80f;
 
         private static bool loggedFirstCall;
 
