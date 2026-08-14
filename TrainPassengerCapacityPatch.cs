@@ -36,6 +36,15 @@ namespace AIImprove
 
         public static void Prefix(PassengerTrainAI __instance)
         {
+            // Defer to Advanced Vehicle Options if it's installed - see CompanionModCompat.cs.
+            // AVO lets players set an explicit custom capacity per vehicle asset; doubling
+            // whatever we find on top of that stacks unpredictably (confirmed via a real user
+            // screenshot showing 31968 capacity on one train).
+            if (CompanionModCompat.IsAdvancedVehicleOptionsLoaded())
+            {
+                return;
+            }
+
             int original;
             if (!OriginalCapacity.TryGetValue(__instance, out original))
             {

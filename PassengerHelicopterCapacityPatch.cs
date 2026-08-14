@@ -23,6 +23,13 @@ namespace AIImprove
 
         public static void Prefix(PassengerHelicopterAI __instance)
         {
+            // Defer to Advanced Vehicle Options if it's installed - see CompanionModCompat.cs
+            // and TrainPassengerCapacityPatch.cs's notes for the real-world case this fixed.
+            if (CompanionModCompat.IsAdvancedVehicleOptionsLoaded())
+            {
+                return;
+            }
+
             int original;
             if (!OriginalCapacity.TryGetValue(__instance, out original))
             {

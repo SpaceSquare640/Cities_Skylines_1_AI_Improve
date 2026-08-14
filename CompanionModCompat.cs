@@ -19,9 +19,25 @@ namespace AIImprove
         private const string SingleTrainTrackAiTypeName = "SingleTrackAI.SingleTrainTrackAI";
         private const string ReversibleTramAiTypeName = "ReversibleTramAI.Mod";
 
+        // BUG FOUND VIA SCREENSHOT (2026-08-14): a user with Advanced Vehicle Options installed
+        // had a train showing 31968 passenger capacity. AVO lets players set an explicit custom
+        // capacity per vehicle asset; our own capacity-boost patches (TrainPassengerCapacityPatch,
+        // IntercityBusCapacityPatch, PassengerHelicopterCapacityPatch) unconditionally multiply
+        // whatever m_passengerCapacity they find by a fixed factor, with no awareness that the
+        // "original" value they captured might already be an intentional custom number from AVO
+        // rather than the vanilla default - the two stack multiplicatively (e.g. AVO's own 15984
+        // -> our x2 -> 31968). The fix isn't a bug in our multiplier itself (it's a clean, stable
+        // 2x every time - confirmed via log), it's that we shouldn't be doubling a number the
+        // player already explicitly chose. When AVO is present, defer to it entirely instead of
+        // stacking on top - same "detect and stay passive" philosophy as SingleTrainTrackAI/
+        // Reversible Tram AI above.
+        private const string AdvancedVehicleOptionsTypeName = "AdvancedVehicleOptionsUID.AdvancedVehicleOptionsLoader";
+
         public static bool IsSingleTrainTrackAiLoaded() => FindType(SingleTrainTrackAiTypeName) != null;
 
         public static bool IsReversibleTramAiLoaded() => FindType(ReversibleTramAiTypeName) != null;
+
+        public static bool IsAdvancedVehicleOptionsLoaded() => FindType(AdvancedVehicleOptionsTypeName) != null;
 
         private static Type FindType(string typeName)
         {
