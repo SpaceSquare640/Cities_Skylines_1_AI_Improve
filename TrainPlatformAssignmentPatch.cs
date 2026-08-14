@@ -103,6 +103,32 @@ namespace AIImprove
                 Debug.Log("[AIImprove] TrainPlatformAssignmentPatch is executing.");
             }
 
+            // BUG FOUND VIA PLAYER REPORT (2026-08-14): "地鐵無法移動" (metro cannot move), still
+            // present after the stop-skipping patch was disabled, so a separate cause. Root cause
+            // is a type confusion in this patch: Vehicle.m_targetBuilding is only a Building index
+            // on *some* legs. Confirmed in PassengerTrainAI.StartPathFind (which MetroTrainAI
+            // inherits): for a train running a transport line - i.e. neither GoingBack nor
+            // DummyTraffic - vanilla reads it as a NetManager **node** index
+            // (`m_nodes.m_buffer[m_targetBuilding].m_position`), because a line's stop is a net
+            // node, not a building. ResolveDestinationBuilding below indexes the *buildings*
+            // buffer with that value, so it silently reads an unrelated building's position, and
+            // IsRealStation then judges that unrelated building. Node ids stay well inside the
+            // building buffer's range, so this never threw - it just quietly let the patch run on
+            // garbage and overwrite endPos, moving the destination off the real stop node.
+            //
+            // Intercity trains were unaffected (they carry DummyTraffic, where m_targetBuilding
+            // really is a Building), which is exactly why this went unnoticed - the patch was
+            // developed and tested against them.
+            //
+            // m_transportLine != 0 is the definitive discriminator: a vehicle running a player
+            // transport line is precisely the case where m_targetBuilding means a node. That also
+            // naturally excludes all metro, which always runs on a line. Platform spreading was
+            // only ever asked for at intercity/regional stations anyway.
+            if (vehicleData.m_transportLine != 0)
+            {
+                return;
+            }
+
             ushort targetBuilding = ResolveDestinationBuilding(ref vehicleData, endPos);
             if (!IsRealStation(targetBuilding))
             {

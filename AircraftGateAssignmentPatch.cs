@@ -228,6 +228,19 @@ namespace AIImprove
                 return false;
             }
 
+            // Same m_targetBuilding type confusion fixed in TrainPlatformAssignmentPatch on
+            // 2026-08-14 (see its notes for the full explanation): PassengerPlaneAI.StartPathFind
+            // has the identical shape - on a player transport line leg it reads m_targetBuilding
+            // as a NetManager *node* index, not a Building index, so resolving it against the
+            // buildings buffer below would silently judge an unrelated building. Aircraft mostly
+            // failed safe here because IsAirportBuilding rejects almost any wrong building, but
+            // in-city air lines (Airports DLC) could still hit it. Gate spreading is meant for
+            // outside-connection flights (DummyTraffic), which are unaffected by this guard.
+            if (vehicleData.m_transportLine != 0)
+            {
+                return true;
+            }
+
             ushort targetBuilding = ResolveDestinationBuilding(ref vehicleData, endPos);
 
             if (!IsAirportBuilding(targetBuilding))
