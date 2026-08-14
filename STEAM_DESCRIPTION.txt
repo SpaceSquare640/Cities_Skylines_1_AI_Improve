@@ -13,8 +13,8 @@ Most existing "improved AI" mods for Cities: Skylines change one narrow slice of
 [*] Emergency vehicles ignore path costs when actively dispatched, so they take the fastest route instead of the "safest/cheapest" one vanilla picks.
 [*] Dispatch-to-arrival timing tracked for all six emergency vehicle/helicopter types.
 [*] Fire trucks and fire helicopters are capped at 20 responders per burning building (independently) - vanilla has no such cap and a severe fire can pull in an unbounded number of vehicles. Vehicles blocked by the cap are force-redirected to another building that's still burning and still has room, instead of idling at the station. The cap lifts entirely for any building that's been burning continuously for 15+ minutes.
-[*] Idle/returning fire trucks and helicopters also check for nearby still-burning buildings before accepting idle, prioritizing the closest fire - this incorporates and extends the core idea of the Workshop mod [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2346565561]Smarter Firefighters: Improved AI[/url], combined with this mod's own responder cap and 15-minute-uncap system. [b]You do not need to subscribe to Smarter Firefighters separately if you're using AI_Improve[/b] - its behavior is already built in.
-[*] When [url=https://steamcommunity.com/workshop/filedetails/?id=2804719780]Transfer Manager CE[/url]'s own fire dispatch is enabled, target [i]selection[/i] is left entirely to it (it already does real nearest-fire matching) - this mod only still enforces its own responder cap, instead of both mods fighting over the same dispatch call and producing wrong-truck/not-nearest dispatch.
+[*] Idle/returning fire trucks and helicopters check for nearby still-burning buildings before accepting idle, prioritizing the closest fire - incorporates and extends [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2346565561]Smarter Firefighters: Improved AI[/url]. [b]No need to subscribe to it separately[/b] if you're using AI_Improve.
+[*] When [url=https://steamcommunity.com/workshop/filedetails/?id=2804719780]Transfer Manager CE[/url]'s own fire dispatch is enabled, target selection is left entirely to it - this mod only enforces its own responder cap, avoiding both mods fighting over the same dispatch decision.
 [*] Not gated behind any DLC - police, medical, and fire helicopters work whether or not you own the DLC that introduced them.
 [/list]
 
@@ -24,10 +24,10 @@ Most existing "improved AI" mods for Cities: Skylines change one narrow slice of
 [*] Real-time congestion-density-based dynamic rerouting mid-journey, not just a one-time route chosen at departure.
 [*] Correctly distinguishes departing trains from arriving ones, so leaving trains are never mistakenly funneled into platform-assignment logic meant for landing.
 [*] Stations approaching saturation aren't forced onto the least-bad already-jammed platform.
-[*] New incoming intercity trains are throttled when their destination station is already saturated, [b]and now also when city-wide train ridership itself is low[/b] - reads the same smoothed passenger-throughput number the vanilla Public Transport info panel graph uses, so fewer trains spawn when real demand doesn't justify them, not just when a platform looks physically busy.
-[*] Intercity train (and metro's shared PassengerTrainAI) passenger capacity boosted, and newly-spawned intercity trains/buses start with a realistic non-zero "already boarded" passenger count instead of showing 0 - they're arriving from outside the map, so it's unrealistic for them to be empty.
-[*] Ordinary (non-intercity) buses, passenger helicopters, and metro now fly past a stop instead of dwelling there when it already has 3+ other vehicles assigned to it, or when nobody boards that leg.
-[*] Capacity boosts defer entirely to [url=https://steamcommunity.com/sharedfiles/filedetails/?id=1548831935]Advanced Vehicle Options[/url] when it's installed, instead of doubling whatever custom capacity it already set on a vehicle asset.
+[*] New incoming intercity trains are throttled when their destination station is saturated, [b]and now also when real city-wide train ridership is low[/b] - fewer trains spawn when demand doesn't justify them, not just when a platform looks busy.
+[*] Intercity train (and metro) passenger capacity boosted, and newly-spawned intercity trains/buses start with a realistic non-zero "already boarded" count instead of showing 0.
+[*] Ordinary (non-intercity) buses, passenger helicopters, and metro fly past a stop instead of dwelling there when it already has 3+ other vehicles, or when nobody boards that leg.
+[*] Capacity boosts defer to [url=https://steamcommunity.com/sharedfiles/filedetails/?id=1548831935]Advanced Vehicle Options[/url] when installed, instead of doubling whatever custom capacity it already set.
 [/list]
 
 [b]Aircraft[/b]
@@ -76,10 +76,9 @@ Most existing "improved AI" mods for Cities: Skylines change one narrow slice of
 [list]
 [*] [b]TM:PE[/b]: soft dependency, detected at runtime - no compile-time reference exists anywhere in this project. Some features (e.g. emergency vehicle priority) only activate when TM:PE is present and its Advanced Vehicle AI option is enabled.
 [*] [b]Transfer Manager CE[/b]: overlapping scope on service vehicle dispatch. This mod does not try to replace it; it targets problems Transfer Manager CE doesn't solve rather than re-implementing its path-distance matching.
-[*] [b]Smarter Firefighters[/b]: its core AI feature has been integrated into and extended by AI_Improve - see the Emergency vehicles section above. [b]No need to subscribe to it separately if you're running AI_Improve[/b]; safe to also keep it subscribed if you want, but redundant.
-[*] [b]SingleTrainTrackAI[/b]: soft dependency, detected at runtime. Its own reservation system already solves single-track collision/deadlock avoidance properly, and its page states it's incompatible with any other mod touching the same method it patches. AI_Improve detects it and stays passive instead of reimplementing or conflicting with it.
-[*] [b]Reversible Tram AI[/b]: soft dependency, detected at runtime, same reasoning as above.
-[*] [b]Advanced Vehicle Options[/b]: soft dependency, detected at runtime. This mod's capacity boosts defer entirely to AVO's own explicit per-vehicle capacity settings when it's installed, instead of doubling whatever it already set.
+[*] [b]Smarter Firefighters[/b]: integrated and extended - see Emergency vehicles above. No need to subscribe separately.
+[*] [b]SingleTrainTrackAI[/b] / [b]Reversible Tram AI[/b]: soft dependencies, detected at runtime. Both already solve their own problems well; AI_Improve stays passive around them instead of reimplementing or conflicting.
+[*] [b]Advanced Vehicle Options[/b]: soft dependency, detected at runtime. Capacity boosts defer entirely to AVO's own settings when installed.
 [/list]
 
 [h2]License[/h2]
