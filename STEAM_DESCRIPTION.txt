@@ -9,12 +9,12 @@ Most existing "improved AI" mods for Cities: Skylines change one narrow slice of
 [h2]What it improves[/h2]
 [list]
 [*] [b]Emergency vehicles[/b]: path-cost-ignoring dispatch, a real per-building responder cap, idle vehicles that check for nearby fires first. Incorporates and extends [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2346565561]Smarter Firefighters[/url] - no need to subscribe to it separately.
-[*] [b]Trains, intercity trains, and metro[/b]: occupancy-aware platform assignment, mid-journey rerouting, throughput-aware spawn throttling, boosted capacity, stop-skipping for congested/empty stops.
-[*] [b]Aircraft[/b]: occupancy-aware gate assignment, mid-flight rerouting, full thunderstorm response (airports/heliports/helicopter depots close and reopen automatically).
-[*] [b]Buses, passenger helicopters[/b]: dynamic rerouting, stop-skipping, boosted capacity.
+[*] [b]Trains, intercity trains, and metro[/b]: occupancy-aware platform assignment, mid-journey rerouting, throughput-aware spawn throttling.
+[*] [b]Aircraft[/b]: occupancy-aware gate assignment, mid-flight rerouting, thunderstorm response (airports refuse landings and departures, emergency helicopters stay grounded, for the duration of the storm).
+[*] [b]Buses, passenger helicopters[/b]: dynamic rerouting, boosted helicopter capacity.
 [*] [b]Ordinary city traffic[/b]: every road vehicle reroutes around real-time congestion mid-journey, not just once at trip start.
 [*] [b]Citizens[/b]: less likely to drive into already-congested destinations; taxi usage boosted as the alternative.
-[*] [b]Race cars[/b]: no artificial top-speed cap on straights.
+[*] [b]Race cars[/b]: one consistent top-speed ceiling for every racer, with vanilla's cornering behavior left intact.
 [/list]
 
 [b]See the [url=https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/wiki]GitHub Wiki[/url] for the full, detailed feature list and compatibility notes[/b] (soft dependencies/integrations with TM:PE, Transfer Manager CE, Smarter Firefighters, SingleTrainTrackAI, Reversible Tram AI, Advanced Vehicle Options).

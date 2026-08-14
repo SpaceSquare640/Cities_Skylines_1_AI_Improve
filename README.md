@@ -19,18 +19,18 @@ spawn time.
 - **Emergency vehicles** - path-cost-ignoring dispatch, a real per-building
   responder cap, idle vehicles that check for nearby fires first.
 - **Trains, intercity trains, and metro** - occupancy-aware platform
-  assignment, mid-journey rerouting, throughput-aware spawn throttling,
-  boosted capacity, stop-skipping for congested/empty stops.
+  assignment, mid-journey rerouting, throughput-aware spawn throttling.
 - **Aircraft** - occupancy-aware gate assignment, mid-flight rerouting,
-  full thunderstorm response (airports/heliports/helicopter depots close and
-  reopen automatically).
-- **Buses, passenger helicopters** - dynamic rerouting, stop-skipping,
-  boosted capacity.
+  thunderstorm response (airports refuse landings and departures,
+  emergency helicopters stay grounded, for the duration of the storm).
+- **Buses, passenger helicopters** - dynamic rerouting, boosted
+  helicopter capacity.
 - **Ordinary city traffic** - every road vehicle reroutes around real-time
   congestion mid-journey, not just once at trip start.
 - **Citizens** - less likely to drive into already-congested destinations;
   taxi usage boosted as the alternative.
-- **Race cars** - no artificial top-speed cap on straights.
+- **Race cars** - one consistent top-speed ceiling for every racer,
+  with vanilla's cornering behavior left intact.
 
 **See the [Wiki](https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/wiki)
 for the full, detailed feature list and compatibility notes** (soft
