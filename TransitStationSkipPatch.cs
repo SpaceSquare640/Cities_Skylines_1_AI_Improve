@@ -47,7 +47,16 @@ namespace AIImprove
         // turning into unbounded recursion in a single tick.
         private const int MaxSkipDepth = 8;
 
-        private static readonly Dictionary<ushort, int> SkipDepth = new Dictionary<ushort, int>();
+        // BUG FOUND VIA LOG (2026-08-14): a plain depth counter isn't enough on a short/shuttle
+        // line - live logs showed a 2-stop metro line bouncing 23316 -> 23317 -> 23316 -> 23317
+        // forever (every real arrival re-triggered another full 8-hop burst, session-long, zero
+        // real service), because GetNextStop cycles right back to a stop already skipped this
+        // same burst when the line is short enough. Tracking which stops were already visited in
+        // the current burst and stopping (accepting the current stop for real) the moment a
+        // repeat is seen fixes this at the root, rather than just capping how far the symptom can
+        // run before giving up mid-flight.
+        private static readonly Dictionary<ushort, HashSet<ushort>> VisitedThisBurst =
+            new Dictionary<ushort, HashSet<ushort>>();
 
         private static bool loggedFirstCall;
 
@@ -92,7 +101,7 @@ namespace AIImprove
             {
                 // Released (end of trip) or no next stop was assigned this call - nothing to
                 // evaluate.
-                SkipDepth.Remove(vehicleID);
+                VisitedThisBurst.Remove(vehicleID);
                 return;
             }
 
@@ -105,11 +114,20 @@ namespace AIImprove
                 TransitStopOccupancyTracker.EnterBuilding(newTarget);
             }
 
-            int depth;
-            SkipDepth.TryGetValue(vehicleID, out depth);
-            if (depth >= MaxSkipDepth)
+            HashSet<ushort> visited;
+            if (!VisitedThisBurst.TryGetValue(vehicleID, out visited))
             {
-                SkipDepth.Remove(vehicleID);
+                visited = new HashSet<ushort>();
+                visited.Add(state.OldTarget);
+                VisitedThisBurst[vehicleID] = visited;
+            }
+
+            if (visited.Contains(newTarget) || visited.Count >= MaxSkipDepth)
+            {
+                // Either a short/looping line brought us back to a stop we already flew past
+                // this burst, or we've hit the sanity cap - either way, stop skipping and let
+                // the vehicle actually dwell here for real instead of chaining forever.
+                VisitedThisBurst.Remove(vehicleID);
                 return;
             }
 
@@ -121,11 +139,11 @@ namespace AIImprove
 
             if (!congested && !noPassengers)
             {
-                SkipDepth.Remove(vehicleID);
+                VisitedThisBurst.Remove(vehicleID);
                 return;
             }
 
-            SkipDepth[vehicleID] = depth + 1;
+            visited.Add(newTarget);
 
             Debug.Log(
                 "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " flying past stop " +

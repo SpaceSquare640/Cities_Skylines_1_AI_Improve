@@ -68,6 +68,10 @@ namespace AIImprove
             TryPatchTransitStationSkip(harmony, typeof(BusAI), typeof(TransitStationSkipPatch.Bus));
             TryPatchTransitStationSkip(harmony, typeof(PassengerHelicopterAI), typeof(TransitStationSkipPatch.PassengerHelicopter));
             TryPatchTransitStationSkip(harmony, typeof(PassengerTrainAI), typeof(TransitStationSkipPatch.Metro));
+            TryPatchThunderstormFacilityShutdown(
+                harmony, typeof(TransportStationAI), typeof(ThunderstormFacilityShutdownPatch.Transport));
+            TryPatchThunderstormFacilityShutdown(
+                harmony, typeof(HelicopterDepotAI), typeof(ThunderstormFacilityShutdownPatch.HelicopterDepot));
 
             Debug.Log("[AIImprove] Harmony patches applied.");
         }
@@ -140,6 +144,41 @@ namespace AIImprove
                 Debug.LogWarning(
                     "[AIImprove] Transit station skip patch failed to apply for " + vehicleAiType.Name +
                     ", skipping it. Rest of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
+        }
+
+        // Directly flips airports/heliports/emergency-helicopter-depots to "Not Operating" during
+        // a thunderstorm - see ThunderstormFacilityShutdownPatch.cs.
+        private static bool TryPatchThunderstormFacilityShutdown(Harmony harmony, Type buildingAiType, Type patchWrapperType)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    buildingAiType,
+                    "SimulationStep",
+                    new[] { typeof(ushort), typeof(Building).MakeByRefType(), typeof(Building.Frame).MakeByRefType() });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] " + buildingAiType.Name + ".SimulationStep(ushort, ref Building, " +
+                        "ref Building.Frame) not found - game version may have changed. Skipping " +
+                        "thunderstorm facility shutdown patch for " + buildingAiType.Name + ".");
+                    return false;
+                }
+
+                MethodInfo postfix = patchWrapperType.GetMethod("Postfix", BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, postfix: new HarmonyMethod(postfix));
+
+                Debug.Log("[AIImprove] Thunderstorm facility shutdown patch applied for " + buildingAiType.Name + ".");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Thunderstorm facility shutdown patch failed to apply for " +
+                    buildingAiType.Name + ", skipping it. Rest of the mod is unaffected. Reason: " + ex.Message);
                 return false;
             }
         }
