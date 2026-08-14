@@ -39,6 +39,50 @@ namespace AIImprove
 
         public static bool IsAdvancedVehicleOptionsLoaded() => FindType(AdvancedVehicleOptionsTypeName) != null;
 
+        // BUG FOUND VIA USER REPORT (2026-08-14): "消防車派遣邏輯本身有問題" (idle trucks never
+        // dispatched, wrong/not-nearest truck sent, bad multi-fire allocation). Root cause:
+        // Transfer Manager CE's own FireVehicleAIPatch Prefixes the exact same
+        // FireTruckAI.SetTarget method FireResponseCapPatch does, and both independently try to
+        // pick/overwrite `targetBuilding` on the same call - whichever prefix runs second wins,
+        // and our own cap-tracking has no idea what TMCE just assigned. Confirmed via decompiling
+        // TransferManagerCE.dll: TransferManagerCore.Settings.ModSettings.GetSettings().FireTruckAI
+        // / .FireCopterAI (both user-toggleable, default true) gate its own fire dispatch. When
+        // these read true, FireResponseCapPatch now defers target *selection* to TMCE entirely -
+        // it already does real nearest-fire matching (see FireVehicleAIPatch.FindBuildingWithFire,
+        // 160m search) far better than our own simple "closest known-burning building" pool - and
+        // only keeps its own value-add (10-per-building cap, 15-minute uncap) instead of also
+        // trying to pick a target and fighting over it.
+        private const string TmceModSettingsTypeName = "TransferManagerCore.Settings.ModSettings";
+
+        public static bool IsTmceFireDispatchActive(bool isCopter)
+        {
+            Type settingsType = FindType(TmceModSettingsTypeName);
+            if (settingsType == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                MethodInfo getSettings = settingsType.GetMethod("GetSettings", BindingFlags.Public | BindingFlags.Static);
+                object settings = getSettings?.Invoke(null, null);
+                if (settings == null)
+                {
+                    return false;
+                }
+
+                PropertyInfo property = settingsType.GetProperty(isCopter ? "FireCopterAI" : "FireTruckAI");
+                return property != null && (bool)property.GetValue(settings, null);
+            }
+            catch
+            {
+                // Reflection into another mod's internals is inherently fragile across its
+                // updates - fail safe (assume not active, keep our own redirect logic) rather
+                // than throw.
+                return false;
+            }
+        }
+
         private static Type FindType(string typeName)
         {
             foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())

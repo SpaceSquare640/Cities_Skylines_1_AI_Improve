@@ -24,7 +24,12 @@ namespace AIImprove
     //    not an artificial ceiling) - see FireStartTime / UnlimitedAfterSeconds.
     internal static class FireResponseTracker
     {
-        public const int MaxRespondersPerBuilding = 10;
+        // TUNED (2026-08-14, raised per user request): 10 -> 20. Real-world feedback was that
+        // severe fires were outpacing the fire-growth-vs-extinguish-rate balance at 10 - see
+        // FireResponseCapPatch.cs's notes on the same-day dispatch-conflict fix, which likely
+        // explains part of why fires felt unwinnable (trucks fighting over targets instead of
+        // actually converging on one), but the cap itself was also raised independently.
+        public const int MaxRespondersPerBuilding = 20;
         private const float UnlimitedAfterSeconds = 15f * 60f;
 
         private static readonly Dictionary<ushort, int> TruckResponseCount = new Dictionary<ushort, int>();

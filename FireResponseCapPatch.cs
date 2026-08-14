@@ -26,6 +26,16 @@ namespace AIImprove
     //
     // Only one `ref Vehicle` parameter on this method - safe Prefix shape, same as everything
     // else in this project.
+    //
+    // REVISED (2026-08-14): defers target *selection* to Transfer Manager CE when its own fire
+    // dispatch is active (see CompanionModCompat.IsTmceFireDispatchActive) - both mods used to
+    // independently pick/overwrite `targetBuilding` on the exact same SetTarget call, with no
+    // awareness of each other, causing wrong-truck/not-nearest/bad-multi-fire-allocation
+    // dispatch per a real user report. TMCE's own nearest-fire search is more capable than this
+    // mod's; when it's active this patch only still enforces the cap (still blocks/redirects to
+    // idle when a building is over MaxRespondersPerBuilding) but stops trying to pick an
+    // alternate building itself - TMCE's own periodic idle-vehicle rescan (see its
+    // FireTruckAISimulationStepPostfix) picks the vehicle back up on its own next pass.
     internal static class FireResponseCapPatch
     {
         private static bool loggedFirstCall;
@@ -38,9 +48,19 @@ namespace AIImprove
                 Debug.Log("[AIImprove] FireResponseCapPatch is executing.");
             }
 
+            bool tmceOwnsDispatch = CompanionModCompat.IsTmceFireDispatchActive(isCopter);
+
             if (targetBuilding == 0)
             {
                 FireResponseTracker.TryAssign(isCopter, vehicleID, 0);
+
+                if (tmceOwnsDispatch)
+                {
+                    // Let TMCE's own FireTruckAI/FireCopterAI dispatch pick the next target -
+                    // don't also search and risk overwriting a choice it makes on the very same
+                    // call.
+                    return;
+                }
 
                 ushort nearby = FireResponseTracker.TryFindAlternateBurningBuilding(isCopter, 0, data.GetLastFramePosition());
                 if (nearby != 0 && FireResponseTracker.TryAssign(isCopter, vehicleID, nearby))
@@ -57,6 +77,21 @@ namespace AIImprove
             if (!FireResponseTracker.TryAssign(isCopter, vehicleID, targetBuilding))
             {
                 ushort original = targetBuilding;
+
+                if (tmceOwnsDispatch)
+                {
+                    // Still enforce the cap (this building has enough responders already), but
+                    // leave picking the replacement target to TMCE's own next dispatch pass
+                    // instead of searching ourselves.
+                    Debug.Log(
+                        "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " redirected away " +
+                        "from building " + original + " - already at " +
+                        FireResponseTracker.MaxRespondersPerBuilding + " responders. Leaving target " +
+                        "selection to Transfer Manager CE instead of picking one ourselves.");
+                    targetBuilding = 0;
+                    return;
+                }
+
                 ushort alternate = FireResponseTracker.TryFindAlternateBurningBuilding(isCopter, original, data.GetLastFramePosition());
 
                 if (alternate != 0 && FireResponseTracker.TryAssign(isCopter, vehicleID, alternate))
