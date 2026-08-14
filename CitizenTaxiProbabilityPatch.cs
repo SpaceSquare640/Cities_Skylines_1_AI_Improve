@@ -29,6 +29,26 @@ namespace AIImprove
 
         public static void Postfix(ref int __result)
         {
+            // Skip entirely without After Dark, which is what introduced taxis (per user request,
+            // 2026-08-14). Vanilla already degrades gracefully on its own here - GetVehicleInfo
+            // looks up a PublicTransportTaxi prefab and falls through to "no vehicle" (walk or
+            // public transport) when none exists - so this is not fixing a visible bug. It does
+            // avoid pointlessly running on every trip decision, and avoids raising the taxi roll
+            // for a player who has no taxi service but happens to have a custom taxi asset
+            // subscribed.
+            if (!DlcDetector.IsAfterDarkOwned())
+            {
+                if (!loggedFirstCall)
+                {
+                    loggedFirstCall = true;
+                    Debug.Log(
+                        "[AIImprove] CitizenTaxiProbabilityPatch is staying inactive - After Dark " +
+                        "(which introduced taxis) is not owned, so there is no taxi service to boost.");
+                }
+
+                return;
+            }
+
             if (!loggedFirstCall)
             {
                 loggedFirstCall = true;
