@@ -68,13 +68,43 @@ namespace AIImprove
             TryPatchPassengerHelicopterCapacity(harmony);
             // TryPatchIntercityBusCapacity(harmony) - DISABLED (2026-08-14), same reason as
             // TryPatchTrainPassengerCapacity above.
-            TryPatchTransitStationSkip(harmony, typeof(BusAI), typeof(TransitStationSkipPatch.Bus));
-            TryPatchTransitStationSkip(harmony, typeof(PassengerHelicopterAI), typeof(TransitStationSkipPatch.PassengerHelicopter));
-            TryPatchTransitStationSkip(harmony, typeof(PassengerTrainAI), typeof(TransitStationSkipPatch.Metro));
-            TryPatchThunderstormFacilityShutdown(
-                harmony, typeof(TransportStationAI), typeof(ThunderstormFacilityShutdownPatch.Transport));
-            TryPatchThunderstormFacilityShutdown(
-                harmony, typeof(HelicopterDepotAI), typeof(ThunderstormFacilityShutdownPatch.HelicopterDepot));
+            // TryPatchTransitStationSkip(...) x3 - DISABLED (2026-08-14) after a player bug report
+            // ("地鐵無法移動 / 有些巴士無法移動 / 直升機無法移動 / 部份電車無法移動 /
+            // 公共交通工具客量大幅減少"), confirmed against their output_log: 3676 skip events
+            // across 473 vehicles, with buses routinely flying past 6+ consecutive stops.
+            //
+            // Root cause (found via dnSpy): the "車站沒有乘客" rule measures the wrong thing.
+            // BusAI.LoadPassengers only boards citizens already flagged WaitingTransport within
+            // 32m *at the instant of arrival* - vanilla then lets the vehicle dwell at the stop
+            // (Stopped + m_waitCounter, CanLeave needs m_waitCounter >= 12) so more riders can
+            // reach it. Checking "did m_transferSize increase during ArriveAtTarget" therefore
+            // reports "nobody boarded" for any stop whose riders simply hadn't walked up yet, so
+            // the vehicle skips a stop it should have served - which strands those citizens and
+            // makes the next stop look empty too, a self-reinforcing spiral that matches the
+            // reported ridership collapse exactly. The stuck vehicles are the same mechanism's
+            // other half: each skip re-enters ArriveAtTarget and fires another StartPathFind in
+            // the same tick, so a chain of skips issues several competing path requests for one
+            // vehicle while leaving Stopped set.
+            //
+            // Fixing this properly needs a genuinely different signal for "this stop has no
+            // demand" (e.g. TransportLine.CalculatePassengerCount, which scans waiting citizens
+            // around a stop without depending on boarding having already happened) plus a
+            // non-recursive way to advance to the next stop. Files kept in place for that
+            // rework; not registered until it exists.
+            //
+            // TryPatchThunderstormFacilityShutdown(...) x2 - DISABLED (2026-08-14) after the user
+            // reported air facilities never recovering once a storm passed. Clearing
+            // Building.Flags.Active turned out to have persistent side effects this mod doesn't
+            // control: TransportStationAI.CreateConnectionLines stamps NetNode.Flags.Disabled onto
+            // a station's connection nodes whenever Active is clear at that moment, and those node
+            // flags are not recomputed per frame - they survive until the connection lines are
+            // rebuilt, so a station could stay functionally dead even after Active came back. The
+            // flag is also save-persisted, so any failure to restore it (save/load mid-storm, an
+            // exception, unsubscribing the mod) bricks the building permanently in the player's
+            // save. Not worth that risk: the vehicle-level thunderstorm refusals in
+            // AircraftGateAssignmentPatch and HelicopterWeatherHaltPatch remain registered and
+            // already delivered the requested behavior (confirmed in logs), just without the
+            // "Not Operating" building status.
             TryPatchTrainSingleTrackConflictDetector(harmony);
 
             Debug.Log("[AIImprove] Harmony patches applied.");
