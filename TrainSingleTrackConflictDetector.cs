@@ -67,7 +67,24 @@ namespace AIImprove
             if (!loggedFirstCall)
             {
                 loggedFirstCall = true;
-                Debug.Log("[AIImprove] TrainSingleTrackConflictDetector is executing (detect-and-log only, no behavior change yet).");
+
+                if (CompanionModCompat.IsSingleTrainTrackAiLoaded())
+                {
+                    Debug.Log(
+                        "[AIImprove] SingleTrainTrackAI detected - it already handles single-track " +
+                        "reservation directly (redirects TrainAI.UpdatePathTargetPositions), so " +
+                        "TrainSingleTrackConflictDetector is staying passive/silent to avoid " +
+                        "confusing duplicate logging. Not touching its behavior.");
+                }
+                else
+                {
+                    Debug.Log("[AIImprove] TrainSingleTrackConflictDetector is executing (detect-and-log only, no behavior change yet).");
+                }
+            }
+
+            if (CompanionModCompat.IsSingleTrainTrackAiLoaded())
+            {
+                return;
             }
 
             if (vehicleData.m_path == 0U)

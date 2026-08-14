@@ -74,6 +74,8 @@ Most existing "improved AI" mods for Cities: Skylines change one narrow slice of
 [*] [b]TM:PE[/b]: soft dependency, detected at runtime - no compile-time reference exists anywhere in this project. Some features (e.g. emergency vehicle priority) only activate when TM:PE is present and its Advanced Vehicle AI option is enabled.
 [*] [b]Transfer Manager CE[/b]: overlapping scope on service vehicle dispatch. This mod does not try to replace it; it targets problems Transfer Manager CE doesn't solve rather than re-implementing its path-distance matching.
 [*] [b]Smarter Firefighters[/b]: its core AI feature has been integrated into and extended by AI_Improve - see the Emergency vehicles section above. [b]No need to subscribe to it separately if you're running AI_Improve[/b]; safe to also keep it subscribed if you want, but redundant.
+[*] [b]SingleTrainTrackAI[/b]: soft dependency, detected at runtime. Its own reservation system already solves single-track collision/deadlock avoidance properly, and its page states it's incompatible with any other mod touching the same method it patches. AI_Improve detects it and stays passive instead of reimplementing or conflicting with it.
+[*] [b]Reversible Tram AI[/b]: soft dependency, detected at runtime, same reasoning as above.
 [/list]
 
 [h2]License[/h2]
