@@ -8,26 +8,23 @@ using UnityEngine;
 
 namespace AIImprove
 {
-    // Content Manager settings page. Rebuilt 2026-08-15 against three Workshop mods the user
-    // pointed at as references:
-    //   - Natural Disasters Renewal : vertical section list down the left side, language as a
-    //                                 dropdown rather than a cycling button
-    //   - IOperateIt Revisited      : sliders with their current value shown to the right
-    //   - Node Controller Renewal   : horizontal tab strip across the top
-    // The user asked for both nav directions at once, so sections are chosen from the vertical
-    // list on the left and each section's sub-pages from the horizontal strip above the content.
+    // Content Manager settings page.
+    //
+    // "我想把全部功能拆開，然後每個功能中的調整設定及數據可以拆開以及詳細調整" (2026-08-15):
+    // rebuilt again from the 9-category version to expose every one of the ~19 individual
+    // features and ~25 previously-hardcoded values ModSettings.cs now defines, instead of one
+    // toggle covering several unrelated behaviours. Ten sections instead of five, each with its
+    // own Toggles/Tuning tabs (or a single page where there's little to show).
+    //
+    // Layout pattern (left-hand vertical section list + per-section horizontal tabs, dropdowns
+    // and sliders cloned from the game's own OptionsDropdownTemplate/OptionsSliderTemplate) is
+    // unchanged from the previous version - see AddSection/AddSliderRow for the mechanics and
+    // their notes on why templates are used instead of hand-assembling UIDropDown/UISlider.
     //
     // Built on the page's real UIComponent tree (via the concrete UIHelper.self, which
-    // UIHelperBase's interface doesn't expose - see GetRoot) rather than UIHelperBase's own
-    // methods, since UIHelperBase has no concept of tabs at all. Dropdowns and sliders are cloned
-    // from the game's own "OptionsDropdownTemplate" / "OptionsSliderTemplate" prefabs - the same
-    // ones UIHelper.AddDropdown/AddSlider use - instead of being hand-assembled, so they come out
-    // correctly styled without guessing at a dozen sprite names that can't be verified offline.
-    //
-    // Every ColossalFramework.UI member used here was checked against the installed game's
-    // assemblies with dnSpy before being written, since none of it can be exercised by a plain
-    // `dotnet build`. If the tree fails to come together at runtime the page degrades to a plain
-    // flat toggle list (BuildFlatFallback) rather than rendering empty.
+    // UIHelperBase's interface doesn't expose) rather than UIHelperBase's own methods, since
+    // UIHelperBase has no concept of tabs. If the tree fails to come together at runtime the page
+    // degrades to a plain flat toggle list (BuildFlatFallback) rather than rendering empty.
     internal static class SettingsPageUI
     {
         private const string RepoUrl = "https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve";
@@ -38,7 +35,7 @@ namespace AIImprove
 
         private const float HeaderHeight = 100f;
         private const float NavWidth = 172f;
-        private const float BodyHeight = 430f;
+        private const float BodyHeight = 440f;
         private const float SubTabHeight = 32f;
 
         private static readonly Color32 AccentColor = new Color32(58, 121, 187, 255);
@@ -54,7 +51,6 @@ namespace AIImprove
         private static readonly Color32 PillOffColor = new Color32(95, 95, 100, 255);
         private static readonly Color32 MutedTextColor = new Color32(190, 195, 205, 255);
 
-        // Left-hand nav buttons and the section panel each one reveals, paired by index.
         private static readonly List<UIButton> NavButtons = new List<UIButton>();
         private static readonly List<UIPanel> Sections = new List<UIPanel>();
 
@@ -70,9 +66,6 @@ namespace AIImprove
             BuildContent(root, helper);
         }
 
-        // The language dropdown changes every label already on the page, so the page is torn down
-        // and rebuilt through the same path that created it rather than each control being hunted
-        // down and re-textured individually.
         private static void RebuildInPlace(UIComponent root, UIHelperBase helper)
         {
             for (int i = root.components.Count - 1; i >= 0; i--)
@@ -109,33 +102,150 @@ namespace AIImprove
                 new[] { "subtab.settings" },
                 pages => BuildGeneralPage(pages[0], root, helper));
 
-            AddSection(root, nav, sectionX, sectionWidth, "nav.transport",
-                new[] { "subtab.toggles", "subtab.tuning" },
-                pages =>
-                {
-                    BuildTransportToggles(pages[0]);
-                    BuildTransportTuning(pages[1]);
-                });
-
             AddSection(root, nav, sectionX, sectionWidth, "nav.emergency",
                 new[] { "subtab.toggles", "subtab.tuning" },
                 pages =>
                 {
-                    AddToggleRow(pages[0], "category.emergency", ModSettings.EmergencyVehiclesEnabled);
+                    AddToggleRow(pages[0], "feature.fireResponseCap", ModSettings.FireResponseCapEnabled);
+                    AddToggleRow(pages[0], "feature.fireIdleSeek", ModSettings.FireIdleSeekEnabled);
+                    AddToggleRow(pages[0], "feature.helicopterWeatherHalt", ModSettings.HelicopterWeatherHaltEnabled);
+
                     AddSliderRow(pages[1], Localization.Get("tune.fireResponders"), 5f, 50f, 1f,
                         ModSettings.FireMaxRespondersPerBuilding.value,
                         v => ModSettings.FireMaxRespondersPerBuilding.value = Mathf.RoundToInt(v), "0");
+                    AddSliderRow(pages[1], Localization.Get("tune.fireUncapMinutes"), 5f, 60f, 1f,
+                        ModSettings.FireUncapAfterMinutes.value,
+                        v => ModSettings.FireUncapAfterMinutes.value = Mathf.RoundToInt(v), "0");
                 });
 
-            AddSection(root, nav, sectionX, sectionWidth, "nav.citizens",
+            AddSection(root, nav, sectionX, sectionWidth, "nav.metro",
                 new[] { "subtab.toggles", "subtab.tuning" },
                 pages =>
                 {
-                    AddToggleRow(pages[0], "category.citizens", ModSettings.CitizensEnabled);
-                    AddToggleRow(pages[0], "category.racecars", ModSettings.RaceCarsEnabled);
+                    AddToggleRow(pages[0], "feature.metroPlatform", ModSettings.MetroPlatformAssignmentEnabled);
+                    AddToggleRow(pages[0], "feature.metroReroute", ModSettings.MetroRerouteEnabled);
+
+                    AddSliderRow(pages[1], Localization.Get("tune.rerouteDensity"), 20f, 100f, 5f,
+                        ModSettings.MetroRerouteDensityThreshold.value,
+                        v => ModSettings.MetroRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0");
+                });
+
+            AddSection(root, nav, sectionX, sectionWidth, "nav.intercityTrain",
+                new[] { "subtab.toggles", "subtab.tuning" },
+                pages =>
+                {
+                    AddToggleRow(pages[0], "feature.trainPlatform", ModSettings.IntercityTrainPlatformAssignmentEnabled);
+                    AddToggleRow(pages[0], "feature.trainReroute", ModSettings.IntercityTrainRerouteEnabled);
+                    AddToggleRow(pages[0], "feature.trainSpawnThrottle", ModSettings.IntercityTrainSpawnThrottleEnabled);
+                    AddToggleRow(pages[0], "feature.singleTrackDetector", ModSettings.SingleTrackConflictDetectorEnabled);
+
+                    AddSliderRow(pages[1], Localization.Get("tune.stationSaturation"), 5f, 60f, 1f,
+                        ModSettings.TrainStationSaturationThreshold.value,
+                        v => ModSettings.TrainStationSaturationThreshold.value = Mathf.RoundToInt(v), "0");
+                    AddSliderRow(pages[1], Localization.Get("tune.platformCandidates"), 8f, 40f, 1f,
+                        ModSettings.TrainPlatformCandidateCount.value,
+                        v => ModSettings.TrainPlatformCandidateCount.value = Mathf.RoundToInt(v), "0");
+                    AddSliderRow(pages[1], Localization.Get("tune.rerouteDensity"), 20f, 100f, 5f,
+                        ModSettings.IntercityTrainRerouteDensityThreshold.value,
+                        v => ModSettings.IntercityTrainRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0");
+                    AddSliderRow(pages[1], Localization.Get("tune.lowRidership"), 0f, 200f, 5f,
+                        ModSettings.IntercityLowRidershipThreshold.value,
+                        v => ModSettings.IntercityLowRidershipThreshold.value = Mathf.RoundToInt(v), "0");
+                    AddSliderRow(pages[1], Localization.Get("tune.lowRidershipSkipChance"), 0f, 100f, 5f,
+                        ModSettings.IntercityLowRidershipSkipPercent.value,
+                        v => ModSettings.IntercityLowRidershipSkipPercent.value = Mathf.RoundToInt(v), "0");
+                });
+
+            AddSection(root, nav, sectionX, sectionWidth, "nav.aircraft",
+                new[] { "subtab.toggles", "subtab.tuning" },
+                pages =>
+                {
+                    AddToggleRow(pages[0], "feature.aircraftGate", ModSettings.AircraftGateAssignmentEnabled);
+                    AddToggleRow(pages[0], "feature.aircraftReroute", ModSettings.AircraftRerouteEnabled);
+                    AddToggleRow(pages[0], "feature.aircraftThunderstorm", ModSettings.AircraftThunderstormRefusalEnabled);
+
+                    AddSliderRow(pages[1], Localization.Get("tune.gateCandidates"), 8f, 50f, 1f,
+                        ModSettings.AircraftGateCandidateCount.value,
+                        v => ModSettings.AircraftGateCandidateCount.value = Mathf.RoundToInt(v), "0");
+                    AddSliderRow(pages[1], Localization.Get("tune.perGateCapacity"), 1f, 20f, 1f,
+                        ModSettings.AircraftPerGateCapacity.value,
+                        v => ModSettings.AircraftPerGateCapacity.value = Mathf.RoundToInt(v), "0");
+                    AddSliderRow(pages[1], Localization.Get("tune.rerouteDensity"), 20f, 100f, 5f,
+                        ModSettings.AircraftRerouteDensityThreshold.value,
+                        v => ModSettings.AircraftRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0");
+                });
+
+            AddSection(root, nav, sectionX, sectionWidth, "nav.localTransport",
+                new[] { "subtab.toggles", "subtab.tuning" },
+                pages =>
+                {
+                    AddToggleRow(pages[0], "feature.localBusReroute", ModSettings.LocalBusRerouteEnabled);
+                    AddToggleRow(pages[0], "feature.trafficReroute", ModSettings.OrdinaryTrafficRerouteEnabled);
+                    AddToggleRow(pages[0], "feature.helicopterGate", ModSettings.PassengerHelicopterGateAssignmentEnabled);
+                    AddToggleRow(pages[0], "feature.helicopterReroute", ModSettings.PassengerHelicopterRerouteEnabled);
+                    AddToggleRow(pages[0], "feature.helicopterCapacity", ModSettings.PassengerHelicopterCapacityEnabled);
+
+                    AddSliderRow(pages[1], Localization.Get("tune.rerouteDensity") + " (" + Localization.Get("feature.localBusReroute") + ")",
+                        20f, 100f, 5f, ModSettings.LocalBusRerouteDensityThreshold.value,
+                        v => ModSettings.LocalBusRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0");
+                    AddSliderRow(pages[1], Localization.Get("tune.rerouteDensity") + " (" + Localization.Get("feature.trafficReroute") + ")",
+                        20f, 100f, 5f, ModSettings.OrdinaryTrafficRerouteDensityThreshold.value,
+                        v => ModSettings.OrdinaryTrafficRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0");
+                    AddSliderRow(pages[1], Localization.Get("tune.helicopterCapacity"), 100f, 400f, 10f,
+                        ModSettings.PassengerHelicopterCapacityPercent.value,
+                        v => ModSettings.PassengerHelicopterCapacityPercent.value = Mathf.RoundToInt(v), "0");
+                });
+
+            AddSection(root, nav, sectionX, sectionWidth, "nav.intercityBus",
+                new[] { "subtab.toggles", "subtab.tuning" },
+                pages =>
+                {
+                    AddToggleRow(pages[0], "feature.intercityBusReroute", ModSettings.IntercityBusRerouteEnabled);
+
+                    AddSliderRow(pages[1], Localization.Get("tune.rerouteDensity"), 20f, 100f, 5f,
+                        ModSettings.IntercityBusRerouteDensityThreshold.value,
+                        v => ModSettings.IntercityBusRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0");
+                });
+
+            AddSection(root, nav, sectionX, sectionWidth, "nav.citizensRaces",
+                new[] { "subtab.toggles", "subtab.tuning" },
+                pages =>
+                {
+                    AddToggleRow(pages[0], "feature.citizenCar", ModSettings.CitizenCarProbabilityEnabled);
+                    AddToggleRow(pages[0], "feature.citizenTaxi", ModSettings.CitizenTaxiProbabilityEnabled);
+                    AddToggleRow(pages[0], "feature.raceCarSpeed", ModSettings.RaceCarSpeedEnabled);
+                    AddToggleRow(pages[0], "feature.raceAttractiveness", ModSettings.RaceBuildingAttractivenessEnabled);
+
+                    AddSliderRow(pages[1], Localization.Get("tune.citizenCarDensity"), 20f, 100f, 5f,
+                        ModSettings.CitizenCarDensityThreshold.value,
+                        v => ModSettings.CitizenCarDensityThreshold.value = Mathf.RoundToInt(v), "0");
+                    AddSliderRow(pages[1], Localization.Get("tune.citizenCarReduction"), 0f, 100f, 5f,
+                        ModSettings.CitizenCarMaxReductionPercent.value,
+                        v => ModSettings.CitizenCarMaxReductionPercent.value = Mathf.RoundToInt(v), "0");
+                    AddSliderRow(pages[1], Localization.Get("tune.taxiMultiplier"), 100f, 400f, 10f,
+                        ModSettings.CitizenTaxiMultiplierPercent.value,
+                        v => ModSettings.CitizenTaxiMultiplierPercent.value = Mathf.RoundToInt(v), "0");
+                    AddSliderRow(pages[1], Localization.Get("tune.taxiFlatBonus"), 0f, 20f, 1f,
+                        ModSettings.CitizenTaxiFlatBonus.value,
+                        v => ModSettings.CitizenTaxiFlatBonus.value = Mathf.RoundToInt(v), "0");
                     AddSliderRow(pages[1], Localization.Get("tune.raceCarSpeed"), 40f, 160f, 5f,
                         ModSettings.RaceCarMaxSpeed.value,
                         v => ModSettings.RaceCarMaxSpeed.value = v, "0");
+                    AddSliderRow(pages[1], Localization.Get("tune.raceAttractiveness"), 100f, 400f, 10f,
+                        ModSettings.RaceBuildingAttractivenessPercent.value,
+                        v => ModSettings.RaceBuildingAttractivenessPercent.value = Mathf.RoundToInt(v), "0");
+                });
+
+            AddSection(root, nav, sectionX, sectionWidth, "nav.advanced",
+                new[] { "subtab.tuning" },
+                pages =>
+                {
+                    AddSliderRow(pages[0], Localization.Get("tune.rerouteCooldown"), 5f, 120f, 5f,
+                        ModSettings.RerouteCooldownSeconds.value,
+                        v => ModSettings.RerouteCooldownSeconds.value = Mathf.RoundToInt(v), "0");
+                    AddSliderRow(pages[0], Localization.Get("tune.checkInterval"), 1f, 128f, 1f,
+                        ModSettings.RerouteCheckIntervalFrames.value,
+                        v => ModSettings.RerouteCheckIntervalFrames.value = Mathf.RoundToInt(v), "0");
                 });
 
             AddSection(root, nav, sectionX, sectionWidth, "tab.about",
@@ -145,10 +255,6 @@ namespace AIImprove
             SelectSection(0);
         }
 
-        // UIHelperBase (what OnSettingsUI receives) doesn't expose the underlying UIComponent -
-        // only the concrete UIHelper does, via `self` (dnSpy: `public object self => this.m_Root;`).
-        // Content Manager always passes a real UIHelper in practice; this stays defensive in case a
-        // future game update swaps the concrete type.
         private static UIComponent GetRoot(UIHelperBase helper) => (helper as UIHelper)?.self as UIComponent;
 
         private static void BuildHeader(UIComponent root, UIHelperBase helper)
@@ -179,18 +285,45 @@ namespace AIImprove
             status.textColor = new Color32(120, 220, 140, 255);
             status.relativePosition = new Vector3(16f, 62f);
 
+            UIButton languageButton = header.AddUIComponent<UIButton>();
+            languageButton.width = 130f;
+            languageButton.height = 32f;
+            languageButton.textScale = 0.8f;
+            StyleAccentButton(languageButton);
+            RefreshLanguageButtonText(languageButton);
+            languageButton.relativePosition = new Vector3(header.width - languageButton.width - 16f, 14f);
+            languageButton.eventClick += (component, param) =>
+            {
+                CycleLanguage();
+                RebuildInPlace(root, helper);
+            };
+
             UIButton changelog = header.AddUIComponent<UIButton>();
             changelog.text = Localization.Get("header.changelog");
             changelog.width = 170f;
             changelog.height = 32f;
             changelog.textScale = 0.8f;
             StyleAccentButton(changelog);
-            changelog.relativePosition = new Vector3(header.width - changelog.width - 16f, 34f);
+            changelog.relativePosition = new Vector3(header.width - changelog.width - 16f, 14f + languageButton.height + 6f);
             changelog.eventClick += (component, param) => Application.OpenURL(RepoUrl + "/commits/main");
         }
 
-        // One vertical nav entry plus the section it reveals. The section owns its own horizontal
-        // tab strip, so the two nav directions stay independent of each other.
+        private static readonly string[] LanguageCodes = { "auto", "en", "zh-tw", "zh-cn" };
+        private static readonly string[] LanguageLabels = { "Auto", "English", "繁體中文", "简体中文" };
+
+        private static void CycleLanguage()
+        {
+            int index = Array.IndexOf(LanguageCodes, ModSettings.LanguageOverride.value);
+            int nextIndex = (Mathf.Max(index, 0) + 1) % LanguageCodes.Length;
+            ModSettings.LanguageOverride.value = LanguageCodes[nextIndex];
+        }
+
+        private static void RefreshLanguageButtonText(UIButton button)
+        {
+            int index = Array.IndexOf(LanguageCodes, ModSettings.LanguageOverride.value);
+            button.text = LanguageLabels[Mathf.Max(index, 0)];
+        }
+
         private static void AddSection(
             UIComponent root, UIComponent nav, float sectionX, float sectionWidth,
             string navKey, string[] subTabKeys, Action<UIPanel[]> fillPages)
@@ -200,8 +333,8 @@ namespace AIImprove
             UIButton navButton = nav.AddUIComponent<UIButton>();
             navButton.text = Localization.Get(navKey);
             navButton.width = NavWidth - 12f;
-            navButton.height = 32f;
-            navButton.textScale = 0.85f;
+            navButton.height = 30f;
+            navButton.textScale = 0.8f;
             navButton.atlas = SolidColorSprite.Atlas;
             navButton.normalBgSprite = SolidColorSprite.SpriteName;
             navButton.color = NavItemColor;
@@ -209,7 +342,7 @@ namespace AIImprove
             navButton.pressedColor = AccentPressedColor;
             navButton.textColor = Color.white;
             navButton.textHorizontalAlignment = UIHorizontalAlignment.Left;
-            navButton.textPadding = new RectOffset(10, 0, 8, 0);
+            navButton.textPadding = new RectOffset(10, 0, 7, 0);
             navButton.eventClick += (component, param) => SelectSection(index);
             NavButtons.Add(navButton);
 
@@ -219,6 +352,22 @@ namespace AIImprove
             section.relativePosition = new Vector3(sectionX, HeaderHeight + 6f);
             section.isVisible = false;
             Sections.Add(section);
+
+            if (subTabKeys.Length == 1)
+            {
+                // Single-page section (General/Advanced/About) - no point in a one-item tab strip.
+                UIPanel onlyPage = section.AddUIComponent<UIPanel>();
+                onlyPage.width = sectionWidth;
+                onlyPage.height = BodyHeight;
+                onlyPage.relativePosition = Vector3.zero;
+                onlyPage.autoLayout = true;
+                onlyPage.autoLayoutDirection = LayoutDirection.Vertical;
+                onlyPage.autoLayoutPadding = new RectOffset(0, 0, 0, 6);
+                onlyPage.padding = new RectOffset(10, 10, 12, 10);
+
+                fillPages(new[] { onlyPage });
+                return;
+            }
 
             UITabstrip strip = section.AddUIComponent<UITabstrip>();
             strip.width = sectionWidth;
@@ -245,10 +394,10 @@ namespace AIImprove
                     return;
                 }
 
-                // UITabContainer.AddTabPage(string) doesn't hide the pages it creates (only the
-                // lower-level GameObject overload does), and UITabstrip.selectedIndex no-ops when
-                // set to its already-default 0 - so without this every page in a section renders
-                // stacked on top of the others. Found via screenshot, 2026-08-15.
+                // BUG FOUND VIA SCREENSHOT (2026-08-15): UITabContainer.AddTabPage(string) doesn't
+                // hide the pages it creates (only the lower-level GameObject overload does), and
+                // UITabstrip.selectedIndex no-ops when set to its already-default 0 - so without
+                // this every page in a section renders stacked on top of the others.
                 page.isVisible = i == 0;
                 page.autoLayout = true;
                 page.autoLayoutDirection = LayoutDirection.Vertical;
@@ -301,28 +450,6 @@ namespace AIImprove
             AddPlainToggleRow(page, Localization.Get("tune.verboseLogging"), ModSettings.VerboseLogging);
         }
 
-        private static void BuildTransportToggles(UIPanel page)
-        {
-            AddToggleRow(page, "category.metro", ModSettings.TrainsAndMetroEnabled);
-            AddToggleRow(page, "category.intercityTrain", ModSettings.IntercityTrainEnabled);
-            AddToggleRow(page, "category.aircraft", ModSettings.AircraftEnabled);
-            AddToggleRow(page, "category.buses", ModSettings.BusesAndHelicoptersEnabled);
-            AddToggleRow(page, "category.intercityBus", ModSettings.IntercityBusEnabled);
-            AddToggleRow(page, "category.traffic", ModSettings.OrdinaryTrafficEnabled);
-        }
-
-        private static void BuildTransportTuning(UIPanel page)
-        {
-            AddSliderRow(page, Localization.Get("tune.lowRidership"), 0f, 200f, 5f,
-                ModSettings.IntercityLowRidershipThreshold.value,
-                v => ModSettings.IntercityLowRidershipThreshold.value = Mathf.RoundToInt(v), "0");
-        }
-
-        // Language names are written in their own language, never translated, so a player can find
-        // theirs even when the current interface language is unreadable to them.
-        private static readonly string[] LanguageCodes = { "auto", "en", "zh-tw", "zh-cn" };
-        private static readonly string[] LanguageLabels = { "Auto", "English", "繁體中文", "简体中文" };
-
         private static void AddLanguageDropdown(UIPanel page, UIComponent root, UIHelperBase helper)
         {
             UIPanel row = page.AttachUIComponent(UITemplateManager.GetAsGameObject(DropdownTemplate)) as UIPanel;
@@ -362,37 +489,36 @@ namespace AIImprove
             };
         }
 
-        // Row is the category name plus a pill switch, matching the reference mods' toggle rows.
-        // The description text still exists (Localization's ".desc" keys) but sits on the row's
-        // tooltip rather than as always-on wrapped text, which would risk overflowing a
-        // fixed-height row whose wrapping can't be checked offline.
-        private static void AddToggleRow(UIComponent parent, string categoryKey, SavedBool setting)
+        // Row shows just the feature name plus a pill switch. The description text still exists
+        // (Localization's ".desc" keys) but sits on the row's tooltip rather than always-on
+        // wrapped text, which would risk overflowing a fixed-height row.
+        private static void AddToggleRow(UIComponent parent, string featureKey, SavedBool setting)
         {
             UIPanel row = parent.AddUIComponent<UIPanel>();
             row.width = parent.width - 20f;
-            row.height = 32f;
-            row.tooltip = Localization.Get(categoryKey + ".desc");
+            row.height = 30f;
+            row.tooltip = Localization.Get(featureKey + ".desc");
 
             UILabel label = row.AddUIComponent<UILabel>();
-            label.text = Localization.Get(categoryKey + ".title");
+            label.text = Localization.Get(featureKey);
             label.textScale = 0.85f;
-            label.relativePosition = new Vector3(4f, 8f);
+            label.relativePosition = new Vector3(4f, 7f);
 
-            AddPillToggle(row, row.width - 54f, 5f, setting);
+            AddPillToggle(row, row.width - 54f, 4f, setting);
         }
 
         private static void AddPlainToggleRow(UIComponent parent, string label, SavedBool setting)
         {
             UIPanel row = parent.AddUIComponent<UIPanel>();
             row.width = parent.width - 20f;
-            row.height = 32f;
+            row.height = 30f;
 
             UILabel rowLabel = row.AddUIComponent<UILabel>();
             rowLabel.text = label;
             rowLabel.textScale = 0.85f;
-            rowLabel.relativePosition = new Vector3(4f, 8f);
+            rowLabel.relativePosition = new Vector3(4f, 7f);
 
-            AddPillToggle(row, row.width - 54f, 5f, setting);
+            AddPillToggle(row, row.width - 54f, 4f, setting);
         }
 
         private static void AddPillToggle(UIComponent parent, float x, float y, SavedBool setting)
@@ -433,8 +559,7 @@ namespace AIImprove
         }
 
         // Cloned from the game's own options slider prefab so it matches vanilla styling, with the
-        // current value shown to the right of the track (the IOperateIt Revisited layout the user
-        // referenced).
+        // current value shown to the right of the track.
         private static void AddSliderRow(
             UIComponent parent, string label, float min, float max, float step,
             float initialValue, Action<float> setValue, string valueFormat)
@@ -451,7 +576,7 @@ namespace AIImprove
             if (titleLabel != null)
             {
                 titleLabel.text = label;
-                titleLabel.textScale = 0.85f;
+                titleLabel.textScale = 0.8f;
             }
 
             UISlider slider = row.Find<UISlider>("Slider");
@@ -502,12 +627,6 @@ namespace AIImprove
             button.eventClick += (component, param) => Application.OpenURL(url);
         }
 
-        // "用 GitHub commit 作版本標準" (2026-08-15): prefers AssemblyInformationalVersion, which
-        // the build stamps as "<commit date> (<short hash>)" (see the SetVersionFromGit target in
-        // AIImprove.csproj) - the date answers "is my copy current?", and the hash is what pins a
-        // player's build to an exact commit when they report a bug. AssemblyVersion can only hold
-        // numbers, so it carries the calendar version and is the fallback if the informational
-        // attribute is missing.
         private static string GetVersionString()
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
@@ -526,26 +645,31 @@ namespace AIImprove
             return version.Major + "." + version.Minor + "." + version.Build;
         }
 
-        // Safety net for the unlikely case GetRoot or the tab construction doesn't work in-game -
-        // a failed layout degrades to this known-working flat list instead of an empty page.
+        // Safety net for the unlikely case GetRoot or the tab construction doesn't work in-game.
+        // Flat list of the nine broad categories (not all ~19 features - this is a degraded
+        // fallback, not a second full UI to maintain), each toggle driving every feature that used
+        // to share that legacy category so the fallback still does something sensible.
         private static void BuildFlatFallback(UIHelperBase helper)
         {
-            AddFlatGroup(helper, "category.emergency", ModSettings.EmergencyVehiclesEnabled);
-            AddFlatGroup(helper, "category.metro", ModSettings.TrainsAndMetroEnabled);
-            AddFlatGroup(helper, "category.intercityTrain", ModSettings.IntercityTrainEnabled);
-            AddFlatGroup(helper, "category.aircraft", ModSettings.AircraftEnabled);
-            AddFlatGroup(helper, "category.buses", ModSettings.BusesAndHelicoptersEnabled);
-            AddFlatGroup(helper, "category.intercityBus", ModSettings.IntercityBusEnabled);
-            AddFlatGroup(helper, "category.traffic", ModSettings.OrdinaryTrafficEnabled);
-            AddFlatGroup(helper, "category.citizens", ModSettings.CitizensEnabled);
-            AddFlatGroup(helper, "category.racecars", ModSettings.RaceCarsEnabled);
+            AddFlatGroup(helper, "緊急車輛 (Emergency)", ModSettings.FireResponseCapEnabled, ModSettings.FireIdleSeekEnabled, ModSettings.HelicopterWeatherHaltEnabled);
+            AddFlatGroup(helper, "地鐵 (Metro)", ModSettings.MetroPlatformAssignmentEnabled, ModSettings.MetroRerouteEnabled);
+            AddFlatGroup(helper, "城際火車 (Intercity trains)", ModSettings.IntercityTrainPlatformAssignmentEnabled, ModSettings.IntercityTrainRerouteEnabled, ModSettings.IntercityTrainSpawnThrottleEnabled);
+            AddFlatGroup(helper, "飛機與機場 (Aircraft)", ModSettings.AircraftGateAssignmentEnabled, ModSettings.AircraftRerouteEnabled, ModSettings.AircraftThunderstormRefusalEnabled);
+            AddFlatGroup(helper, "市內巴士與客運直升機 (Local transport)", ModSettings.LocalBusRerouteEnabled, ModSettings.PassengerHelicopterRerouteEnabled);
+            AddFlatGroup(helper, "城際巴士 (Intercity buses)", ModSettings.IntercityBusRerouteEnabled);
+            AddFlatGroup(helper, "一般市內交通 (Ordinary traffic)", ModSettings.OrdinaryTrafficRerouteEnabled);
+            AddFlatGroup(helper, "市民行為 (Citizens)", ModSettings.CitizenCarProbabilityEnabled, ModSettings.CitizenTaxiProbabilityEnabled);
+            AddFlatGroup(helper, "賽車 (Race cars)", ModSettings.RaceCarSpeedEnabled, ModSettings.RaceBuildingAttractivenessEnabled);
         }
 
-        private static void AddFlatGroup(UIHelperBase helper, string categoryKey, SavedBool setting)
+        private static void AddFlatGroup(UIHelperBase helper, string title, params SavedBool[] settings)
         {
-            UIHelperBase group = helper.AddGroup(Localization.Get(categoryKey + ".title"));
-            string label = Localization.Get("toggle.enable") + " - " + Localization.Get(categoryKey + ".desc");
-            group.AddCheckbox(label, setting.value, value => setting.value = value);
+            UIHelperBase group = helper.AddGroup(title);
+            for (int i = 0; i < settings.Length; i++)
+            {
+                SavedBool setting = settings[i];
+                group.AddCheckbox(title + " #" + (i + 1), setting.value, value => setting.value = value);
+            }
         }
     }
 }

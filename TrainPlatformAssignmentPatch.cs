@@ -34,7 +34,7 @@ namespace AIImprove
     //    holding-pattern equivalent is needed - just not making the jam worse by picking for it.
     internal static class TrainPlatformAssignmentPatch
     {
-        private const int CandidateCount = 24;
+        private static int CandidateCount => ModSettings.TrainPlatformCandidateCount.value;
         private static readonly float[] SearchRadii = { 30f, 60f };
         private const float ProbeMaxDistance = 32f; // matches TrainAI's own FindPathPosition call
 
@@ -46,7 +46,9 @@ namespace AIImprove
         // intercity train spawns toward that station.
         //
         // TUNED (2026-08-14, tightened per request): 40 -> 25.
-        private const int SaturationThreshold = 25;
+        // "每個功能中的調整設定及數據可以拆開以及詳細調整" (2026-08-15): now a slider
+        // (ModSettings.TrainStationSaturationThreshold), default still 25.
+        private static int SaturationThreshold => ModSettings.TrainStationSaturationThreshold.value;
 
         private static bool loggedFirstCall;
 
@@ -100,10 +102,12 @@ namespace AIImprove
             // Metro and intercity trains got split into independent toggles (2026-08-15, per user
             // request) - both share this one method (declared on TrainAI, not overridden per
             // subtype), so the instance's actual runtime type decides which setting applies.
-            // Anything that's neither (e.g. cargo trains) falls back to the metro/general toggle.
+            // Anything that's neither (e.g. cargo trains) falls back to the metro switch.
             bool categoryEnabled = __instance is MetroTrainAI
-                ? ModSettings.TrainsAndMetroEnabled.value
-                : (__instance is PassengerTrainAI ? ModSettings.IntercityTrainEnabled.value : ModSettings.TrainsAndMetroEnabled.value);
+                ? ModSettings.MetroPlatformAssignmentEnabled.value
+                : (__instance is PassengerTrainAI
+                    ? ModSettings.IntercityTrainPlatformAssignmentEnabled.value
+                    : ModSettings.MetroPlatformAssignmentEnabled.value);
             if (!categoryEnabled)
             {
                 return;

@@ -42,7 +42,13 @@ namespace AIImprove
 
         private static void Apply(string ownerTypeName, bool isCopter, ushort vehicleID, ref Vehicle data, ref ushort targetBuilding)
         {
-            if (!ModSettings.EmergencyVehiclesEnabled.value)
+            // "我想把全部功能拆開" (2026-08-15): the cap and the idle-seek behaviour used to
+            // share one "Emergency vehicles" switch; they're independent now
+            // (FireResponseCapEnabled / FireIdleSeekEnabled). If the cap is off, TryAssign is
+            // never consulted at all - not "consulted but always allowed", genuinely skipped, so
+            // FireResponseTracker's per-building counts stay untouched, matching the "off = never
+            // written" contract.
+            if (!ModSettings.FireResponseCapEnabled.value && !ModSettings.FireIdleSeekEnabled.value)
             {
                 return;
             }
@@ -57,7 +63,15 @@ namespace AIImprove
 
             if (targetBuilding == 0)
             {
-                FireResponseTracker.TryAssign(isCopter, vehicleID, 0);
+                if (ModSettings.FireResponseCapEnabled.value)
+                {
+                    FireResponseTracker.TryAssign(isCopter, vehicleID, 0);
+                }
+
+                if (!ModSettings.FireIdleSeekEnabled.value)
+                {
+                    return;
+                }
 
                 if (tmceOwnsDispatch)
                 {

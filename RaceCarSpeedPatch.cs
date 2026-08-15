@@ -25,7 +25,7 @@ namespace AIImprove
 
         public static void Prefix(ushort vehicleID, ref Vehicle data)
         {
-            if (!ModSettings.RaceCarsEnabled.value)
+            if (!ModSettings.RaceCarSpeedEnabled.value)
             {
                 return;
             }

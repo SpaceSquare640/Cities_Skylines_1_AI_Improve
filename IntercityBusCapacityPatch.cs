@@ -18,7 +18,7 @@ namespace AIImprove
     // here.
     internal static class IntercityBusCapacityPatch
     {
-        private const float Multiplier = 2f;
+        private const float Multiplier = 2f; // disabled feature, not exposed as a setting
 
         private static readonly Dictionary<BusAI, int> OriginalCapacity = new Dictionary<BusAI, int>();
 
@@ -34,7 +34,7 @@ namespace AIImprove
             // Not currently registered (see Patcher.PatchAll's comment), but wired to the
             // intercity bus toggle now that it exists, so it respects the panel immediately if
             // ever re-enabled (2026-08-15).
-            if (!ModSettings.IntercityBusEnabled.value)
+            if (!ModSettings.IntercityBusRerouteEnabled.value)
             {
                 return;
             }

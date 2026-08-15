@@ -20,12 +20,12 @@ namespace AIImprove
         // behind a many-second cooldown once triggered - checking each vehicle roughly once every
         // 32 ticks instead of every tick cuts the walk's total cost by ~32x with no meaningful
         // loss of responsiveness.
-        public const int DefaultIntervalFrames = 32;
-
-        public static bool ShouldRunThisFrame(ushort vehicleId, int intervalFrames = DefaultIntervalFrames)
+        // "每個功能中的調整設定及數據可以拆開以及詳細調整" (2026-08-15): now a slider
+        // (ModSettings.RerouteCheckIntervalFrames), default still 32.
+        public static bool ShouldRunThisFrame(ushort vehicleId)
         {
             uint frame = Singleton<SimulationManager>.instance.m_currentFrameIndex;
-            return (frame + vehicleId) % (uint)intervalFrames == 0U;
+            return (frame + vehicleId) % (uint)ModSettings.RerouteCheckIntervalFrames.value == 0U;
         }
     }
 }

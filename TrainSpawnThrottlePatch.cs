@@ -30,10 +30,9 @@ namespace AIImprove
     // philosophy as every other tunable in this project.
     internal static class TrainSpawnThrottlePatch
     {
-        // "現在的設定就只有開啟和關閉" (2026-08-15): threshold now a player-adjustable slider
-        // (ModSettings.IntercityLowRidershipThreshold) instead of a fixed constant - default still
-        // 50. Skip chance stays fixed for now (not one of the tunables requested).
-        private const float LowRidershipSkipChance = 0.5f;
+        // "每個功能中的調整設定及數據可以拆開以及詳細調整" (2026-08-15): both the threshold and
+        // the skip chance are sliders now, defaults unchanged (50, 50%).
+        private static float LowRidershipSkipChance => ModSettings.IntercityLowRidershipSkipPercent.value / 100f;
 
         private static bool loggedFirstCall;
         private static bool loggedRidership;
@@ -46,9 +45,9 @@ namespace AIImprove
         {
             // DummyTrain only ever fires for trains arriving from an outside connection, which
             // per this project's own terminology are always "intercity trains" - metro never uses
-            // this transfer reason - so this is gated on IntercityTrainEnabled alone, not the
-            // metro/general toggle (2026-08-15, split per user request).
-            if (material != TransferManager.TransferReason.DummyTrain || !ModSettings.IntercityTrainEnabled.value)
+            // this transfer reason - so this is gated on its own toggle, not any train/metro
+            // reroute switch (2026-08-15, split per user request).
+            if (material != TransferManager.TransferReason.DummyTrain || !ModSettings.IntercityTrainSpawnThrottleEnabled.value)
             {
                 return true;
             }

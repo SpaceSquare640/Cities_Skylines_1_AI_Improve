@@ -22,11 +22,12 @@ namespace AIImprove
     {
         // Below this NetSegment.m_trafficDensity (0-100 scale) reading, vanilla's probability is
         // left untouched entirely - only meaningfully congested destinations are affected.
-        private const float DensityThreshold = 70f;
+        // "每個功能中的調整設定及數據可以拆開以及詳細調整" (2026-08-15): now a slider.
+        private static float DensityThreshold => ModSettings.CitizenCarDensityThreshold.value;
 
         // At density == 100, vanilla's car probability is cut by up to this fraction. Interim
         // value pending live-test calibration, same as every other threshold in this project.
-        private const float MaxReductionFraction = 0.6f;
+        private static float MaxReductionFraction => ModSettings.CitizenCarMaxReductionPercent.value / 100f;
 
         // Root cause of a second stutter report (2026-08-13), same shape as the one
         // RerouteRateLimiter already fixed for vehicle reroutes: GetNearbyRoadDensity is a real
@@ -41,7 +42,7 @@ namespace AIImprove
 
         public static void Postfix(ref CitizenInstance citizenData, ref int __result)
         {
-            if (!ModSettings.CitizensEnabled.value)
+            if (!ModSettings.CitizenCarProbabilityEnabled.value)
             {
                 return;
             }

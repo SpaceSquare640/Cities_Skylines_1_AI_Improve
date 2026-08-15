@@ -19,7 +19,7 @@ namespace AIImprove
 
         public static bool Prefix(ushort vehicleID, HelicopterAI __instance, ref Vehicle vehicleData, ref bool __result)
         {
-            if (!ModSettings.EmergencyVehiclesEnabled.value)
+            if (!ModSettings.HelicopterWeatherHaltEnabled.value)
             {
                 return true;
             }

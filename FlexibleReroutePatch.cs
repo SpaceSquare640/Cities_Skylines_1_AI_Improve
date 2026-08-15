@@ -35,7 +35,8 @@ namespace AIImprove
             MethodInfo startPathFind,
             object aiInstance,
             ushort vehicleID,
-            ref Vehicle vehicleData)
+            ref Vehicle vehicleData,
+            float densityThreshold)
         {
             if (startPathFind == null)
             {
@@ -91,7 +92,8 @@ namespace AIImprove
             }
 
             float aheadDensity = SegmentCongestionQuery.GetAverageAheadDensity(ref vehicleData);
-            if (aheadDensity < 0f || !RerouteRateLimiter.TryConsumeBudget() || !StuckRerouteTracker.ShouldReroute(vehicleID, aheadDensity))
+            if (aheadDensity < 0f || !RerouteRateLimiter.TryConsumeBudget() ||
+                !StuckRerouteTracker.ShouldReroute(vehicleID, aheadDensity, densityThreshold))
             {
                 return;
             }
@@ -223,17 +225,24 @@ namespace AIImprove
 
             public static void Postfix(ushort vehicleID, TrainAI __instance, ref Vehicle data)
             {
-                // Metro vs intercity train split, same reasoning as TrainPlatformAssignmentPatch
-                // (2026-08-15, per user request).
-                bool categoryEnabled = __instance is MetroTrainAI
-                    ? ModSettings.TrainsAndMetroEnabled.value
-                    : (__instance is PassengerTrainAI ? ModSettings.IntercityTrainEnabled.value : ModSettings.TrainsAndMetroEnabled.value);
-                if (!categoryEnabled)
+                // Metro vs intercity train split, each with its own toggle and density threshold
+                // (2026-08-15, per user request to split every feature apart).
+                bool isMetro = __instance is MetroTrainAI;
+                bool enabled = isMetro
+                    ? ModSettings.MetroRerouteEnabled.value
+                    : (__instance is PassengerTrainAI
+                        ? ModSettings.IntercityTrainRerouteEnabled.value
+                        : ModSettings.MetroRerouteEnabled.value);
+                if (!enabled)
                 {
                     return;
                 }
 
-                TryReroute(nameof(TrainAI), StartPathFindMethod, __instance, vehicleID, ref data);
+                float densityThreshold = isMetro
+                    ? ModSettings.MetroRerouteDensityThreshold.value
+                    : ModSettings.IntercityTrainRerouteDensityThreshold.value;
+
+                TryReroute(nameof(TrainAI), StartPathFindMethod, __instance, vehicleID, ref data, densityThreshold);
             }
         }
 
@@ -243,7 +252,7 @@ namespace AIImprove
 
             public static void Postfix(ushort vehicleID, AircraftAI __instance, ref Vehicle data)
             {
-                if (!ModSettings.AircraftEnabled.value)
+                if (!ModSettings.AircraftRerouteEnabled.value)
                 {
                     return;
                 }
@@ -253,7 +262,9 @@ namespace AIImprove
                     return;
                 }
 
-                TryReroute(nameof(AircraftAI), StartPathFindMethod, __instance, vehicleID, ref data);
+                TryReroute(
+                    nameof(AircraftAI), StartPathFindMethod, __instance, vehicleID, ref data,
+                    ModSettings.AircraftRerouteDensityThreshold.value);
             }
         }
 
@@ -289,11 +300,6 @@ namespace AIImprove
                 return method;
             }
 
-            // Intercity buses get a lower density threshold than the shared global default -
-            // per explicit request (2026-08-14), "讓巴士更容易觸發改道" - so they reroute around
-            // congestion sooner than ordinary city traffic does.
-            private const float IntercityBusDensityThreshold = 60f;
-
             public static void Postfix(ushort vehicleID, CarAI __instance, ref Vehicle data)
             {
                 if (__instance is AmbulanceAI || __instance is FireTruckAI || __instance is PoliceCarAI)
@@ -302,25 +308,37 @@ namespace AIImprove
                 }
 
                 // This wrapper covers "一般市內交通" (private cars, taxis, cargo trucks), local
-                // buses, and intercity buses (BusAI is a CarAI subtype) - which options-panel
-                // toggle applies depends on the vehicle's actual runtime type and, for buses,
-                // whether it's intercity (split into its own toggle 2026-08-15, per user request).
+                // buses, and intercity buses (BusAI is a CarAI subtype) - each is its own toggle
+                // and density threshold now (2026-08-15, per user request to split every feature
+                // apart, not just categories).
                 var busAi = __instance as BusAI;
                 bool isIntercityBus = busAi != null && TransportStationAI.IsIntercity(busAi.m_info.m_class);
-                bool categoryEnabled = busAi == null
-                    ? ModSettings.OrdinaryTrafficEnabled.value
-                    : (isIntercityBus ? ModSettings.IntercityBusEnabled.value : ModSettings.BusesAndHelicoptersEnabled.value);
-                if (!categoryEnabled)
+
+                bool enabled;
+                float densityThreshold;
+                if (busAi == null)
+                {
+                    enabled = ModSettings.OrdinaryTrafficRerouteEnabled.value;
+                    densityThreshold = ModSettings.OrdinaryTrafficRerouteDensityThreshold.value;
+                }
+                else if (isIntercityBus)
+                {
+                    enabled = ModSettings.IntercityBusRerouteEnabled.value;
+                    densityThreshold = ModSettings.IntercityBusRerouteDensityThreshold.value;
+                }
+                else
+                {
+                    enabled = ModSettings.LocalBusRerouteEnabled.value;
+                    densityThreshold = ModSettings.LocalBusRerouteDensityThreshold.value;
+                }
+
+                if (!enabled)
                 {
                     return;
                 }
 
                 Type actualType = __instance.GetType();
                 MethodInfo startPathFind = GetSelfStartPathFind(actualType);
-
-                float densityThreshold = isIntercityBus
-                    ? IntercityBusDensityThreshold
-                    : StuckRerouteTracker.DensityThreshold;
 
                 TryRerouteViaSelf(actualType.Name, startPathFind, __instance, vehicleID, ref data, densityThreshold);
             }
@@ -340,12 +358,13 @@ namespace AIImprove
 
             public static void Postfix(ushort vehicleID, PassengerHelicopterAI __instance, ref Vehicle data)
             {
-                if (!ModSettings.BusesAndHelicoptersEnabled.value)
+                if (!ModSettings.PassengerHelicopterRerouteEnabled.value)
                 {
                     return;
                 }
 
-                TryRerouteViaSelf(nameof(PassengerHelicopterAI), StartPathFindMethod, __instance, vehicleID, ref data);
+                TryRerouteViaSelf(nameof(PassengerHelicopterAI), StartPathFindMethod, __instance, vehicleID, ref data,
+                    StuckRerouteTracker.DensityThreshold);
             }
         }
     }

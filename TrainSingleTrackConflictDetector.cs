@@ -64,10 +64,9 @@ namespace AIImprove
 
         public static void CheckAhead(string ownerTypeName, bool isMetro, ushort vehicleID, ref Vehicle vehicleData)
         {
-            // Metro vs intercity train split, same reasoning as TrainPlatformAssignmentPatch
-            // (2026-08-15, per user request).
-            bool categoryEnabled = isMetro ? ModSettings.TrainsAndMetroEnabled.value : ModSettings.IntercityTrainEnabled.value;
-            if (!categoryEnabled)
+            // Own toggle now (2026-08-15, per user request to split every feature apart) - this
+            // is a detect-and-log-only feature, not tied to metro/intercity reroute toggles.
+            if (!ModSettings.SingleTrackConflictDetectorEnabled.value)
             {
                 return;
             }

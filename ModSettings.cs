@@ -2,31 +2,35 @@ using ColossalFramework;
 
 namespace AIImprove
 {
-    // "開始搭建 UI 框架" (2026-08-15) - the in-game options panel discussed and deferred in
-    // 07 - 開發路線圖與里程碑.md, plus the per-category toggles a Steam Workshop commenter
-    // (jazzybee_s) asked for. Categories mirror the ones the README already groups features
-    // into, not a new taxonomy invented for the panel.
+    // "我想把全部功能拆開，然後每個功能中的調整設定及數據可以拆開以及詳細調整" (2026-08-15).
     //
-    // Persistence: ColossalFramework.SavedBool, the same mechanism vanilla's own options and
-    // most other mods (e.g. Optimised Outside Connections, seen via CargoHoldFix.dll) use - a
-    // flat key/value file under the game's local app data folder, registered once via
-    // GameSettings.AddSettingsFile. autoUpdate=true means every .value read re-syncs from the
-    // backing file, so a change made from Content Manager takes effect immediately without a
-    // restart - no caching needed on this side.
+    // Before this, nine category toggles each bundled several unrelated behaviours - turning off
+    // "Aircraft" also killed gate assignment, mid-route rerouting and the thunderstorm refusal
+    // together, with no way to keep one and drop another. Every feature now has its own switch,
+    // and the constants each one used to hardcode are exposed next to it.
     //
-    // This only toggles behavior, not registration: every patch stays Harmony-patched for the
-    // whole session (see Patcher.cs) and checks the relevant SavedBool itself at the top of its
-    // own entry point, same "early return" shape already used for DlcDetector/CompanionModCompat
-    // checks throughout this project. Unpatching/re-patching at runtime was considered and
-    // rejected - it would need to happen from the options UI callback, on a background thread
-    // boundary this project has no established pattern for yet, for no real benefit over a
-    // cheap boolean check.
+    // MIGRATION: the old category toggles are still declared below, but only as the *default* for
+    // the per-feature switches that replaced them. SavedBool takes its default at construction and
+    // only uses it when the key is absent from the settings file, so a player who had turned
+    // "Aircraft" off keeps all three aircraft features off on first run with this version, instead
+    // of silently getting them back. They are no longer shown in the UI and nothing reads them at
+    // runtime. Declaration order matters here - C# runs static field initialisers top to bottom,
+    // so the categories must stay above the features that reference them.
     //
-    // KNOWN GAP: transpiler-based patches (EmergencyIgnoreCostsPatch, VanillaEmergencyCongestionPatch,
-    // TMPE's EmergencyVehiclePriorityPatch path) rewrite IL once at patch time and have no
-    // per-call entry point to gate - they are not wired to EmergencyVehiclesEnabled. Toggling
-    // those off would need actual unpatch/re-patch, deferred for now (see EmergencyVehicles
-    // group's own note below).
+    // Persistence is ColossalFramework's Saved* family, the same mechanism vanilla options and
+    // most other mods use - a flat key/value file under the game's local app data folder.
+    // autoUpdate=true means every `.value` read re-syncs from the file, so changes take effect
+    // immediately with no restart.
+    //
+    // Patches stay Harmony-patched for the whole session and check their own switch at the top of
+    // their entry point (early-return, same shape as the DlcDetector/CompanionModCompat checks).
+    // The check must come before ANY state mutation, dictionary write or log, and bool-returning
+    // Prefixes must `return true`, so that "off" is indistinguishable from the feature never
+    // having been written.
+    //
+    // KNOWN GAP: transpiler-based patches (EmergencyIgnoreCostsPatch,
+    // VanillaEmergencyCongestionPatch, TMPE's EmergencyVehiclePriorityPatch path) rewrite IL once
+    // at patch time and have no per-call entry point to gate, so no switch here affects them.
     public static class ModSettings
     {
         private const string FileName = "AIImprove";
@@ -36,67 +40,229 @@ namespace AIImprove
             GameSettings.AddSettingsFile(new SettingsFile { fileName = FileName });
         }
 
-        public static readonly SavedBool EmergencyVehiclesEnabled =
-            new SavedBool("EmergencyVehiclesEnabled", FileName, true, true);
+        // ---------------------------------------------------------------------------------
+        // Legacy category toggles - migration defaults only. Not shown in the UI, not read at
+        // runtime. See the class comment.
+        // ---------------------------------------------------------------------------------
+        private static readonly SavedBool LegacyEmergency = new SavedBool("EmergencyVehiclesEnabled", FileName, true, true);
+        private static readonly SavedBool LegacyTrainsAndMetro = new SavedBool("TrainsAndMetroEnabled", FileName, true, true);
+        private static readonly SavedBool LegacyIntercityTrain = new SavedBool("IntercityTrainEnabled", FileName, true, true);
+        private static readonly SavedBool LegacyAircraft = new SavedBool("AircraftEnabled", FileName, true, true);
+        private static readonly SavedBool LegacyBusesAndHelicopters = new SavedBool("BusesAndHelicoptersEnabled", FileName, true, true);
+        private static readonly SavedBool LegacyIntercityBus = new SavedBool("IntercityBusEnabled", FileName, true, true);
+        private static readonly SavedBool LegacyOrdinaryTraffic = new SavedBool("OrdinaryTrafficEnabled", FileName, true, true);
+        private static readonly SavedBool LegacyCitizens = new SavedBool("CitizensEnabled", FileName, true, true);
+        private static readonly SavedBool LegacyRaceCars = new SavedBool("RaceCarsEnabled", FileName, true, true);
 
-        // Metro only - see IntercityTrainEnabled below for the split-out regional/intercity
-        // train toggle. Also the fallback for any other TrainAI (e.g. cargo trains) that isn't
-        // clearly one or the other.
-        public static readonly SavedBool TrainsAndMetroEnabled =
-            new SavedBool("TrainsAndMetroEnabled", FileName, true, true);
+        // ---------------------------------------------------------------------------------
+        // Emergency services
+        // ---------------------------------------------------------------------------------
 
-        // "把城際火車及城際巴士的設定分開獨立放置" (2026-08-15): split out from
-        // TrainsAndMetroEnabled. Per this project's own established terminology (see
-        // TrainPassengerCapacityPatch.cs's notes), vanilla only has one non-metro passenger
-        // train type - "PassengerTrainAI minus MetroTrainAI" IS "intercity/regional train" here,
-        // not a separate third category.
-        public static readonly SavedBool IntercityTrainEnabled =
-            new SavedBool("IntercityTrainEnabled", FileName, true, true);
-
-        // Split out from BusesAndHelicoptersEnabled, same reasoning - BusAI where
-        // TransportStationAI.IsIntercity(m_info.m_class) is true.
-        public static readonly SavedBool IntercityBusEnabled =
-            new SavedBool("IntercityBusEnabled", FileName, true, true);
-
-        public static readonly SavedBool AircraftEnabled =
-            new SavedBool("AircraftEnabled", FileName, true, true);
-
-        public static readonly SavedBool BusesAndHelicoptersEnabled =
-            new SavedBool("BusesAndHelicoptersEnabled", FileName, true, true);
-
-        public static readonly SavedBool OrdinaryTrafficEnabled =
-            new SavedBool("OrdinaryTrafficEnabled", FileName, true, true);
-
-        public static readonly SavedBool CitizensEnabled =
-            new SavedBool("CitizensEnabled", FileName, true, true);
-
-        public static readonly SavedBool RaceCarsEnabled =
-            new SavedBool("RaceCarsEnabled", FileName, true, true);
-
-        // "還是看不到切換語言的按鈕" (2026-08-15): Localization.cs picks a language from the
-        // game's own LocaleManager automatically, with no way to override it - this stores an
-        // explicit player choice instead. "auto" means "keep following the game's language" (the
-        // previous, only behavior); any other value is one of Localization's language codes
-        // (e.g. "en", "zh-tw", "zh-cn") and wins over the game's own setting.
-        public static readonly SavedString LanguageOverride =
-            new SavedString("LanguageOverride", FileName, "auto", true);
-
-        // "現在的設定就只有開啟和關閉" (2026-08-15): the three tunables players have actually
-        // asked about/complained about in this project's history, exposed as adjustable values
-        // instead of the fixed constants they used to be. Defaults match each patch's previous
-        // hardcoded value exactly, so upgrading changes nothing until a player touches a slider.
-        public static readonly SavedFloat RaceCarMaxSpeed =
-            new SavedFloat("RaceCarMaxSpeed", FileName, 80f, true);
+        /// Caps how many fire trucks/helicopters respond to one burning building.
+        public static readonly SavedBool FireResponseCapEnabled =
+            new SavedBool("FireResponseCapEnabled", FileName, LegacyEmergency.value, true);
 
         public static readonly SavedInt FireMaxRespondersPerBuilding =
             new SavedInt("FireMaxRespondersPerBuilding", FileName, 20, true);
 
+        /// Minutes a building must burn continuously before the cap is lifted for it entirely.
+        public static readonly SavedInt FireUncapAfterMinutes =
+            new SavedInt("FireUncapAfterMinutes", FileName, 15, true);
+
+        /// Idle/returning fire vehicles look for a nearby still-burning building first.
+        public static readonly SavedBool FireIdleSeekEnabled =
+            new SavedBool("FireIdleSeekEnabled", FileName, LegacyEmergency.value, true);
+
+        /// Emergency helicopters stay grounded during a thunderstorm.
+        public static readonly SavedBool HelicopterWeatherHaltEnabled =
+            new SavedBool("HelicopterWeatherHaltEnabled", FileName, LegacyEmergency.value, true);
+
+        // ---------------------------------------------------------------------------------
+        // Metro
+        // ---------------------------------------------------------------------------------
+
+        public static readonly SavedBool MetroPlatformAssignmentEnabled =
+            new SavedBool("MetroPlatformAssignmentEnabled", FileName, LegacyTrainsAndMetro.value, true);
+
+        public static readonly SavedBool MetroRerouteEnabled =
+            new SavedBool("MetroRerouteEnabled", FileName, LegacyTrainsAndMetro.value, true);
+
+        /// Ahead-congestion density (vanilla 0-100 scale) at or above which a metro train reroutes.
+        public static readonly SavedInt MetroRerouteDensityThreshold =
+            new SavedInt("MetroRerouteDensityThreshold", FileName, 80, true);
+
+        // ---------------------------------------------------------------------------------
+        // Intercity trains
+        // ---------------------------------------------------------------------------------
+
+        public static readonly SavedBool IntercityTrainPlatformAssignmentEnabled =
+            new SavedBool("IntercityTrainPlatformAssignmentEnabled", FileName, LegacyIntercityTrain.value, true);
+
+        /// Per-platform occupancy at which a station counts as saturated.
+        public static readonly SavedInt TrainStationSaturationThreshold =
+            new SavedInt("TrainStationSaturationThreshold", FileName, 25, true);
+
+        /// How many candidate platform segments to probe around a station.
+        public static readonly SavedInt TrainPlatformCandidateCount =
+            new SavedInt("TrainPlatformCandidateCount", FileName, 24, true);
+
+        public static readonly SavedBool IntercityTrainRerouteEnabled =
+            new SavedBool("IntercityTrainRerouteEnabled", FileName, LegacyIntercityTrain.value, true);
+
+        public static readonly SavedInt IntercityTrainRerouteDensityThreshold =
+            new SavedInt("IntercityTrainRerouteDensityThreshold", FileName, 80, true);
+
+        /// Throttles inbound intercity train spawns when the destination is saturated or city-wide
+        /// ridership is low.
+        public static readonly SavedBool IntercityTrainSpawnThrottleEnabled =
+            new SavedBool("IntercityTrainSpawnThrottleEnabled", FileName, LegacyIntercityTrain.value, true);
+
         public static readonly SavedInt IntercityLowRidershipThreshold =
             new SavedInt("IntercityLowRidershipThreshold", FileName, 50, true);
 
-        // "全面進行效能優化" (2026-08-15): per-vehicle/per-event diagnostic logging, off by
-        // default - see Log.cs for the measurement that motivated this. Turn on before collecting
-        // a log for a bug report.
+        /// Percent chance of skipping a spawn while ridership is below the threshold.
+        public static readonly SavedInt IntercityLowRidershipSkipPercent =
+            new SavedInt("IntercityLowRidershipSkipPercent", FileName, 50, true);
+
+        /// Detect-and-log only; never changes train behaviour.
+        public static readonly SavedBool SingleTrackConflictDetectorEnabled =
+            new SavedBool("SingleTrackConflictDetectorEnabled", FileName, LegacyTrainsAndMetro.value, true);
+
+        // ---------------------------------------------------------------------------------
+        // Aircraft
+        // ---------------------------------------------------------------------------------
+
+        public static readonly SavedBool AircraftGateAssignmentEnabled =
+            new SavedBool("AircraftGateAssignmentEnabled", FileName, LegacyAircraft.value, true);
+
+        /// How many aircraft one gate segment is considered able to hold.
+        public static readonly SavedInt AircraftPerGateCapacity =
+            new SavedInt("AircraftPerGateCapacity", FileName, 6, true);
+
+        public static readonly SavedInt AircraftGateCandidateCount =
+            new SavedInt("AircraftGateCandidateCount", FileName, 26, true);
+
+        public static readonly SavedBool AircraftRerouteEnabled =
+            new SavedBool("AircraftRerouteEnabled", FileName, LegacyAircraft.value, true);
+
+        public static readonly SavedInt AircraftRerouteDensityThreshold =
+            new SavedInt("AircraftRerouteDensityThreshold", FileName, 80, true);
+
+        /// Airports refuse landings and departures for the duration of a thunderstorm.
+        public static readonly SavedBool AircraftThunderstormRefusalEnabled =
+            new SavedBool("AircraftThunderstormRefusalEnabled", FileName, LegacyAircraft.value, true);
+
+        // ---------------------------------------------------------------------------------
+        // Passenger helicopters
+        // ---------------------------------------------------------------------------------
+
+        public static readonly SavedBool PassengerHelicopterGateAssignmentEnabled =
+            new SavedBool("PassengerHelicopterGateAssignmentEnabled", FileName, LegacyBusesAndHelicopters.value, true);
+
+        public static readonly SavedBool PassengerHelicopterRerouteEnabled =
+            new SavedBool("PassengerHelicopterRerouteEnabled", FileName, LegacyBusesAndHelicopters.value, true);
+
+        public static readonly SavedBool PassengerHelicopterCapacityEnabled =
+            new SavedBool("PassengerHelicopterCapacityEnabled", FileName, LegacyBusesAndHelicopters.value, true);
+
+        /// Passenger helicopter capacity multiplier, in percent (200 = double).
+        public static readonly SavedInt PassengerHelicopterCapacityPercent =
+            new SavedInt("PassengerHelicopterCapacityPercent", FileName, 200, true);
+
+        // ---------------------------------------------------------------------------------
+        // Buses
+        // ---------------------------------------------------------------------------------
+
+        public static readonly SavedBool LocalBusRerouteEnabled =
+            new SavedBool("LocalBusRerouteEnabled", FileName, LegacyBusesAndHelicopters.value, true);
+
+        public static readonly SavedInt LocalBusRerouteDensityThreshold =
+            new SavedInt("LocalBusRerouteDensityThreshold", FileName, 80, true);
+
+        public static readonly SavedBool IntercityBusRerouteEnabled =
+            new SavedBool("IntercityBusRerouteEnabled", FileName, LegacyIntercityBus.value, true);
+
+        /// Intercity buses reroute more readily than local ones - they have further to go.
+        public static readonly SavedInt IntercityBusRerouteDensityThreshold =
+            new SavedInt("IntercityBusRerouteDensityThreshold", FileName, 60, true);
+
+        // ---------------------------------------------------------------------------------
+        // Ordinary city traffic
+        // ---------------------------------------------------------------------------------
+
+        public static readonly SavedBool OrdinaryTrafficRerouteEnabled =
+            new SavedBool("OrdinaryTrafficRerouteEnabled", FileName, LegacyOrdinaryTraffic.value, true);
+
+        public static readonly SavedInt OrdinaryTrafficRerouteDensityThreshold =
+            new SavedInt("OrdinaryTrafficRerouteDensityThreshold", FileName, 80, true);
+
+        // ---------------------------------------------------------------------------------
+        // Citizens
+        // ---------------------------------------------------------------------------------
+
+        /// Citizens are less likely to drive toward an already-congested destination.
+        public static readonly SavedBool CitizenCarProbabilityEnabled =
+            new SavedBool("CitizenCarProbabilityEnabled", FileName, LegacyCitizens.value, true);
+
+        public static readonly SavedInt CitizenCarDensityThreshold =
+            new SavedInt("CitizenCarDensityThreshold", FileName, 70, true);
+
+        /// Largest share of the drive-probability that congestion may remove, in percent.
+        public static readonly SavedInt CitizenCarMaxReductionPercent =
+            new SavedInt("CitizenCarMaxReductionPercent", FileName, 60, true);
+
+        public static readonly SavedBool CitizenTaxiProbabilityEnabled =
+            new SavedBool("CitizenTaxiProbabilityEnabled", FileName, LegacyCitizens.value, true);
+
+        /// Taxi probability multiplier, in percent (150 = 1.5x).
+        public static readonly SavedInt CitizenTaxiMultiplierPercent =
+            new SavedInt("CitizenTaxiMultiplierPercent", FileName, 150, true);
+
+        public static readonly SavedInt CitizenTaxiFlatBonus =
+            new SavedInt("CitizenTaxiFlatBonus", FileName, 2, true);
+
+        // ---------------------------------------------------------------------------------
+        // Races
+        // ---------------------------------------------------------------------------------
+
+        public static readonly SavedBool RaceCarSpeedEnabled =
+            new SavedBool("RaceCarSpeedEnabled", FileName, LegacyRaceCars.value, true);
+
+        public static readonly SavedFloat RaceCarMaxSpeed =
+            new SavedFloat("RaceCarMaxSpeed", FileName, 80f, true);
+
+        public static readonly SavedBool RaceBuildingAttractivenessEnabled =
+            new SavedBool("RaceBuildingAttractivenessEnabled", FileName, LegacyRaceCars.value, true);
+
+        /// Racetrack attractiveness multiplier, in percent (200 = double).
+        public static readonly SavedInt RaceBuildingAttractivenessPercent =
+            new SavedInt("RaceBuildingAttractivenessPercent", FileName, 200, true);
+
+        // ---------------------------------------------------------------------------------
+        // Shared / advanced
+        // ---------------------------------------------------------------------------------
+
+        /// Seconds a vehicle must wait after rerouting before it may reroute again. Shared by
+        /// every reroute feature - the point is to stop one vehicle thrashing, which is not
+        /// vehicle-type specific.
+        public static readonly SavedInt RerouteCooldownSeconds =
+            new SavedInt("RerouteCooldownSeconds", FileName, 40, true);
+
+        /// Per-vehicle congestion checks run once every N simulation frames rather than every
+        /// frame. Higher = cheaper but slower to react. See SimulationStagger.
+        public static readonly SavedInt RerouteCheckIntervalFrames =
+            new SavedInt("RerouteCheckIntervalFrames", FileName, 32, true);
+
+        // ---------------------------------------------------------------------------------
+        // General
+        // ---------------------------------------------------------------------------------
+
+        /// "auto" follows the game's language; otherwise a Localization language code.
+        public static readonly SavedString LanguageOverride =
+            new SavedString("LanguageOverride", FileName, "auto", true);
+
+        /// Per-vehicle/per-event diagnostic logging. Off by default - see Log.cs for the
+        /// measurement that motivated it.
         public static readonly SavedBool VerboseLogging =
             new SavedBool("VerboseLogging", FileName, false, true);
     }

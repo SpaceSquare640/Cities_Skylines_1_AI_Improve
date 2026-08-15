@@ -14,7 +14,9 @@ namespace AIImprove
     // source of truth here too.
     internal static class PassengerHelicopterCapacityPatch
     {
-        private const float Multiplier = 2f;
+        // "每個功能中的調整設定及數據可以拆開以及詳細調整" (2026-08-15): now a slider, default
+        // unchanged (200% = 2x).
+        private static float Multiplier => ModSettings.PassengerHelicopterCapacityPercent.value / 100f;
 
         private static readonly Dictionary<PassengerHelicopterAI, int> OriginalCapacity =
             new Dictionary<PassengerHelicopterAI, int>();
@@ -23,7 +25,7 @@ namespace AIImprove
 
         public static void Prefix(PassengerHelicopterAI __instance)
         {
-            if (!ModSettings.BusesAndHelicoptersEnabled.value)
+            if (!ModSettings.PassengerHelicopterCapacityEnabled.value)
             {
                 return;
             }

@@ -16,15 +16,15 @@ namespace AIImprove
     // TrainPassengerCapacityPatch's notes on that exact problem for a different feature).
     internal static class RaceBuildingAttractivenessPatch
     {
-        // Interim value pending live-test calibration, same as every other tunable in this
-        // project.
-        private const float Multiplier = 2f;
+        // "每個功能中的調整設定及數據可以拆開以及詳細調整" (2026-08-15): now a slider, default
+        // unchanged (200% = 2x).
+        private static float Multiplier => ModSettings.RaceBuildingAttractivenessPercent.value / 100f;
 
         private static bool loggedFirstCall;
 
         public static void Postfix(ref int __result)
         {
-            if (!ModSettings.RaceCarsEnabled.value)
+            if (!ModSettings.RaceBuildingAttractivenessEnabled.value)
             {
                 return;
             }

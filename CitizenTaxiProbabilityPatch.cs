@@ -22,14 +22,16 @@ namespace AIImprove
         //
         // Halved rather than reverted, per user decision: still noticeably more taxi usage than
         // vanilla (0/2/4/6 -> 2/5/8/11), without eating so much of the transit ridership.
-        private const float Multiplier = 1.5f;
-        private const int FlatBonus = 2;
+        // "每個功能中的調整設定及數據可以拆開以及詳細調整" (2026-08-15): now sliders, defaults
+        // unchanged (150% = 1.5x, flat bonus 2).
+        private static float Multiplier => ModSettings.CitizenTaxiMultiplierPercent.value / 100f;
+        private static int FlatBonus => ModSettings.CitizenTaxiFlatBonus.value;
 
         private static bool loggedFirstCall;
 
         public static void Postfix(ref int __result)
         {
-            if (!ModSettings.CitizensEnabled.value)
+            if (!ModSettings.CitizenTaxiProbabilityEnabled.value)
             {
                 return;
             }

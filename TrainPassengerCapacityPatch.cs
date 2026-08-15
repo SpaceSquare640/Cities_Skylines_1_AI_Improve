@@ -40,7 +40,7 @@ namespace AIImprove
             // Not currently registered (see Patcher.PatchAll's comment), but wired to the
             // intercity train toggle now that it exists, so it respects the panel immediately if
             // ever re-enabled (2026-08-15).
-            if (!ModSettings.IntercityTrainEnabled.value)
+            if (!ModSettings.IntercityTrainRerouteEnabled.value)
             {
                 return;
             }

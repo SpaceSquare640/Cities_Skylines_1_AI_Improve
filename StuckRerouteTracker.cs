@@ -24,7 +24,11 @@ namespace AIImprove
         // mechanism responsive to genuinely severe congestion. Still not a principled
         // derivation - needs further real-world calibration.
         public const float DensityThreshold = 80f;
-        private const float RerouteCooldownSeconds = 40f;
+
+        // "每個功能中的調整設定及數據可以拆開以及詳細調整" (2026-08-15): shared cooldown, now a
+        // slider (ModSettings.RerouteCooldownSeconds) - shared because the point (stop one
+        // vehicle thrashing) isn't vehicle-type specific, default still 40.
+        private static float RerouteCooldownSeconds => ModSettings.RerouteCooldownSeconds.value;
 
         private class State
         {

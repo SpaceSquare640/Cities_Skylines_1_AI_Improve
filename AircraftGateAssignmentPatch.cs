@@ -26,7 +26,8 @@ namespace AIImprove
         // TUNED (2026-08-13, +10% per request): CandidateCount 24->26, both search radii and
         // SaturationThreshold also raised ~10% - widening the search a bit further and giving a
         // bit more headroom before treating the airport as saturated.
-        private const int CandidateCount = 26;
+        // "每個功能中的調整設定及數據可以拆開以及詳細調整" (2026-08-15): now a slider.
+        private static int CandidateCount => ModSettings.AircraftGateCandidateCount.value;
         private const float ProbeMaxDistance = 24f;
 
         // Two concentric rings instead of one - a single ring at a fixed radius tends to skim
@@ -59,7 +60,9 @@ namespace AIImprove
         // (foundGateCount) - a small airport with 2 real gates gets a proportionally small
         // ceiling, a large one with a dozen gets a proportionally large one, instead of every
         // airport on the map being judged against the same number regardless of its own size.
-        private const int PerGateCapacity = 6;
+        // "每個功能中的調整設定及數據可以拆開以及詳細調整" (2026-08-15): now a slider, default
+        // unchanged (6).
+        private static int PerGateCapacity => ModSettings.AircraftPerGateCapacity.value;
 
         private static bool loggedFirstCall;
 
@@ -209,7 +212,10 @@ namespace AIImprove
         // `vehicleData` parameter.
         public static bool Prefix(ushort vehicleID, AircraftAI __instance, ref Vehicle vehicleData, ref Vector3 endPos, ref bool __result)
         {
-            if (!ModSettings.AircraftEnabled.value)
+            // "每個功能中的調整設定及數據可以拆開以及詳細調整" (2026-08-15): gate assignment and
+            // the thunderstorm refusal are independent toggles now, so this only bails out
+            // entirely when BOTH are off - otherwise each check below gates itself.
+            if (!ModSettings.AircraftGateAssignmentEnabled.value && !ModSettings.AircraftThunderstormRefusalEnabled.value)
             {
                 return true;
             }
@@ -226,11 +232,17 @@ namespace AIImprove
             // outside connection and would otherwise skip the check below entirely). Refusing
             // here reuses the same "return false, __result stays false" refusal path as ordinary
             // saturation - the caller Unspawns the vehicle either way.
-            if (WeatherDisasterDetector.IsThunderstormActive() &&
+            if (ModSettings.AircraftThunderstormRefusalEnabled.value &&
+                WeatherDisasterDetector.IsThunderstormActive() &&
                 (IsAirportBuilding(vehicleData.m_sourceBuilding) || IsAirportBuilding(vehicleData.m_targetBuilding)))
             {
                 Log.Verbose("[AIImprove] Aircraft " + vehicleID + " refused - airport closed for thunderstorm.");
                 return false;
+            }
+
+            if (!ModSettings.AircraftGateAssignmentEnabled.value)
+            {
+                return true;
             }
 
             // Same m_targetBuilding type confusion fixed in TrainPlatformAssignmentPatch on

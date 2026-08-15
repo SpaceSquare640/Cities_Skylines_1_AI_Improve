@@ -119,50 +119,20 @@ namespace AIImprove
             content.autoLayoutPadding = new RectOffset(0, 0, 0, 4);
             content.autoFitChildrenVertically = true;
 
-            AddToggle(content, "category.emergency.title", ModSettings.EmergencyVehiclesEnabled);
-            AddToggle(content, "category.metro.title", ModSettings.TrainsAndMetroEnabled);
-            AddToggle(content, "category.intercityTrain.title", ModSettings.IntercityTrainEnabled);
+            // "接下來我們繼續開發的部分只限在 Content Manager" (2026-08-15, standing
+            // instruction from earlier this session) + "我想把全部功能拆開" (2026-08-15): with
+            // ~19 individual feature toggles now instead of 9 broad categories, duplicating all of
+            // them here would mean maintaining two full settings UIs. This panel goes back to just
+            // the two tools that are unique to being in-game (you can't scan/delete vehicles from
+            // outside a loaded city) - full toggle/tuning control lives in Content Manager only.
             AddScanButton(
                 content, Localization.Get("button.scanTrain"), EmptyVehicleAuditor.ScanIntercityTrains,
                 Localization.Get("category.intercityTrain.short"));
-            AddToggle(content, "category.aircraft.title", ModSettings.AircraftEnabled);
-            AddToggle(content, "category.buses.title", ModSettings.BusesAndHelicoptersEnabled);
-            AddToggle(content, "category.intercityBus.title", ModSettings.IntercityBusEnabled);
             AddScanButton(
                 content, Localization.Get("button.scanBus"), EmptyVehicleAuditor.ScanIntercityBuses,
                 Localization.Get("category.intercityBus.short"));
-            AddToggle(content, "category.traffic.title", ModSettings.OrdinaryTrafficEnabled);
-            AddToggle(content, "category.citizens.title", ModSettings.CitizensEnabled);
-            AddToggle(content, "category.racecars.title", ModSettings.RaceCarsEnabled);
 
             panel.height = content.relativePosition.y + content.height + 15f;
-        }
-
-        private static void AddToggle(UIComponent content, string titleKey, ColossalFramework.SavedBool setting)
-        {
-            string label = Localization.Get(titleKey);
-
-            UIButton button = content.AddUIComponent<UIButton>();
-            button.width = content.width;
-            button.height = 26f;
-            button.normalBgSprite = "ButtonMenu";
-            button.hoveredBgSprite = "ButtonMenuHovered";
-            button.textScale = 0.8f;
-            button.textHorizontalAlignment = UIHorizontalAlignment.Left;
-            button.textPadding = new RectOffset(8, 0, 5, 0);
-
-            RefreshToggleText(button, label, setting.value);
-
-            button.eventClick += (component, param) =>
-            {
-                setting.value = !setting.value;
-                RefreshToggleText(button, label, setting.value);
-            };
-        }
-
-        private static void RefreshToggleText(UIButton button, string label, bool isEnabled)
-        {
-            button.text = Localization.Get(isEnabled ? "toggle.on" : "toggle.off") + label;
         }
 
         private static void AddScanButton(

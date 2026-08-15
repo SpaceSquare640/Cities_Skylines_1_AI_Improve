@@ -33,7 +33,10 @@ namespace AIImprove
         // (ModSettings.FireMaxRespondersPerBuilding) instead of a fixed constant - default still
         // 20, matching the tuned value above.
         public static int MaxRespondersPerBuilding => ModSettings.FireMaxRespondersPerBuilding.value;
-        private const float UnlimitedAfterSeconds = 15f * 60f;
+
+        // "每個功能中的調整設定及數據可以拆開以及詳細調整" (2026-08-15): also a slider now
+        // (ModSettings.FireUncapAfterMinutes), default still 15.
+        private static float UnlimitedAfterSeconds => ModSettings.FireUncapAfterMinutes.value * 60f;
 
         private static readonly Dictionary<ushort, int> TruckResponseCount = new Dictionary<ushort, int>();
         private static readonly Dictionary<ushort, ushort> TruckAssignment = new Dictionary<ushort, ushort>();
