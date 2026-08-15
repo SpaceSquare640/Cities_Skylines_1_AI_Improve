@@ -38,10 +38,36 @@ dependencies/integrations with TM:PE, Transfer Manager CE, Smarter
 Firefighters, SingleTrainTrackAI, Reversible Tram AI, Advanced Vehicle
 Options).
 
+## Settings
+
+Every feature category above can be switched on or off individually, and
+several values are adjustable. There are two places to configure the mod:
+
+- **Full settings** - `ESC` → Options → Content Manager → Mods → **AI_Improve**.
+  Tabbed page with all nine category toggles, tuning sliders (race car speed
+  cap, fire responders per building, intercity train throttle threshold), a
+  language selector, and links.
+- **Quick panel** - the **AI_Improve** button on the
+  [UnifiedUI](https://steamcommunity.com/sharedfiles/filedetails/?id=2966990700)
+  toolbar, in-game. Same toggles plus the empty-vehicle cleanup tools, without
+  leaving your city. Optional - without UnifiedUI everything is still fully
+  configurable from Content Manager.
+
+Interface language follows the game automatically, and can be overridden to
+English, 繁體中文, or 简体中文.
+
+Turning a category off makes it behave exactly as if the feature had never
+been written - the game's own original code runs untouched.
+
+**See the [Settings wiki page](https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/wiki/Settings)
+for the full reference**, including the empty-vehicle cleanup tools and the
+verbose-logging switch used when collecting a bug report.
+
 ## Requirements
 
 - Cities: Skylines (base game)
 - [Harmony (Mod Dependency)](https://steamcommunity.com/workshop/filedetails/?id=2040656402) by boformer, subscribed via Steam Workshop
+- Optional: [UnifiedUI](https://steamcommunity.com/sharedfiles/filedetails/?id=2966990700) - for the in-game settings button
 
 ## Reporting a problem
 
@@ -50,6 +76,11 @@ there are templates for bug reports, feature requests, and mod conflicts.
 
 Please attach your full `Cities_Data/output_log.txt`. Almost nothing can be diagnosed without it,
 and logs from other mods (`TMPE.log`, `GameAnarchy.log`, …) don't contain any AI_Improve information.
+
+Before reproducing the problem, turn on **Verbose logging** (settings → Tuning tab) so the log
+actually contains per-vehicle detail - it's off by default because it's expensive. Also include the
+version string shown in the settings header (e.g. `1.0.59+ee242bb`); it identifies the exact commit
+your build came from.
 
 ## Building from source
 

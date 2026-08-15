@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using ColossalFramework;
 using ColossalFramework.UI;
@@ -403,10 +404,27 @@ namespace AIImprove
             button.eventClick += (component, param) => Application.OpenURL(url);
         }
 
+        // "用 GitHub commit 作版本標準" (2026-08-15): prefers AssemblyInformationalVersion, which
+        // the build stamps as "1.0.<commit count>+<short hash>" (see the SetVersionFromGit target
+        // in AIImprove.csproj) - the hash is what actually pins a player's build to an exact commit
+        // when they report a bug. AssemblyVersion can only hold numbers, so it carries the commit
+        // count alone and is used as the fallback if the informational attribute is missing.
         private static string GetVersionString()
         {
-            AssemblyName name = Assembly.GetExecutingAssembly().GetName();
-            return name.Version.Major + "." + name.Version.Minor + "." + name.Version.Build;
+            Assembly assembly = Assembly.GetExecutingAssembly();
+
+            object[] attributes = assembly.GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false);
+            if (attributes.Length > 0)
+            {
+                string informational = ((AssemblyInformationalVersionAttribute)attributes[0]).InformationalVersion;
+                if (!string.IsNullOrEmpty(informational))
+                {
+                    return informational;
+                }
+            }
+
+            Version version = assembly.GetName().Version;
+            return version.Major + "." + version.Minor + "." + version.Build;
         }
 
         // Same page this project shipped before the "完全還原" redesign - kept as a safety net for

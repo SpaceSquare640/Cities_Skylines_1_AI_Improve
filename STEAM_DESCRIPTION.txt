@@ -19,11 +19,31 @@ Most existing "improved AI" mods for Cities: Skylines change one narrow slice of
 
 [b]See the [url=https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/wiki]GitHub Wiki[/url] for the full, detailed feature list and compatibility notes[/b] (soft dependencies/integrations with TM:PE, Transfer Manager CE, Smarter Firefighters, SingleTrainTrackAI, Reversible Tram AI, Advanced Vehicle Options).
 
+[h2]Settings[/h2]
+
+Every feature category can be switched on or off individually, and several values are adjustable.
+
+[list]
+[*] [b]Full settings[/b]: ESC → Options → Content Manager → Mods → AI_Improve. Tabbed page with all nine category toggles, tuning sliders (race car speed cap, fire responders per building, intercity train throttle threshold), a language selector, and links.
+[*] [b]Quick panel[/b]: the AI_Improve button on the [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2966990700]UnifiedUI[/url] toolbar, in-game. Same toggles plus tools to find and remove empty intercity trains/buses, without leaving your city. Optional - without UnifiedUI everything is still fully configurable from Content Manager.
+[/list]
+
+Interface language follows the game automatically, and can be overridden to English, 繁體中文, or 简体中文.
+
+Turning a category off makes it behave exactly as if the feature had never been written - the game's own original code runs untouched.
+
+[b]Full settings reference: [url=https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/wiki/Settings]Settings wiki page[/url][/b]
+
 [h2]Requirements[/h2]
 [list]
 [*] Cities: Skylines (base game)
 [*] Harmony (Mod Dependency) by boformer, subscribed via Steam Workshop
+[*] Optional: UnifiedUI - for the in-game settings button
 [/list]
+
+[h2]Reporting a problem[/h2]
+
+Please open an issue on [url=https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/issues/new/choose]GitHub[/url] and attach your full Cities_Data/output_log.txt - almost nothing can be diagnosed without it. Turn on [b]Verbose logging[/b] (settings → Tuning tab) before reproducing the problem, and include the version string shown in the settings header.
 
 [h2]License[/h2]
 GPL-3.0.

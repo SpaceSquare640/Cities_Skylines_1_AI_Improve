@@ -44,21 +44,49 @@ namespace AIImprove
             return Scan(IsEmptyIntercityBus);
         }
 
+        // BUG FOUND VIA AUDIT (2026-08-15, prompted by the user asking whether the delete button
+        // could hit ordinary trains/buses - it could):
+        //
+        // "PassengerTrainAI minus MetroTrainAI" is NOT the same thing as "intercity train". dnSpy
+        // on PassengerTrainAI shows it serves both roles and branches internally on
+        // m_transportLine: non-zero means the train is running a PLAYER-CREATED transport line
+        // (an in-city train line the player built), zero means it came from an outside connection.
+        // Vanilla itself uses exactly that discriminator - see PassengerTrainAI.SimulationStep's
+        // `(flags & (GoingBack | DummyTraffic)) == 0 && m_transportLine == 0` branch. The old
+        // predicate therefore matched a player's own city train line whenever one of its trains
+        // momentarily sat at 0 passengers, and deleted it.
+        //
+        // Monorail is a second false positive: there is no MonorailTrainAI class at all (only
+        // MonorailTrackAI/MonorailPylonAI), so monorail vehicles are PassengerTrainAI too. They're
+        // excluded here by subservice.
+        //
+        // Trams are unaffected either way - TramAI/TramBaseAI are a separate hierarchy, matching
+        // neither predicate.
         private static bool IsEmptyIntercityTrain(ref Vehicle data)
         {
             VehicleInfo info = data.Info;
             return info != null &&
                    info.m_vehicleAI is PassengerTrainAI &&
                    !(info.m_vehicleAI is MetroTrainAI) &&
+                   info.m_class != null &&
+                   info.m_class.m_subService == ItemClass.SubService.PublicTransportTrain &&
+                   data.m_transportLine == 0 &&
                    data.m_transferSize == 0;
         }
 
+        // The bus side was already correct: TransportStationAI.IsIntercity(vehicle's ItemClass) is
+        // the same check vanilla's own BusAI.GetColor makes on this exact field, and only intercity
+        // bus assets carry Level3 - ordinary city buses don't match. The m_transportLine == 0 guard
+        // is added for the same reason as the train case, covering a player who has put an
+        // intercity bus asset onto a transport line of their own.
         private static bool IsEmptyIntercityBus(ref Vehicle data)
         {
             VehicleInfo info = data.Info;
             return info != null &&
                    info.m_vehicleAI is BusAI &&
+                   info.m_class != null &&
                    TransportStationAI.IsIntercity(info.m_class) &&
+                   data.m_transportLine == 0 &&
                    data.m_transferSize == 0;
         }
 
