@@ -93,7 +93,13 @@ namespace AIImprove
                 return;
             }
 
-            if (!FireResponseTracker.TryAssign(isCopter, vehicleID, targetBuilding))
+            // BUG FOUND VIA AUDIT (2026-08-15, prompted by a player report of stuck fire trucks):
+            // this call ran unconditionally regardless of FireResponseCapEnabled - if a player
+            // turned the cap off specifically (while leaving idle-seek on), TryAssign kept
+            // rejecting dispatches past MaxRespondersPerBuilding anyway, contradicting "off =
+            // never written". Doesn't affect the default (both features on) configuration, but is
+            // a real toggle-not-actually-off bug regardless.
+            if (ModSettings.FireResponseCapEnabled.value && !FireResponseTracker.TryAssign(isCopter, vehicleID, targetBuilding))
             {
                 ushort original = targetBuilding;
 
