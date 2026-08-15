@@ -53,6 +53,15 @@ namespace AIImprove
                         "Found {0} empty {1} chain(s) ({2} vehicle instance(s) total, including trailers).\n\n" +
                         "Delete these vehicles now?",
                     ["uui.tooltip"] = "AI_Improve Settings",
+                    ["header.status"] = "Active",
+                    ["header.changelog"] = "Changelog",
+                    ["tab.toggles"] = "Toggles",
+                    ["tab.about"] = "About",
+                    ["about.version"] = "Version {0}",
+                    ["about.github"] = "GitHub Source",
+                    ["about.wiki"] = "Documentation Wiki",
+                    ["about.workshop"] = "Steam Workshop Page",
+                    ["about.reportIssue"] = "Report an Issue (GitHub)",
                 },
                 ["zh-tw"] = new Dictionary<string, string>
                 {
@@ -85,6 +94,15 @@ namespace AIImprove
                     ["scan.noneFound"] = "沒有偵測到沒有乘客的{0}。",
                     ["scan.confirm"] = "偵測到 {0} 輛沒有乘客的{1}（共 {2} 節車廂/車輛實例）。\n\n是否要直接刪除這些車輛？",
                     ["uui.tooltip"] = "AI_Improve 設定 (Settings)",
+                    ["header.status"] = "運作中 (Active)",
+                    ["header.changelog"] = "更新日誌 (Changelog)",
+                    ["tab.toggles"] = "功能開關",
+                    ["tab.about"] = "關於",
+                    ["about.version"] = "版本 (Version) {0}",
+                    ["about.github"] = "GitHub 原始碼",
+                    ["about.wiki"] = "說明 Wiki",
+                    ["about.workshop"] = "Steam Workshop 頁面",
+                    ["about.reportIssue"] = "回報問題 (GitHub Issues)",
                 },
                 ["zh-cn"] = new Dictionary<string, string>
                 {
@@ -117,6 +135,15 @@ namespace AIImprove
                     ["scan.noneFound"] = "没有侦测到没有乘客的{0}。",
                     ["scan.confirm"] = "侦测到 {0} 辆没有乘客的{1}（共 {2} 节车厢/车辆实例）。\n\n是否要直接删除这些车辆？",
                     ["uui.tooltip"] = "AI_Improve 设定 (Settings)",
+                    ["header.status"] = "运作中 (Active)",
+                    ["header.changelog"] = "更新日志 (Changelog)",
+                    ["tab.toggles"] = "功能开关",
+                    ["tab.about"] = "关于",
+                    ["about.version"] = "版本 (Version) {0}",
+                    ["about.github"] = "GitHub 源代码",
+                    ["about.wiki"] = "说明 Wiki",
+                    ["about.workshop"] = "Steam Workshop 页面",
+                    ["about.reportIssue"] = "报告问题 (GitHub Issues)",
                 },
             };
 

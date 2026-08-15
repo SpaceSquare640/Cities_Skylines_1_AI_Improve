@@ -39,33 +39,10 @@ namespace AIImprove
         }
 
         // Content Manager's per-mod options page - the "detailed settings" half of the TM:PE-style
-        // split requested 2026-08-15: reached via ESC -> Options -> Content Manager, shows every
-        // toggle WITH its full description, and nothing else (no action buttons - those live only
-        // in the simple in-game panel, see IngameUI.cs). Vanilla UIHelperBase has no concept of
-        // separate "pages"/tabs - AddGroup is the closest equivalent (a titled, visually boxed
-        // section within the single scrollable panel), so "獨立設定頁" (2026-08-15, earlier
-        // request) is implemented as one AddGroup per feature instead of one shared group with a
-        // flat checkbox list. Each group's own checkbox is still the same category-level on/off
-        // switch from ModSettings.cs - see that file for the persistence mechanism and KNOWN GAP
-        // notes.
-        public void OnSettingsUI(UIHelperBase helper)
-        {
-            AddFeatureGroup(helper, "category.emergency", ModSettings.EmergencyVehiclesEnabled);
-            AddFeatureGroup(helper, "category.metro", ModSettings.TrainsAndMetroEnabled);
-            AddFeatureGroup(helper, "category.intercityTrain", ModSettings.IntercityTrainEnabled);
-            AddFeatureGroup(helper, "category.aircraft", ModSettings.AircraftEnabled);
-            AddFeatureGroup(helper, "category.buses", ModSettings.BusesAndHelicoptersEnabled);
-            AddFeatureGroup(helper, "category.intercityBus", ModSettings.IntercityBusEnabled);
-            AddFeatureGroup(helper, "category.traffic", ModSettings.OrdinaryTrafficEnabled);
-            AddFeatureGroup(helper, "category.citizens", ModSettings.CitizensEnabled);
-            AddFeatureGroup(helper, "category.racecars", ModSettings.RaceCarsEnabled);
-        }
-
-        private static void AddFeatureGroup(UIHelperBase helper, string categoryKey, SavedBool setting)
-        {
-            UIHelperBase group = helper.AddGroup(Localization.Get(categoryKey + ".title"));
-            string label = Localization.Get("toggle.enable") + " - " + Localization.Get(categoryKey + ".desc");
-            group.AddCheckbox(label, setting.value, value => setting.value = value);
-        }
+        // split requested 2026-08-15, rebuilt the same day into a tabbed/card-header/pill-switch
+        // page matching ACME/Advanced Stop Selection's style per explicit user request. See
+        // SettingsPageUI.cs for the actual construction (kept out of this file since it's a
+        // sizable chunk of raw ColossalFramework.UI work, not a couple of AddGroup calls anymore).
+        public void OnSettingsUI(UIHelperBase helper) => SettingsPageUI.Build(helper);
     }
 }
