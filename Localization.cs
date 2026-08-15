@@ -66,6 +66,7 @@ namespace AIImprove
                     ["tune.raceCarSpeed"] = "Race car max speed",
                     ["tune.fireResponders"] = "Max fire responders per building",
                     ["tune.lowRidership"] = "Intercity train low-ridership skip threshold",
+                    ["tune.verboseLogging"] = "Verbose logging (only for bug reports - slows the game)",
                 },
                 ["zh-tw"] = new Dictionary<string, string>
                 {
@@ -111,6 +112,7 @@ namespace AIImprove
                     ["tune.raceCarSpeed"] = "賽車速度上限",
                     ["tune.fireResponders"] = "消防車/直升機每棟建築派遣上限",
                     ["tune.lowRidership"] = "城際火車低載客量跳過閾值",
+                    ["tune.verboseLogging"] = "詳細記錄 (只在回報問題時開啟，會拖慢遊戲)",
                 },
                 ["zh-cn"] = new Dictionary<string, string>
                 {
@@ -156,6 +158,7 @@ namespace AIImprove
                     ["tune.raceCarSpeed"] = "赛车速度上限",
                     ["tune.fireResponders"] = "消防车/直升机每栋建筑派遣上限",
                     ["tune.lowRidership"] = "城际火车低载客量跳过阈值",
+                    ["tune.verboseLogging"] = "详细记录 (只在报告问题时开启，会拖慢游戏)",
                 },
             };
 

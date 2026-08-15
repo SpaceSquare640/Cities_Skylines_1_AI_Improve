@@ -22,10 +22,15 @@ namespace AIImprove
             public readonly List<ushort> LeadVehicleIds;
             public readonly int TotalVehicleCount;
 
-            public ScanResult(List<ushort> leadVehicleIds, int totalVehicleCount)
+            // Carried through to the deferred delete so each vehicle can be re-checked against
+            // the same criteria it was scanned with - see DeleteVehicles.
+            internal readonly MatchPredicate Matches;
+
+            internal ScanResult(List<ushort> leadVehicleIds, int totalVehicleCount, MatchPredicate matches)
             {
                 LeadVehicleIds = leadVehicleIds;
                 TotalVehicleCount = totalVehicleCount;
+                Matches = matches;
             }
         }
 
@@ -57,7 +62,7 @@ namespace AIImprove
                    data.m_transferSize == 0;
         }
 
-        private delegate bool MatchPredicate(ref Vehicle data);
+        internal delegate bool MatchPredicate(ref Vehicle data);
 
         private static ScanResult Scan(MatchPredicate matches)
         {
@@ -96,24 +101,52 @@ namespace AIImprove
                 " empty vehicle chain(s) (" + totalVehicleCount + " vehicle instance(s) total, " +
                 "including trailers).");
 
-            return new ScanResult(leadVehicleIds, totalVehicleCount);
+            return new ScanResult(leadVehicleIds, totalVehicleCount, matches);
         }
 
-        public static void DeleteVehicles(List<ushort> leadVehicleIds)
+        // BUG FOUND VIA AUDIT (2026-08-15): this used to run inline on the UI thread, straight
+        // from the settings-panel button's click handler. VehicleManager.ReleaseVehicle mutates
+        // the vehicle buffer and its free-item pool, and (via our own VehicleAI.ReleaseVehicle
+        // postfix) writes several unsynchronized static Dictionaries that the simulation thread
+        // reads and writes concurrently every tick - a textbook data race that can corrupt those
+        // dictionaries or the vehicle pool itself. Deferring onto the simulation thread via
+        // SimulationManager.AddAction is the standard CS1 pattern for exactly this, and is what
+        // vanilla's own UI does whenever a button has to change simulation state.
+        public static void DeleteVehicles(ScanResult result)
+        {
+            Singleton<SimulationManager>.instance.AddAction(() => DeleteVehiclesOnSimulationThread(result));
+        }
+
+        private static void DeleteVehiclesOnSimulationThread(ScanResult result)
         {
             VehicleManager vehicleManager = Singleton<VehicleManager>.instance;
+            Vehicle[] buffer = vehicleManager.m_vehicles.m_buffer;
             int releasedCount = 0;
+            int skippedCount = 0;
 
-            foreach (ushort leadId in leadVehicleIds)
+            foreach (ushort leadId in result.LeadVehicleIds)
             {
+                // Re-validate against the original scan criteria before touching anything. Time
+                // passes between the scan, the player reading the confirm dialog, and this
+                // deferred action running on the simulation thread - the scanned vehicle may have
+                // despawned and had its ID handed to a completely different, non-empty vehicle in
+                // the meantime. Checking Vehicle.Flags.Created alone would NOT catch that, since
+                // the replacement vehicle has it set too.
+                if ((buffer[leadId].m_flags & Vehicle.Flags.Created) == 0 ||
+                    !result.Matches(ref buffer[leadId]))
+                {
+                    skippedCount++;
+                    continue;
+                }
+
                 ushort current = leadId;
                 int safety = 0;
 
                 while (current != 0 && safety < 64)
                 {
-                    ushort next = vehicleManager.m_vehicles.m_buffer[current].m_trailingVehicle;
+                    ushort next = buffer[current].m_trailingVehicle;
 
-                    if ((vehicleManager.m_vehicles.m_buffer[current].m_flags & Vehicle.Flags.Created) != 0)
+                    if ((buffer[current].m_flags & Vehicle.Flags.Created) != 0)
                     {
                         vehicleManager.ReleaseVehicle(current);
                         releasedCount++;
@@ -124,9 +157,13 @@ namespace AIImprove
                 }
             }
 
-            Debug.Log(
+            Log.Info(
                 "[AIImprove] EmptyVehicleAuditor deleted " + releasedCount +
-                " vehicle instance(s) across " + leadVehicleIds.Count + " chain(s).");
+                " vehicle instance(s) across " + (result.LeadVehicleIds.Count - skippedCount) +
+                " chain(s)" +
+                (skippedCount > 0
+                    ? ", skipped " + skippedCount + " that no longer matched (despawned or ID reused)."
+                    : "."));
         }
     }
 }

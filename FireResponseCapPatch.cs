@@ -70,7 +70,7 @@ namespace AIImprove
                 ushort nearby = FireResponseTracker.TryFindAlternateBurningBuilding(isCopter, 0, data.GetLastFramePosition());
                 if (nearby != 0 && FireResponseTracker.TryAssign(isCopter, vehicleID, nearby))
                 {
-                    Debug.Log(
+                    Log.Verbose(
                         "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " was going idle - " +
                         "retargeted to nearby still-burning building " + nearby + " instead.");
                     targetBuilding = nearby;
@@ -88,7 +88,7 @@ namespace AIImprove
                     // Still enforce the cap (this building has enough responders already), but
                     // leave picking the replacement target to TMCE's own next dispatch pass
                     // instead of searching ourselves.
-                    Debug.Log(
+                    Log.Verbose(
                         "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " redirected away " +
                         "from building " + original + " - already at " +
                         FireResponseTracker.MaxRespondersPerBuilding + " responders. Leaving target " +
@@ -101,7 +101,7 @@ namespace AIImprove
 
                 if (alternate != 0 && FireResponseTracker.TryAssign(isCopter, vehicleID, alternate))
                 {
-                    Debug.Log(
+                    Log.Verbose(
                         "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " redirected from " +
                         "building " + original + " (at " + FireResponseTracker.MaxRespondersPerBuilding +
                         " responders) to still-burning building " + alternate + ".");
@@ -109,7 +109,7 @@ namespace AIImprove
                 }
                 else
                 {
-                    Debug.Log(
+                    Log.Verbose(
                         "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " redirected away " +
                         "from building " + original + " - already at " +
                         FireResponseTracker.MaxRespondersPerBuilding + " responders, no alternate fire found.");

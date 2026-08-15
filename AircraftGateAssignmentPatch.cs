@@ -229,7 +229,7 @@ namespace AIImprove
             if (WeatherDisasterDetector.IsThunderstormActive() &&
                 (IsAirportBuilding(vehicleData.m_sourceBuilding) || IsAirportBuilding(vehicleData.m_targetBuilding)))
             {
-                Debug.Log("[AIImprove] Aircraft " + vehicleID + " refused - airport closed for thunderstorm.");
+                Log.Verbose("[AIImprove] Aircraft " + vehicleID + " refused - airport closed for thunderstorm.");
                 return false;
             }
 
@@ -290,22 +290,31 @@ namespace AIImprove
                 // in the codebase (unused) as a record, same convention as this project's other
                 // deprecated patches - nothing calls BeginHolding anymore, so IsHolding always
                 // returns false and TryUpdateHolding's own call site is a cheap no-op.
-                Debug.Log(
-                    "[AIImprove] Aircraft " + vehicleID + " refused landing - airport " + targetBuilding +
-                    " saturated (building occupancy " + buildingOccupancy + " >= " +
-                    (foundGateCount * PerGateCapacity) + " across " + foundGateCount + " found gates), " +
-                    "vehicle will unspawn.");
+                if (Log.VerboseEnabled)
+                {
+                    Log.Verbose(
+                        "[AIImprove] Aircraft " + vehicleID + " refused landing - airport " + targetBuilding +
+                        " saturated (building occupancy " + buildingOccupancy + " >= " +
+                        (foundGateCount * PerGateCapacity) + " across " + foundGateCount + " found gates), " +
+                        "vehicle will unspawn.");
+                }
+
                 return false;
             }
 
             AirTrafficControlManager.AssignGate(vehicleID, bestSegment, targetBuilding);
             endPos = bestPos;
 
-            Debug.Log(
-                "[AIImprove] Aircraft " + vehicleID + " assigned gate segment " + bestSegment +
-                " at airport " + targetBuilding + " (segment occupancy was " + bestOccupancy +
-                ", airport occupancy " + buildingOccupancy + "/" + (foundGateCount * PerGateCapacity) +
-                (ForceAssign.Contains(vehicleID) ? ", forced after hold timeout" : "") + ").");
+            // Measured at 96% of this mod's entire log output on a real player log - see Log.cs.
+            if (Log.VerboseEnabled)
+            {
+                Log.Verbose(
+                    "[AIImprove] Aircraft " + vehicleID + " assigned gate segment " + bestSegment +
+                    " at airport " + targetBuilding + " (segment occupancy was " + bestOccupancy +
+                    ", airport occupancy " + buildingOccupancy + "/" + (foundGateCount * PerGateCapacity) +
+                    (ForceAssign.Contains(vehicleID) ? ", forced after hold timeout" : "") + ").");
+            }
+
             return true;
         }
     }
@@ -321,6 +330,15 @@ namespace AIImprove
             AirTrafficControlManager.ReleaseVehicle(vehicleID);
             HoldingPatternManager.EndHolding(vehicleID);
             FireResponseTracker.ReleaseVehicle(vehicleID);
+
+            // BUG FOUND VIA AUDIT (2026-08-15): these two per-vehicle trackers were missing from
+            // this cleanup list, so their entries survived the vehicle that created them. Vehicle
+            // IDs are recycled from a fixed pool, so a brand-new vehicle could inherit a dead
+            // one's state: a stale StuckRerouteTracker cooldown silently blocked the new vehicle
+            // from rerouting for up to 40s, and a stale EmergencyDispatchTracker timestamp
+            // produced bogus response-time figures in the log.
+            StuckRerouteTracker.Clear(vehicleID);
+            EmergencyDispatchTracker.ReleaseVehicle(vehicleID);
         }
     }
 }

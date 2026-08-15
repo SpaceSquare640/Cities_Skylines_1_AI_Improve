@@ -40,5 +40,20 @@ namespace AIImprove
                 return Time.realtimeSinceStartup - startTime;
             }
         }
+
+        // BUG FOUND VIA AUDIT (2026-08-15): TakeElapsedSeconds is the only thing that removed
+        // entries, so any emergency vehicle that despawned WITHOUT reaching its target (recalled,
+        // bulldozed depot, mod toggled mid-trip) left its dispatch timestamp behind forever.
+        // Vehicle IDs come from a fixed reused pool, so a later vehicle handed the same ID would
+        // "arrive" against the dead vehicle's start time and report a wildly inflated response
+        // time. Wired into the existing global VehicleAI.ReleaseVehicle postfix alongside the
+        // other per-vehicle trackers.
+        public static void ReleaseVehicle(ushort vehicleId)
+        {
+            lock (Lock)
+            {
+                DispatchStartTime.Remove(vehicleId);
+            }
+        }
     }
 }

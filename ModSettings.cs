@@ -93,5 +93,11 @@ namespace AIImprove
 
         public static readonly SavedInt IntercityLowRidershipThreshold =
             new SavedInt("IntercityLowRidershipThreshold", FileName, 50, true);
+
+        // "全面進行效能優化" (2026-08-15): per-vehicle/per-event diagnostic logging, off by
+        // default - see Log.cs for the measurement that motivated this. Turn on before collecting
+        // a log for a bug report.
+        public static readonly SavedBool VerboseLogging =
+            new SavedBool("VerboseLogging", FileName, false, true);
     }
 }

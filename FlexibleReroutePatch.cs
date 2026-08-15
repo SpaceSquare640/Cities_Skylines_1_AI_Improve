@@ -42,11 +42,6 @@ namespace AIImprove
                 return;
             }
 
-            if (LoggedFirstCall.Add(ownerTypeName))
-            {
-                Debug.Log("[AIImprove] FlexibleReroutePatch (" + ownerTypeName + ") is executing.");
-            }
-
             // Stations/gates intentionally stop vehicles (Vehicle.Flags.Stopped) - that is not
             // "stuck", and a fresh stop is a reasonable point to reset stuck-tracking state.
             if ((vehicleData.m_flags & Vehicle.Flags.Stopped) != 0)
@@ -80,10 +75,19 @@ namespace AIImprove
             // the right signal for "where is this vehicle currently headed."
             ushort targetBuilding = vehicleData.m_targetBuilding;
 
-            if (targetBuilding == 0 || StuckRerouteTracker.IsOnCooldown(vehicleID) ||
-                !SimulationStagger.ShouldRunThisFrame(vehicleID))
+            // PERF (2026-08-15 audit): stagger (an integer modulo) now gates before the cooldown
+            // dictionary lookup, and the first-call logging bookkeeping below moved down past all
+            // of these - it was doing a string hash + HashSet probe for every vehicle in the city
+            // every single tick, ahead of the very stagger check meant to make this path cheap.
+            if (targetBuilding == 0 || !SimulationStagger.ShouldRunThisFrame(vehicleID) ||
+                StuckRerouteTracker.IsOnCooldown(vehicleID))
             {
                 return;
+            }
+
+            if (LoggedFirstCall.Add(ownerTypeName))
+            {
+                Debug.Log("[AIImprove] FlexibleReroutePatch (" + ownerTypeName + ") is executing.");
             }
 
             float aheadDensity = SegmentCongestionQuery.GetAverageAheadDensity(ref vehicleData);
@@ -99,10 +103,13 @@ namespace AIImprove
             bool success = (bool)startPathFind.Invoke(aiInstance, args);
             vehicleData = (Vehicle)args[1]; // reflection writes ref/out results back into the array
 
-            Debug.Log(
-                "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " ahead segment density " +
-                aheadDensity.ToString("F0") + " too high, requested reroute from current position: " +
-                (success ? "accepted" : "failed"));
+            if (Log.VerboseEnabled)
+            {
+                Log.Verbose(
+                    "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " ahead segment density " +
+                    aheadDensity.ToString("F0") + " too high, requested reroute from current position: " +
+                    (success ? "accepted" : "failed"));
+            }
         }
 
         private static MethodInfo FindStartPathFind(Type vehicleAiType)
@@ -163,11 +170,6 @@ namespace AIImprove
                 return;
             }
 
-            if (LoggedFirstCall.Add(ownerTypeName))
-            {
-                Debug.Log("[AIImprove] FlexibleReroutePatch (" + ownerTypeName + ") is executing.");
-            }
-
             // See TryReroute's notes on why Stopped and WaitingPath are handled differently -
             // clearing on WaitingPath here too caused the exact same rapid-reroute-loop bug for
             // vehicles that go through this self-StartPathFind path (buses, passenger
@@ -183,10 +185,17 @@ namespace AIImprove
                 return;
             }
 
+            // Same ordering rationale as TryReroute (2026-08-15 audit): cheap modulo before the
+            // dictionary probe, first-call logging bookkeeping after both.
             if ((vehicleData.m_targetBuilding == 0 && vehicleData.m_sourceBuilding == 0) ||
-                StuckRerouteTracker.IsOnCooldown(vehicleID) || !SimulationStagger.ShouldRunThisFrame(vehicleID))
+                !SimulationStagger.ShouldRunThisFrame(vehicleID) || StuckRerouteTracker.IsOnCooldown(vehicleID))
             {
                 return;
+            }
+
+            if (LoggedFirstCall.Add(ownerTypeName))
+            {
+                Debug.Log("[AIImprove] FlexibleReroutePatch (" + ownerTypeName + ") is executing.");
             }
 
             float aheadDensity = SegmentCongestionQuery.GetAverageAheadDensity(ref vehicleData);
@@ -199,10 +208,13 @@ namespace AIImprove
             bool success = (bool)selfStartPathFind.Invoke(aiInstance, args);
             vehicleData = (Vehicle)args[1];
 
-            Debug.Log(
-                "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " ahead segment density " +
-                aheadDensity.ToString("F0") + " too high, requested reroute (via self StartPathFind): " +
-                (success ? "accepted" : "failed"));
+            if (Log.VerboseEnabled)
+            {
+                Log.Verbose(
+                    "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " ahead segment density " +
+                    aheadDensity.ToString("F0") + " too high, requested reroute (via self StartPathFind): " +
+                    (success ? "accepted" : "failed"));
+            }
         }
 
         internal static class Train

@@ -26,9 +26,11 @@ namespace AIImprove
             }
 
             float? elapsed = EmergencyDispatchTracker.TakeElapsedSeconds(vehicleId);
-            if (elapsed.HasValue)
+            if (elapsed.HasValue && Log.VerboseEnabled)
             {
-                Debug.Log("[AIImprove] " + ownerTypeName + " vehicle " + vehicleId + " arrived " + elapsed.Value.ToString("F1") + "s after dispatch.");
+                Log.Verbose(
+                    "[AIImprove] " + ownerTypeName + " vehicle " + vehicleId + " arrived " +
+                    elapsed.Value.ToString("F1") + "s after dispatch.");
             }
         }
 

@@ -220,17 +220,26 @@ namespace AIImprove
 
             if (saturated)
             {
-                Debug.Log(
-                    "[AIImprove] Train " + vehicleID + " approaching saturated station (best candidate " +
-                    "occupancy " + bestOccupancy + " >= " + SaturationThreshold + ") - leaving vanilla " +
-                    "platform choice untouched instead of forcing it into the least-bad option.");
+                if (Log.VerboseEnabled)
+                {
+                    Log.Verbose(
+                        "[AIImprove] Train " + vehicleID + " approaching saturated station (best candidate " +
+                        "occupancy " + bestOccupancy + " >= " + SaturationThreshold + ") - leaving vanilla " +
+                        "platform choice untouched instead of forcing it into the least-bad option.");
+                }
+
                 return;
             }
 
             AirTrafficControlManager.AssignGate(vehicleID, bestSegment);
             endPos = bestPos;
 
-            Debug.Log("[AIImprove] Train " + vehicleID + " assigned platform segment " + bestSegment + " (occupancy was " + bestOccupancy + ").");
+            if (Log.VerboseEnabled)
+            {
+                Log.Verbose(
+                    "[AIImprove] Train " + vehicleID + " assigned platform segment " + bestSegment +
+                    " (occupancy was " + bestOccupancy + ").");
+            }
         }
     }
 }

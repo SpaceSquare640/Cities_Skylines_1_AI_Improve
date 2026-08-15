@@ -187,15 +187,14 @@ namespace AIImprove
                     return;
                 }
 
-                List<ushort> matchedIds = result.LeadVehicleIds;
                 string message = Localization.Get(
-                    "scan.confirm", matchedIds.Count, categoryLabel, result.TotalVehicleCount);
+                    "scan.confirm", result.LeadVehicleIds.Count, categoryLabel, result.TotalVehicleCount);
 
                 ConfirmPanel.ShowModal("AI_Improve", message, (comp, ret) =>
                 {
                     if (ret == 1)
                     {
-                        EmptyVehicleAuditor.DeleteVehicles(matchedIds);
+                        EmptyVehicleAuditor.DeleteVehicles(result);
                     }
                 });
             };

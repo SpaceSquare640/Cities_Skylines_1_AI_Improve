@@ -254,6 +254,24 @@ namespace AIImprove
                 () => ModSettings.IntercityLowRidershipThreshold.value,
                 v => ModSettings.IntercityLowRidershipThreshold.value = Mathf.RoundToInt(v),
                 "{0:0}");
+
+            AddPlainToggleRow(page, Localization.Get("tune.verboseLogging"), ModSettings.VerboseLogging);
+        }
+
+        // Same shape as AddToggleRow but takes literal label text rather than a category key -
+        // used for settings that aren't one of the nine feature categories.
+        private static void AddPlainToggleRow(UIComponent parent, string label, SavedBool setting)
+        {
+            UIPanel row = parent.AddUIComponent<UIPanel>();
+            row.width = parent.width - 20f;
+            row.height = 34f;
+
+            UILabel rowLabel = row.AddUIComponent<UILabel>();
+            rowLabel.text = label;
+            rowLabel.textScale = 0.9f;
+            rowLabel.relativePosition = new Vector3(4f, 8f);
+
+            AddPillToggle(row, row.width - 54f, 6f, setting);
         }
 
         private static void AddSliderRow(
