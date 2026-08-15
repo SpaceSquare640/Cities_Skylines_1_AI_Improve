@@ -213,7 +213,6 @@ namespace AIImprove
                 {
                     AddToggleRow(pages[0], "feature.citizenCar", ModSettings.CitizenCarProbabilityEnabled);
                     AddToggleRow(pages[0], "feature.citizenTaxi", ModSettings.CitizenTaxiProbabilityEnabled);
-                    AddToggleRow(pages[0], "feature.raceCarSpeed", ModSettings.RaceCarSpeedEnabled);
                     AddToggleRow(pages[0], "feature.raceAttractiveness", ModSettings.RaceBuildingAttractivenessEnabled);
 
                     AddSliderRow(pages[1], Localization.Get("tune.citizenCarDensity"), 20f, 100f, 5f,
@@ -228,9 +227,6 @@ namespace AIImprove
                     AddSliderRow(pages[1], Localization.Get("tune.taxiFlatBonus"), 0f, 20f, 1f,
                         ModSettings.CitizenTaxiFlatBonus.value,
                         v => ModSettings.CitizenTaxiFlatBonus.value = Mathf.RoundToInt(v), "0");
-                    AddSliderRow(pages[1], Localization.Get("tune.raceCarSpeed"), 40f, 160f, 5f,
-                        ModSettings.RaceCarMaxSpeed.value,
-                        v => ModSettings.RaceCarMaxSpeed.value = v, "0");
                     AddSliderRow(pages[1], Localization.Get("tune.raceAttractiveness"), 100f, 400f, 10f,
                         ModSettings.RaceBuildingAttractivenessPercent.value,
                         v => ModSettings.RaceBuildingAttractivenessPercent.value = Mathf.RoundToInt(v), "0");
@@ -659,7 +655,7 @@ namespace AIImprove
             AddFlatGroup(helper, "城際巴士 (Intercity buses)", ModSettings.IntercityBusRerouteEnabled);
             AddFlatGroup(helper, "一般市內交通 (Ordinary traffic)", ModSettings.OrdinaryTrafficRerouteEnabled);
             AddFlatGroup(helper, "市民行為 (Citizens)", ModSettings.CitizenCarProbabilityEnabled, ModSettings.CitizenTaxiProbabilityEnabled);
-            AddFlatGroup(helper, "賽車 (Race cars)", ModSettings.RaceCarSpeedEnabled, ModSettings.RaceBuildingAttractivenessEnabled);
+            AddFlatGroup(helper, "賽車 (Race cars)", ModSettings.RaceBuildingAttractivenessEnabled);
         }
 
         private static void AddFlatGroup(UIHelperBase helper, string title, params SavedBool[] settings)

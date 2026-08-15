@@ -1,24 +1,19 @@
-[h1]2026-08-15 - Settings UI, tuning sliders, and a serious scan fix[/h1]
+[h1]2026-08-15 - Settings UI, per-feature toggles, tuning sliders[/h1]
 
-This update adds a real settings interface. Every feature can now be turned on or off individually, several values are adjustable, and the interface is available in English, 繁體中文 and 简体中文.
+This update adds a real settings interface. Every individual feature - not just broad categories - can now be turned on or off on its own, most of the numbers behind those features are adjustable, and the interface is available in English, 繁體中文 and 简体中文.
 
 [h2]New: settings interface[/h2]
 [list]
-[*] [b]Full settings page[/b] - ESC → Options → Content Manager → Mods → AI_Improve. Sections are picked from a list down the left side, and each section has its own tabs across the top for its toggles and its adjustable values, so related settings sit together instead of every switch sharing one long page.
-[*] [b]Quick in-game panel[/b] - adds an AI_Improve button to the [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2966990700]UnifiedUI[/url] toolbar so settings can be changed without leaving your city. UnifiedUI is optional; without it everything is still fully configurable from Content Manager.
-[*] [b]Nine independent toggles[/b] - emergency vehicles, metro, intercity trains, aircraft, local buses & passenger helicopters, intercity buses, ordinary city traffic, citizens, race cars. Metro and intercity trains are separate switches, as are local and intercity buses.
-[*] Turning a category off makes it behave exactly as if the feature had never been written - the game's own original code runs untouched.
+[*] [b]Full settings page[/b] - ESC → Options → Content Manager → Mods → AI_Improve. Ten sections are picked from a list down the left side (General, Emergency, Metro, Intercity Trains, Aircraft, Local Transport, Intercity Buses, Citizens & Races, Advanced, About); most sections split into a Toggles tab and a Tuning tab across the top, so a feature's switch and the values that affect it sit together.
+[*] [b]Quick in-game panel[/b] - adds an AI_Improve button to the [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2966990700]UnifiedUI[/url] toolbar for the empty-vehicle scan tools below, without leaving your city. Full toggle/tuning control lives in Content Manager. UnifiedUI is optional; without it Content Manager is still the only way in.
+[*] [b]21 independent feature toggles[/b], up from the original 9 broad categories - e.g. the fire responder cap and the idle-truck nearby-fire search are now separate switches, as are metro rerouting, intercity train platform assignment, intercity train rerouting, and the low-ridership spawn throttle (previously all one "trains" switch).
+[*] Turning a feature off makes it behave exactly as if it had never been written - the game's own original code runs untouched.
 [*] [b]Multi-language[/b] - follows your game language automatically, or pick English, 繁體中文 or 简体中文 from the language dropdown on the General page. Each language is listed in its own script, so you can find yours even if the current interface language is unreadable to you.
 [*] The header shows when the build was last updated, so you can tell at a glance whether your copy is current.
 [/list]
 
 [h2]New: adjustable values[/h2]
-Previously fixed constants, now sliders that show their current value as you drag. Defaults match the old fixed values exactly, so nothing changes until you move one.
-[list]
-[*] Race car max speed (40-160, default 80)
-[*] Max fire responders per burning building (5-50, default 20)
-[*] Intercity train low-ridership skip threshold (0-200, default 50; set to 0 to disable that throttle entirely)
-[/list]
+[b]22 sliders[/b] covering nearly every number the mod used to hardcode - fire responders per building and uncap timer, reroute density thresholds (per vehicle type), train station saturation/platform candidates, aircraft gate capacity/candidates, citizen car/taxi behavior, race complex attractiveness, reroute cooldown/check interval, and more. Defaults match the old fixed values exactly, so nothing changes until you move one.
 
 [h2]New: empty vehicle cleanup[/h2]
 [list]
@@ -33,6 +28,8 @@ Previously fixed constants, now sliders that show their current value as you dra
 [*] Fixed the UnifiedUI button appearing as a detached grey box instead of joining the toolbar, on setups where several mods each bundle a different version of the UnifiedUI library.
 [*] Fixed stale per-vehicle state surviving after a vehicle despawned. Because the game recycles vehicle IDs, a new vehicle could inherit a dead one's rerouting cooldown (blocking it from rerouting for up to 40 seconds) or its dispatch timestamp (producing wildly wrong emergency response times in the log).
 [*] The settings page previously reported "Version 0.0.0"; it now shows the date the build was last updated, plus the exact source commit it came from.
+[*] Fixed the fire responder cap still applying even when its toggle was turned off (while leaving the idle-truck nearby-fire search on) - it now correctly does nothing when disabled, matching every other toggle.
+[*] [b]Removed the race car max speed override.[/b] Forcing every racer to the same flat top-speed ceiling could make them lose control on turns. Racer speed is fully vanilla again; the racetrack attractiveness boost is unaffected.
 [/list]
 
 [h2]Performance[/h2]

@@ -14,23 +14,23 @@ Most existing "improved AI" mods for Cities: Skylines change one narrow slice of
 [*] [b]Buses, passenger helicopters[/b]: dynamic rerouting, boosted helicopter capacity.
 [*] [b]Ordinary city traffic[/b]: every road vehicle reroutes around real-time congestion mid-journey, not just once at trip start.
 [*] [b]Citizens[/b]: less likely to drive into already-congested destinations; taxi usage boosted as the alternative.
-[*] [b]Race cars[/b]: one consistent top-speed ceiling for every racer, with vanilla's cornering behavior left intact.
+[*] [b]Race cars[/b]: racetrack building attractiveness boost. (Racer speed itself is left fully vanilla - an earlier top-speed override caused racers to lose control and has been removed.)
 [/list]
 
 [b]See the [url=https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/wiki]GitHub Wiki[/url] for the full, detailed feature list and compatibility notes[/b] (soft dependencies/integrations with TM:PE, Transfer Manager CE, Smarter Firefighters, SingleTrainTrackAI, Reversible Tram AI, Advanced Vehicle Options).
 
 [h2]Settings[/h2]
 
-Every feature category can be switched on or off individually, and several values are adjustable.
+Every individual feature - not just broad categories - has its own on/off switch, and every tunable number behind those features is an adjustable slider.
 
 [list]
-[*] [b]Full settings[/b]: ESC → Options → Content Manager → Mods → AI_Improve. Sections down the left (General, Transport, Emergency, Citizens & Races, About), each with its own tabs for toggles and adjustable values - so a category's switches and the sliders that affect it sit together. Sliders cover race car speed cap, fire responders per building, and the intercity train throttle threshold.
-[*] [b]Quick panel[/b]: the AI_Improve button on the [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2966990700]UnifiedUI[/url] toolbar, in-game. Same toggles plus tools to find and remove empty intercity trains/buses, without leaving your city. Optional - without UnifiedUI everything is still fully configurable from Content Manager.
+[*] [b]Full settings[/b]: ESC → Options → Content Manager → Mods → AI_Improve. Ten sections down the left (General, Emergency, Metro, Intercity Trains, Aircraft, Local Transport, Intercity Buses, Citizens & Races, Advanced, About); most sections split into a Toggles tab and a Tuning tab across the top, so a feature's on/off switch and the values that affect it sit together. 21 independent feature toggles and 22 adjustable sliders in total - fire responders per building, reroute density thresholds, gate/platform capacities, citizen car/taxi behavior, and more.
+[*] [b]Quick panel[/b]: the AI_Improve button on the [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2966990700]UnifiedUI[/url] toolbar, in-game. Tools to find and remove empty intercity trains/buses without leaving your city - full toggle/tuning control lives in Content Manager. Optional - without UnifiedUI, Content Manager is still the only way in.
 [/list]
 
 Interface language follows the game automatically, or pick English, 繁體中文 or 简体中文 from the language dropdown. Each is listed in its own script, so you can find yours even if the current interface language is unreadable to you.
 
-Turning a category off makes it behave exactly as if the feature had never been written - the game's own original code runs untouched.
+Turning a feature off makes it behave exactly as if it had never been written - the game's own original code runs untouched.
 
 [b]Full settings reference: [url=https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/wiki/Settings]Settings wiki page[/url][/b]
 

@@ -225,11 +225,10 @@ namespace AIImprove
         // Races
         // ---------------------------------------------------------------------------------
 
-        public static readonly SavedBool RaceCarSpeedEnabled =
-            new SavedBool("RaceCarSpeedEnabled", FileName, LegacyRaceCars.value, true);
-
-        public static readonly SavedFloat RaceCarMaxSpeed =
-            new SavedFloat("RaceCarMaxSpeed", FileName, 80f, true);
+        // REMOVED (2026-08-15): RaceCarSpeedEnabled / RaceCarMaxSpeed - forcing a flat top-speed
+        // ceiling caused racers to lose control per user report ("修改賽車車手速度會導致車輛失控").
+        // Reverted to fully vanilla racer speed; see RaceBuildingAttractivenessPatch.cs for the
+        // one race feature that remains.
 
         public static readonly SavedBool RaceBuildingAttractivenessEnabled =
             new SavedBool("RaceBuildingAttractivenessEnabled", FileName, LegacyRaceCars.value, true);

@@ -67,16 +67,19 @@ namespace AIImprove
             // whose target methods can never run (2026-08-14, per user request to DLC-gate the
             // remaining features). Purely cosmetic/hygienic: an unused patch costs nothing at
             // runtime, unlike the thunderstorm scan gated in WeatherDisasterDetector.
+            //
+            // REMOVED (2026-08-15): the flat top-speed override (TryPatchRaceCarSpeed /
+            // RaceCarSpeedPatch) per explicit user request - "修改賽車車手速度會導致車輛失控". Racer
+            // speed is fully vanilla again; only the race-building attractiveness patch remains.
             if (DlcDetector.IsRacesAndParadesOwned())
             {
-                TryPatchRaceCarSpeed(harmony);
                 TryPatchRaceBuildingAttractiveness(harmony);
             }
             else
             {
                 Debug.Log(
-                    "[AIImprove] Races and Parades not owned - skipping the race car speed and " +
-                    "race complex attractiveness patches, there is no race content to affect.");
+                    "[AIImprove] Races and Parades not owned - skipping the race complex " +
+                    "attractiveness patch, there is no race content to affect.");
             }
             TryPatchPassengerHelicopterGateAssignment(harmony);
             TryPatchFlexibleReroute(harmony, typeof(PassengerHelicopterAI), typeof(FlexibleReroutePatch.PassengerHelicopter));
@@ -410,41 +413,6 @@ namespace AIImprove
                 Debug.LogWarning(
                     "[AIImprove] Race building attractiveness patch failed to apply, skipping it. " +
                     "Rest of the mod is unaffected. Reason: " + ex.Message);
-                return false;
-            }
-        }
-
-        // Removes each racer's individual top-speed cap - see RaceCarSpeedPatch.cs.
-        // CalculateTargetSpeed is protected, hence BindingFlags.NonPublic.
-        private static bool TryPatchRaceCarSpeed(Harmony harmony)
-        {
-            try
-            {
-                MethodInfo original = AccessTools.Method(
-                    typeof(RaceCarAI),
-                    "CalculateTargetSpeed",
-                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType(), typeof(float), typeof(float) });
-
-                if (original == null)
-                {
-                    Debug.LogWarning(
-                        "[AIImprove] RaceCarAI.CalculateTargetSpeed not found - game version may " +
-                        "have changed. Skipping race car speed patch.");
-                    return false;
-                }
-
-                MethodInfo prefix = typeof(RaceCarSpeedPatch).GetMethod(
-                    nameof(RaceCarSpeedPatch.Prefix), BindingFlags.Public | BindingFlags.Static);
-                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
-
-                Debug.Log("[AIImprove] Race car speed patch applied.");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning(
-                    "[AIImprove] Race car speed patch failed to apply, skipping it. Rest of the " +
-                    "mod is unaffected. Reason: " + ex.Message);
                 return false;
             }
         }
