@@ -72,5 +72,13 @@ namespace AIImprove
 
         public static readonly SavedBool RaceCarsEnabled =
             new SavedBool("RaceCarsEnabled", FileName, true, true);
+
+        // "還是看不到切換語言的按鈕" (2026-08-15): Localization.cs picks a language from the
+        // game's own LocaleManager automatically, with no way to override it - this stores an
+        // explicit player choice instead. "auto" means "keep following the game's language" (the
+        // previous, only behavior); any other value is one of Localization's language codes
+        // (e.g. "en", "zh-tw", "zh-cn") and wins over the game's own setting.
+        public static readonly SavedString LanguageOverride =
+            new SavedString("LanguageOverride", FileName, "auto", true);
     }
 }

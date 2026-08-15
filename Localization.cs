@@ -162,8 +162,19 @@ namespace AIImprove
 
         public static string Get(string key, params object[] args) => string.Format(Get(key), args);
 
+        // Every language code Localization actually has a translation table for - drives both
+        // ResolveLanguage's override check and the language-cycle button in SettingsPageUI.cs, so
+        // the two can't drift out of sync with each other.
+        public static readonly string[] SupportedLanguages = { "en", "zh-tw", "zh-cn" };
+
         private static string ResolveLanguage()
         {
+            string overrideLanguage = ModSettings.LanguageOverride.value;
+            if (!string.IsNullOrEmpty(overrideLanguage) && overrideLanguage != "auto")
+            {
+                return overrideLanguage;
+            }
+
             if (!LocaleManager.exists)
             {
                 return DefaultLanguage;

@@ -44,7 +44,27 @@ namespace AIImprove
                 return;
             }
 
-            BuildHeader(root);
+            BuildContent(root, helper);
+        }
+
+        // "還是看不到切換語言的按鈕" (2026-08-15): the language-cycle button (see BuildHeader)
+        // changes ModSettings.LanguageOverride and then needs every already-built label on this
+        // page to switch text immediately - simplest correct way to do that without hand-tracking
+        // every UILabel/UIButton this page creates is to tear the page down and build it again from
+        // scratch, the same construction path Build() already uses.
+        private static void RebuildInPlace(UIComponent root, UIHelperBase helper)
+        {
+            for (int i = root.components.Count - 1; i >= 0; i--)
+            {
+                UnityEngine.Object.Destroy(root.components[i].gameObject);
+            }
+
+            BuildContent(root, helper);
+        }
+
+        private static void BuildContent(UIComponent root, UIHelperBase helper)
+        {
+            BuildHeader(root, helper);
 
             UITabstrip tabstrip = root.AddUIComponent<UITabstrip>();
             tabstrip.width = root.width;
@@ -90,11 +110,11 @@ namespace AIImprove
         // update swaps the concrete type.
         private static UIComponent GetRoot(UIHelperBase helper) => (helper as UIHelper)?.self as UIComponent;
 
-        private static void BuildHeader(UIComponent root)
+        private static void BuildHeader(UIComponent root, UIHelperBase helper)
         {
             UIPanel header = root.AddUIComponent<UIPanel>();
             header.width = root.width;
-            header.height = 84f;
+            header.height = 100f;
             header.atlas = SolidColorSprite.Atlas;
             header.backgroundSprite = SolidColorSprite.SpriteName;
             header.color = HeaderColor;
@@ -117,14 +137,48 @@ namespace AIImprove
             status.textColor = new Color32(120, 220, 140, 255);
             status.relativePosition = new Vector3(16f, 62f);
 
+            UIButton languageButton = header.AddUIComponent<UIButton>();
+            languageButton.width = 130f;
+            languageButton.height = 34f;
+            languageButton.textScale = 0.8f;
+            StyleAccentButton(languageButton);
+            RefreshLanguageButtonText(languageButton);
+            languageButton.relativePosition = new Vector3(header.width - languageButton.width - 16f, 14f);
+            languageButton.eventClick += (component, param) =>
+            {
+                CycleLanguage();
+                RebuildInPlace(root, helper);
+            };
+
             UIButton changelog = header.AddUIComponent<UIButton>();
             changelog.text = Localization.Get("header.changelog");
             changelog.width = 170f;
             changelog.height = 34f;
             changelog.textScale = 0.8f;
             StyleAccentButton(changelog);
-            changelog.relativePosition = new Vector3(header.width - changelog.width - 16f, (header.height - changelog.height) / 2f);
+            changelog.relativePosition = new Vector3(header.width - changelog.width - 16f, 14f + languageButton.height + 6f);
             changelog.eventClick += (component, param) => Application.OpenURL(RepoUrl + "/commits/main");
+        }
+
+        // "還是看不到切換語言的按鈕" (2026-08-15): language names are shown in their OWN language
+        // (not run through Localization.Get) so a player can find their target language even when
+        // the current UI text is unreadable to them - the whole point of the button. Parallel
+        // arrays instead of a tuple array - this project's target framework has no
+        // System.ValueTuple reference.
+        private static readonly string[] LanguageCodes = { "auto", "en", "zh-tw", "zh-cn" };
+        private static readonly string[] LanguageLabels = { "Auto", "English", "繁體中文", "简体中文" };
+
+        private static void CycleLanguage()
+        {
+            int index = System.Array.IndexOf(LanguageCodes, ModSettings.LanguageOverride.value);
+            int nextIndex = (Mathf.Max(index, 0) + 1) % LanguageCodes.Length;
+            ModSettings.LanguageOverride.value = LanguageCodes[nextIndex];
+        }
+
+        private static void RefreshLanguageButtonText(UIButton button)
+        {
+            int index = System.Array.IndexOf(LanguageCodes, ModSettings.LanguageOverride.value);
+            button.text = LanguageLabels[Mathf.Max(index, 0)];
         }
 
         private static void StyleTab(UIButton tab)
