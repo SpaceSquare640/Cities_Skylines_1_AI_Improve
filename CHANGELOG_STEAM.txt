@@ -4,7 +4,7 @@ This update adds a real settings interface. Every individual feature - not just 
 
 [h2]New: settings interface[/h2]
 [list]
-[*] [b]Full settings page[/b] - ESC → Options → Content Manager → Mods → AI_Improve. Ten sections are picked from a list down the left side (General, Emergency, Metro, Intercity Trains, Aircraft, Local Transport, Intercity Buses, Citizens & Races, Advanced, About); most sections split into a Toggles tab and a Tuning tab across the top, so a feature's switch and the values that affect it sit together.
+[*] [b]Full settings page[/b] - ESC → Options → Content Manager → Mods → AI_Improve. Eleven sections are picked from a list down the left side (General, Emergency, Metro, Intercity Trains, Aircraft, Local Transport, Intercity Buses, Citizens & Races, Citizen Transport AI, Advanced, About); most sections split into a Toggles tab and a Tuning tab across the top, so a feature's switch and the values that affect it sit together.
 [*] [b]Quick in-game panel[/b] - adds an AI_Improve button to the [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2966990700]UnifiedUI[/url] toolbar for the empty-vehicle scan tools below, without leaving your city. Full toggle/tuning control lives in Content Manager. UnifiedUI is optional; without it Content Manager is still the only way in.
 [*] [b]21 independent feature toggles[/b], up from the original 9 broad categories - e.g. the fire responder cap and the idle-truck nearby-fire search are now separate switches, as are metro rerouting, intercity train platform assignment, intercity train rerouting, and the low-ridership spawn throttle (previously all one "trains" switch).
 [*] Turning a feature off makes it behave exactly as if it had never been written - the game's own original code runs untouched.
@@ -14,6 +14,15 @@ This update adds a real settings interface. Every individual feature - not just 
 
 [h2]New: adjustable values[/h2]
 [b]22 sliders[/b] covering nearly every number the mod used to hardcode - fire responders per building and uncap timer, reroute density thresholds (per vehicle type), train station saturation/platform candidates, aircraft gate capacity/candidates, citizen car/taxi behavior, race complex attractiveness, reroute cooldown/check interval, and more. Defaults match the old fixed values exactly, so nothing changes until you move one.
+
+[h2]New: Citizen Transport AI (off by default)[/h2]
+A new "Citizen Transport AI" section with one switch and 4 weight sliders - Walk, Drive, Taxi, Transit - that decide how each citizen picks a way to get around, replacing vanilla's own fixed age-based car/taxi/bike odds entirely while active.
+[list]
+[*] Walk and Transit cover every public transport type together (bus, metro, train, everything else) - vanilla has no point where a citizen chooses a specific transit type, the pathfinder mixes whatever lines are available into one route, so a single combined weight is what's actually controllable.
+[*] Setting Walk to 100 genuinely forces walk-only trips (no vehicle, no transit) using the same flag vanilla itself uses internally for this. Transit at 100 means transit is always allowed, not literally forced - there's no such thing as "must ride transit" in vanilla, and reaching a stop always requires some walking.
+[*] [b]4 one-click presets[/b] on the Tuning tab: Balanced, Transit-oriented, Car-dependent, Walkable city.
+[*] Off by default - turning it on is an active choice, since it fully replaces vanilla's decision instead of nudging it like the citizen car/taxi toggles above it do.
+[/list]
 
 [h2]New: empty vehicle cleanup[/h2]
 [list]

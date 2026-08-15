@@ -222,6 +222,39 @@ namespace AIImprove
             new SavedInt("CitizenTaxiFlatBonus", FileName, 2, true);
 
         // ---------------------------------------------------------------------------------
+        // Citizen transport mode ("更好的市民 AI", 2026-08-15)
+        // ---------------------------------------------------------------------------------
+        //
+        // Four relative weights (not required to sum to 100 - normalized at roll time) that
+        // decide, per citizen trip, which of Walk / Drive / Taxi / Transit that citizen ends up
+        // using. Originally requested as 7 separate sliders (walk, drive, taxi, bus, metro,
+        // train, other transit) - collapsed to one combined "Transit" weight because vanilla has
+        // no point where a citizen picks a specific public transport type; the pathfinder mixes
+        // whatever lines are available lane-by-lane. See CitizenTransportModePatch.cs for exactly
+        // what each of the 4 categories forces vs. merely allows.
+        //
+        // Default OFF: unlike the other Citizens toggles (which only nudge vanilla's own
+        // probabilities), this one fully replaces ResidentAI's vehicle-choice decision while
+        // active, including bypassing CitizenCarProbabilityEnabled/CitizenTaxiProbabilityEnabled
+        // above. Defaulting it on would silently overwrite existing saves' citizen behavior with
+        // an arbitrary distribution, which the "off = vanilla" contract elsewhere in this mod
+        // does not allow.
+        public static readonly SavedBool CitizenTransportModeEnabled =
+            new SavedBool("CitizenTransportModeEnabled", FileName, false, true);
+
+        public static readonly SavedInt CitizenWalkWeight =
+            new SavedInt("CitizenWalkWeight", FileName, 25, true);
+
+        public static readonly SavedInt CitizenDriveWeight =
+            new SavedInt("CitizenDriveWeight", FileName, 25, true);
+
+        public static readonly SavedInt CitizenTaxiWeight =
+            new SavedInt("CitizenTaxiWeight", FileName, 25, true);
+
+        public static readonly SavedInt CitizenTransitWeight =
+            new SavedInt("CitizenTransitWeight", FileName, 25, true);
+
+        // ---------------------------------------------------------------------------------
         // Races
         // ---------------------------------------------------------------------------------
 

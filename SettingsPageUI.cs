@@ -232,6 +232,28 @@ namespace AIImprove
                         v => ModSettings.RaceBuildingAttractivenessPercent.value = Mathf.RoundToInt(v), "0");
                 });
 
+            AddSection(root, nav, sectionX, sectionWidth, "nav.citizenAI",
+                new[] { "subtab.toggles", "subtab.tuning" },
+                pages =>
+                {
+                    AddToggleRow(pages[0], "feature.citizenTransportMode", ModSettings.CitizenTransportModeEnabled);
+
+                    AddSliderRow(pages[1], Localization.Get("tune.citizenWalkWeight"), 0f, 100f, 1f,
+                        ModSettings.CitizenWalkWeight.value,
+                        v => ModSettings.CitizenWalkWeight.value = Mathf.RoundToInt(v), "0");
+                    AddSliderRow(pages[1], Localization.Get("tune.citizenDriveWeight"), 0f, 100f, 1f,
+                        ModSettings.CitizenDriveWeight.value,
+                        v => ModSettings.CitizenDriveWeight.value = Mathf.RoundToInt(v), "0");
+                    AddSliderRow(pages[1], Localization.Get("tune.citizenTaxiWeight"), 0f, 100f, 1f,
+                        ModSettings.CitizenTaxiWeight.value,
+                        v => ModSettings.CitizenTaxiWeight.value = Mathf.RoundToInt(v), "0");
+                    AddSliderRow(pages[1], Localization.Get("tune.citizenTransitWeight"), 0f, 100f, 1f,
+                        ModSettings.CitizenTransitWeight.value,
+                        v => ModSettings.CitizenTransitWeight.value = Mathf.RoundToInt(v), "0");
+
+                    AddCitizenTransportPresets(pages[1], root, helper);
+                });
+
             AddSection(root, nav, sectionX, sectionWidth, "nav.advanced",
                 new[] { "subtab.tuning" },
                 pages =>
@@ -604,6 +626,63 @@ namespace AIImprove
             };
         }
 
+        private struct CitizenTransportPreset
+        {
+            public string LabelKey;
+            public int Walk;
+            public int Drive;
+            public int Taxi;
+            public int Transit;
+
+            public CitizenTransportPreset(string labelKey, int walk, int drive, int taxi, int transit)
+            {
+                LabelKey = labelKey;
+                Walk = walk;
+                Drive = drive;
+                Taxi = taxi;
+                Transit = transit;
+            }
+        }
+
+        // Four one-click presets for the Walk/Drive/Taxi/Transit weights - "直接套用模板［模板中的
+        // 百分比我想你幫我分配］［我想總共會有 4 個模板］" (2026-08-15). Percentages are mine to pick;
+        // each sums to 100 for readability, though the patch itself normalizes any 4 values.
+        private static readonly CitizenTransportPreset[] CitizenTransportPresets =
+        {
+            new CitizenTransportPreset("preset.balanced", 30, 25, 5, 40),
+            new CitizenTransportPreset("preset.transitOriented", 25, 10, 5, 60),
+            new CitizenTransportPreset("preset.carDependent", 15, 60, 10, 15),
+            new CitizenTransportPreset("preset.walkable", 55, 5, 5, 35),
+        };
+
+        private static void AddCitizenTransportPresets(UIComponent parent, UIComponent root, UIHelperBase helper)
+        {
+            UIPanel row = parent.AddUIComponent<UIPanel>();
+            row.width = parent.width - 20f;
+            row.height = 32f;
+            row.autoLayout = true;
+            row.autoLayoutDirection = LayoutDirection.Horizontal;
+            row.autoLayoutPadding = new RectOffset(0, 8, 0, 0);
+
+            foreach (CitizenTransportPreset preset in CitizenTransportPresets)
+            {
+                UIButton button = row.AddUIComponent<UIButton>();
+                button.text = Localization.Get(preset.LabelKey);
+                button.width = (row.width - 24f) / 4f;
+                button.height = 30f;
+                button.textScale = 0.7f;
+                StyleAccentButton(button);
+                button.eventClick += (component, param) =>
+                {
+                    ModSettings.CitizenWalkWeight.value = preset.Walk;
+                    ModSettings.CitizenDriveWeight.value = preset.Drive;
+                    ModSettings.CitizenTaxiWeight.value = preset.Taxi;
+                    ModSettings.CitizenTransitWeight.value = preset.Transit;
+                    RebuildInPlace(root, helper);
+                };
+            }
+        }
+
         private static void BuildAboutPage(UIPanel page)
         {
             AddLinkButton(page, Localization.Get("about.github"), RepoUrl);
@@ -654,7 +733,7 @@ namespace AIImprove
             AddFlatGroup(helper, "市內巴士與客運直升機 (Local transport)", ModSettings.LocalBusRerouteEnabled, ModSettings.PassengerHelicopterRerouteEnabled);
             AddFlatGroup(helper, "城際巴士 (Intercity buses)", ModSettings.IntercityBusRerouteEnabled);
             AddFlatGroup(helper, "一般市內交通 (Ordinary traffic)", ModSettings.OrdinaryTrafficRerouteEnabled);
-            AddFlatGroup(helper, "市民行為 (Citizens)", ModSettings.CitizenCarProbabilityEnabled, ModSettings.CitizenTaxiProbabilityEnabled);
+            AddFlatGroup(helper, "市民行為 (Citizens)", ModSettings.CitizenCarProbabilityEnabled, ModSettings.CitizenTaxiProbabilityEnabled, ModSettings.CitizenTransportModeEnabled);
             AddFlatGroup(helper, "賽車 (Race cars)", ModSettings.RaceBuildingAttractivenessEnabled);
         }
 
