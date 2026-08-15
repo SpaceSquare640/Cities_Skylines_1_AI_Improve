@@ -58,18 +58,37 @@ namespace AIImprove
             }
         }
 
+        // BUG FOUND VIA SCREENSHOT (2026-08-15): the player has several mods that each bundle
+        // their own copy of UnifiedUILib.dll (different versions: 2.2.12.32690, 2.2.12.31246,
+        // 2.1.13.30989, ...) - the log confirmed our button ended up registered against a stale
+        // duplicate's MainPanel.Instance (the log line for that duplicate's UnifiedUILib being
+        // (re)initialized appears in the same instant as our own registration), producing a
+        // disconnected placeholder box instead of a slot in the real, currently-displayed toolbar.
+        // Picking the highest-versioned loaded copy instead of just the first match found fixes
+        // this - it's the same "latest wins" arbitration the game's own log shows other components
+        // doing ("using latest UnifiedUILib version: ...") for the exact same multi-copy situation.
         private static Type FindType(string typeName)
         {
+            Type best = null;
+            Version bestVersion = null;
+
             foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
                 Type type = assembly.GetType(typeName, throwOnError: false);
-                if (type != null)
+                if (type == null)
                 {
-                    return type;
+                    continue;
+                }
+
+                Version version = assembly.GetName().Version;
+                if (best == null || version > bestVersion)
+                {
+                    best = type;
+                    bestVersion = version;
                 }
             }
 
-            return null;
+            return best;
         }
     }
 }
