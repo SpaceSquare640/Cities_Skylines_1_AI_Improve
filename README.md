@@ -79,8 +79,8 @@ and logs from other mods (`TMPE.log`, `GameAnarchy.log`, …) don't contain any 
 
 Before reproducing the problem, turn on **Verbose logging** (settings → Tuning tab) so the log
 actually contains per-vehicle detail - it's off by default because it's expensive. Also include the
-version string shown in the settings header (e.g. `1.0.59+ee242bb`); it identifies the exact commit
-your build came from.
+"Updated" line shown in the settings header (e.g. `2026-08-15 (df36388)`) - the date tells you how
+current your build is, and the hash identifies the exact commit it came from.
 
 ## Building from source
 

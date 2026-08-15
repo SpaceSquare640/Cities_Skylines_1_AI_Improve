@@ -56,13 +56,14 @@
   <!-- "用 GitHub commit 作版本標準" (2026-08-15): derives the version from git history instead of a
        hand-bumped number, so what the settings page shows always maps back to an exact commit.
 
-         AssemblyVersion / FileVersion : 1.0.<commit count>   (must be numeric - hashes are illegal here)
-         InformationalVersion          : 1.0.<count>+<short hash>[-dirty]
+         AssemblyVersion / FileVersion : 1.0.<commit count>   (must be numeric, hashes are illegal here)
+         InformationalVersion          : <commit date> (<short hash>[-dirty])
 
-       The short hash is the part that actually pins a build to a commit; the count just gives a
-       monotonically increasing, human-comparable number. "-dirty" marks a build made with
-       uncommitted changes, so a bug report from a local test build is never mistaken for a
-       released one.
+       InformationalVersion is what the settings page displays. It leads with the commit date
+       because "when was this last updated" is what a player actually wants to know (2026-08-15,
+       per user request); the short hash follows so a bug report still pins down exact source.
+       "-dirty" marks a build made with uncommitted changes, so a local test build is never
+       mistaken for a released one.
 
        ContinueOnError + the HasGit guard keep this working where git isn't usable at all (source
        zip, no git on PATH, build server without the .git folder) - it just falls back to the
@@ -77,6 +78,19 @@
           ContinueOnError="true" WorkingDirectory="$(MSBuildProjectDirectory)">
       <Output TaskParameter="ConsoleOutput" PropertyName="GitCommitHash" />
     </Exec>
+    <!-- Committer date of HEAD. This is what the settings page actually shows - "last updated"
+         reads far more meaningfully to a player than a commit count, and matches how Content
+         Manager itself labels mods. The hash stays alongside it for bug reports. -->
+    <!-- The percent needs escaping twice over: %25 gets MSBuild to emit a literal '%', and the
+         doubled '%%' gets cmd.exe to pass one through instead of treating it as an environment
+         variable reference and swallowing it (which left git with a format of just "cd", exit 128).
+         Date mode is git's built in "short" rather than an explicit strftime string, so only this
+         one percent needs escaping at all. -->
+    <Exec Command="git log -1 --format=%25%25cd --date=short" ConsoleToMSBuild="true" StandardOutputImportance="low"
+          ContinueOnError="true" WorkingDirectory="$(MSBuildProjectDirectory)">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitCommitDate" />
+      <Output TaskParameter="ExitCode" PropertyName="GitDateExitCode" />
+    </Exec>
     <!-- Non-empty output here means tracked files differ from HEAD. -->
     <Exec Command="git status --porcelain --untracked-files=no" ConsoleToMSBuild="true" StandardOutputImportance="low"
           ContinueOnError="true" WorkingDirectory="$(MSBuildProjectDirectory)">
@@ -84,13 +98,14 @@
     </Exec>
 
     <PropertyGroup>
-      <HasGit Condition="'$(GitExitCode)' == '0' AND '$(GitCommitCount)' != '' AND '$(GitCommitHash)' != ''">true</HasGit>
+      <HasGit Condition="'$(GitExitCode)' == '0' AND '$(GitDateExitCode)' == '0' AND '$(GitCommitCount)' != '' AND '$(GitCommitHash)' != '' AND '$(GitCommitDate)' != ''">true</HasGit>
       <GitDirtySuffix Condition="'$(GitDirtyFiles)' != ''">-dirty</GitDirtySuffix>
 
       <Version Condition="'$(HasGit)' == 'true'">1.0.$(GitCommitCount)</Version>
       <AssemblyVersion Condition="'$(HasGit)' == 'true'">1.0.$(GitCommitCount).0</AssemblyVersion>
       <FileVersion Condition="'$(HasGit)' == 'true'">1.0.$(GitCommitCount).0</FileVersion>
-      <InformationalVersion Condition="'$(HasGit)' == 'true'">1.0.$(GitCommitCount)+$(GitCommitHash)$(GitDirtySuffix)</InformationalVersion>
+      <!-- Displayed verbatim by the settings page: date first, commit hash in parentheses. -->
+      <InformationalVersion Condition="'$(HasGit)' == 'true'">$(GitCommitDate) ($(GitCommitHash)$(GitDirtySuffix))</InformationalVersion>
     </PropertyGroup>
 
     <Message Importance="high" Condition="'$(HasGit)' == 'true'" Text="AIImprove version from git: $(InformationalVersion)" />
