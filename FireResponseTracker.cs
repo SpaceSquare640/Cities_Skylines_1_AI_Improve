@@ -29,7 +29,10 @@ namespace AIImprove
         // FireResponseCapPatch.cs's notes on the same-day dispatch-conflict fix, which likely
         // explains part of why fires felt unwinnable (trucks fighting over targets instead of
         // actually converging on one), but the cap itself was also raised independently.
-        public const int MaxRespondersPerBuilding = 20;
+        // "現在的設定就只有開啟和關閉" (2026-08-15): now a player-adjustable slider
+        // (ModSettings.FireMaxRespondersPerBuilding) instead of a fixed constant - default still
+        // 20, matching the tuned value above.
+        public static int MaxRespondersPerBuilding => ModSettings.FireMaxRespondersPerBuilding.value;
         private const float UnlimitedAfterSeconds = 15f * 60f;
 
         private static readonly Dictionary<ushort, int> TruckResponseCount = new Dictionary<ushort, int>();

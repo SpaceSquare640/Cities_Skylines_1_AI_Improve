@@ -18,8 +18,9 @@ namespace AIImprove
     // duplicate the cornering formula or otherwise touch the original method's logic.
     internal static class RaceCarSpeedPatch
     {
-        private const float MaxSpeed = 80f;
-
+        // "現在的設定就只有開啟和關閉" (2026-08-15): now reads ModSettings.RaceCarMaxSpeed
+        // instead of a fixed constant - see that file for the default (matches the old 80f
+        // exactly, so nothing changes until a player moves the slider).
         private static bool loggedFirstCall;
 
         public static void Prefix(ushort vehicleID, ref Vehicle data)
@@ -54,7 +55,7 @@ namespace AIImprove
                 Debug.Log("[AIImprove] RaceCarSpeedPatch is executing.");
             }
 
-            racerData.m_maxSpeed = MaxSpeed;
+            racerData.m_maxSpeed = ModSettings.RaceCarMaxSpeed.value;
         }
     }
 }

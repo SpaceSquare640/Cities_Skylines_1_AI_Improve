@@ -80,5 +80,18 @@ namespace AIImprove
         // (e.g. "en", "zh-tw", "zh-cn") and wins over the game's own setting.
         public static readonly SavedString LanguageOverride =
             new SavedString("LanguageOverride", FileName, "auto", true);
+
+        // "現在的設定就只有開啟和關閉" (2026-08-15): the three tunables players have actually
+        // asked about/complained about in this project's history, exposed as adjustable values
+        // instead of the fixed constants they used to be. Defaults match each patch's previous
+        // hardcoded value exactly, so upgrading changes nothing until a player touches a slider.
+        public static readonly SavedFloat RaceCarMaxSpeed =
+            new SavedFloat("RaceCarMaxSpeed", FileName, 80f, true);
+
+        public static readonly SavedInt FireMaxRespondersPerBuilding =
+            new SavedInt("FireMaxRespondersPerBuilding", FileName, 20, true);
+
+        public static readonly SavedInt IntercityLowRidershipThreshold =
+            new SavedInt("IntercityLowRidershipThreshold", FileName, 50, true);
     }
 }

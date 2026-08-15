@@ -76,12 +76,14 @@ namespace AIImprove
             tabstrip.tabPages = tabContainer;
 
             StyleTab(tabstrip.AddTab(Localization.Get("tab.toggles")));
+            StyleTab(tabstrip.AddTab(Localization.Get("tab.tuning")));
             StyleTab(tabstrip.AddTab(Localization.Get("tab.about")));
             tabstrip.selectedIndex = 0;
 
-            if (tabContainer.components.Count >= 2 &&
+            if (tabContainer.components.Count >= 3 &&
                 tabContainer.components[0] is UIPanel togglesPage &&
-                tabContainer.components[1] is UIPanel aboutPage)
+                tabContainer.components[1] is UIPanel tuningPage &&
+                tabContainer.components[2] is UIPanel aboutPage)
             {
                 // BUG FOUND VIA SCREENSHOT (2026-08-15): UITabContainer.AddTabPage(string) never
                 // sets isVisible=false on the pages it creates (confirmed via dnSpy - only the
@@ -91,9 +93,11 @@ namespace AIImprove
                 // both tab pages rendered stacked on top of each other. Hiding every page but the
                 // initially-selected one here sidesteps both quirks directly instead of fighting
                 // the setter's default-value guard.
+                tuningPage.isVisible = false;
                 aboutPage.isVisible = false;
 
                 BuildTogglesPage(togglesPage);
+                BuildTuningPage(tuningPage);
                 BuildAboutPage(aboutPage);
             }
             else
@@ -221,6 +225,82 @@ namespace AIImprove
             AddToggleRow(page, "category.traffic", ModSettings.OrdinaryTrafficEnabled);
             AddToggleRow(page, "category.citizens", ModSettings.CitizensEnabled);
             AddToggleRow(page, "category.racecars", ModSettings.RaceCarsEnabled);
+        }
+
+        // "現在的設定就只有開啟和關閉" (2026-08-15): the three tunables players have actually
+        // asked about/complained about in this project's history (see ModSettings.cs's notes),
+        // exposed as sliders on their own tab instead of the fixed constants they used to be.
+        private static void BuildTuningPage(UIPanel page)
+        {
+            page.autoLayout = true;
+            page.autoLayoutDirection = LayoutDirection.Vertical;
+            page.autoLayoutPadding = new RectOffset(0, 0, 0, 10);
+            page.padding = new RectOffset(10, 10, 14, 10);
+
+            AddSliderRow(
+                page, Localization.Get("tune.raceCarSpeed"), 40f, 160f, 5f,
+                () => ModSettings.RaceCarMaxSpeed.value,
+                v => ModSettings.RaceCarMaxSpeed.value = v,
+                "{0:0}");
+
+            AddSliderRow(
+                page, Localization.Get("tune.fireResponders"), 5f, 50f, 1f,
+                () => ModSettings.FireMaxRespondersPerBuilding.value,
+                v => ModSettings.FireMaxRespondersPerBuilding.value = Mathf.RoundToInt(v),
+                "{0:0}");
+
+            AddSliderRow(
+                page, Localization.Get("tune.lowRidership"), 0f, 200f, 5f,
+                () => ModSettings.IntercityLowRidershipThreshold.value,
+                v => ModSettings.IntercityLowRidershipThreshold.value = Mathf.RoundToInt(v),
+                "{0:0}");
+        }
+
+        private static void AddSliderRow(
+            UIComponent parent, string label, float min, float max, float step,
+            System.Func<float> getValue, System.Action<float> setValue, string valueFormat)
+        {
+            UIPanel row = parent.AddUIComponent<UIPanel>();
+            row.width = parent.width - 20f;
+            row.height = 52f;
+
+            UILabel titleLabel = row.AddUIComponent<UILabel>();
+            titleLabel.text = label;
+            titleLabel.textScale = 0.9f;
+            titleLabel.relativePosition = new Vector3(4f, 0f);
+
+            UILabel valueLabel = row.AddUIComponent<UILabel>();
+            valueLabel.textScale = 0.85f;
+            valueLabel.textColor = new Color32(190, 195, 205, 255);
+            valueLabel.text = string.Format(valueFormat, getValue());
+            valueLabel.relativePosition = new Vector3(row.width - valueLabel.width - 4f, 0f);
+
+            UISlider slider = row.AddUIComponent<UISlider>();
+            slider.width = row.width - 8f;
+            slider.height = 18f;
+            slider.relativePosition = new Vector3(4f, 26f);
+            slider.minValue = min;
+            slider.maxValue = max;
+            slider.stepSize = step;
+            slider.atlas = SolidColorSprite.Atlas;
+            slider.backgroundSprite = SolidColorSprite.SpriteName;
+            slider.color = new Color32(60, 64, 72, 255);
+
+            UIPanel thumb = slider.AddUIComponent<UIPanel>();
+            thumb.atlas = SolidColorSprite.Atlas;
+            thumb.backgroundSprite = SolidColorSprite.SpriteName;
+            thumb.color = AccentColor;
+            thumb.width = 14f;
+            thumb.height = 18f;
+            slider.thumbObject = thumb;
+
+            slider.value = getValue();
+
+            slider.eventValueChanged += (component, val) =>
+            {
+                setValue(val);
+                valueLabel.text = string.Format(valueFormat, val);
+            };
         }
 
         // Row shows just the category name plus a pill switch - matching Advanced Stop Selection's

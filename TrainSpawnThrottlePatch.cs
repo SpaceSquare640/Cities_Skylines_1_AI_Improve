@@ -30,7 +30,9 @@ namespace AIImprove
     // philosophy as every other tunable in this project.
     internal static class TrainSpawnThrottlePatch
     {
-        private const uint LowRidershipThreshold = 50;
+        // "現在的設定就只有開啟和關閉" (2026-08-15): threshold now a player-adjustable slider
+        // (ModSettings.IntercityLowRidershipThreshold) instead of a fixed constant - default still
+        // 50. Skip chance stays fixed for now (not one of the tunables requested).
         private const float LowRidershipSkipChance = 0.5f;
 
         private static bool loggedFirstCall;
@@ -64,7 +66,7 @@ namespace AIImprove
                 Debug.Log("[AIImprove] Current average train ridership reading: " + ridership + ".");
             }
 
-            if (ridership < LowRidershipThreshold &&
+            if (ridership < (uint)ModSettings.IntercityLowRidershipThreshold.value &&
                 Singleton<SimulationManager>.instance.m_randomizer.Int32(100U) < (uint)(LowRidershipSkipChance * 100f))
             {
                 Debug.Log(
