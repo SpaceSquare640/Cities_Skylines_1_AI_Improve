@@ -43,7 +43,7 @@ namespace AIImprove
             }
 
             registeredWithUui = UnifiedUiIntegration.TryRegister(
-                "AI_Improve", "AI_Improve", "AI_Improve 設定 (Settings)", OnUuiToggle);
+                "AI_Improve", "AI_Improve", Localization.Get("uui.tooltip"), OnUuiToggle);
 
             if (registeredWithUui)
             {
@@ -98,7 +98,7 @@ namespace AIImprove
             dragHandle.target = panel;
 
             UILabel title = panel.AddUIComponent<UILabel>();
-            title.text = "AI_Improve - 功能分類開關";
+            title.text = Localization.Get("panel.title");
             title.relativePosition = new Vector3(10f, 12f);
 
             UIButton closeButton = panel.AddUIComponent<UIButton>();
@@ -119,23 +119,29 @@ namespace AIImprove
             content.autoLayoutPadding = new RectOffset(0, 0, 0, 4);
             content.autoFitChildrenVertically = true;
 
-            AddToggle(content, "緊急車輛 (Emergency vehicles)", ModSettings.EmergencyVehiclesEnabled);
-            AddToggle(content, "地鐵 (Metro)", ModSettings.TrainsAndMetroEnabled);
-            AddToggle(content, "城際火車 (Intercity trains)", ModSettings.IntercityTrainEnabled);
-            AddScanButton(content, "檢測沒有乘客的城際火車", EmptyVehicleAuditor.ScanIntercityTrains, "城際火車 (intercity trains)");
-            AddToggle(content, "飛機與機場 (Aircraft & airports)", ModSettings.AircraftEnabled);
-            AddToggle(content, "市內巴士與客運直升機 (Local buses & passenger helicopters)", ModSettings.BusesAndHelicoptersEnabled);
-            AddToggle(content, "城際巴士 (Intercity buses)", ModSettings.IntercityBusEnabled);
-            AddScanButton(content, "檢測沒有乘客的城際巴士", EmptyVehicleAuditor.ScanIntercityBuses, "城際巴士 (intercity buses)");
-            AddToggle(content, "一般市內交通 (Ordinary city traffic)", ModSettings.OrdinaryTrafficEnabled);
-            AddToggle(content, "市民行為 (Citizens)", ModSettings.CitizensEnabled);
-            AddToggle(content, "賽車 (Race cars)", ModSettings.RaceCarsEnabled);
+            AddToggle(content, "category.emergency.title", ModSettings.EmergencyVehiclesEnabled);
+            AddToggle(content, "category.metro.title", ModSettings.TrainsAndMetroEnabled);
+            AddToggle(content, "category.intercityTrain.title", ModSettings.IntercityTrainEnabled);
+            AddScanButton(
+                content, Localization.Get("button.scanTrain"), EmptyVehicleAuditor.ScanIntercityTrains,
+                Localization.Get("category.intercityTrain.short"));
+            AddToggle(content, "category.aircraft.title", ModSettings.AircraftEnabled);
+            AddToggle(content, "category.buses.title", ModSettings.BusesAndHelicoptersEnabled);
+            AddToggle(content, "category.intercityBus.title", ModSettings.IntercityBusEnabled);
+            AddScanButton(
+                content, Localization.Get("button.scanBus"), EmptyVehicleAuditor.ScanIntercityBuses,
+                Localization.Get("category.intercityBus.short"));
+            AddToggle(content, "category.traffic.title", ModSettings.OrdinaryTrafficEnabled);
+            AddToggle(content, "category.citizens.title", ModSettings.CitizensEnabled);
+            AddToggle(content, "category.racecars.title", ModSettings.RaceCarsEnabled);
 
             panel.height = content.relativePosition.y + content.height + 15f;
         }
 
-        private static void AddToggle(UIComponent content, string label, ColossalFramework.SavedBool setting)
+        private static void AddToggle(UIComponent content, string titleKey, ColossalFramework.SavedBool setting)
         {
+            string label = Localization.Get(titleKey);
+
             UIButton button = content.AddUIComponent<UIButton>();
             button.width = content.width;
             button.height = 26f;
@@ -156,7 +162,7 @@ namespace AIImprove
 
         private static void RefreshToggleText(UIButton button, string label, bool isEnabled)
         {
-            button.text = (isEnabled ? "[On] " : "[Off] ") + label;
+            button.text = Localization.Get(isEnabled ? "toggle.on" : "toggle.off") + label;
         }
 
         private static void AddScanButton(
@@ -177,14 +183,13 @@ namespace AIImprove
 
                 if (result.LeadVehicleIds.Count == 0)
                 {
-                    ConfirmPanel.ShowModal("AI_Improve", "沒有偵測到沒有乘客的" + categoryLabel + "。", null);
+                    ConfirmPanel.ShowModal("AI_Improve", Localization.Get("scan.noneFound", categoryLabel), null);
                     return;
                 }
 
                 List<ushort> matchedIds = result.LeadVehicleIds;
-                string message =
-                    "偵測到 " + matchedIds.Count + " 輛沒有乘客的" + categoryLabel +
-                    "（共 " + result.TotalVehicleCount + " 節車廂/車輛實例）。\n\n是否要直接刪除這些車輛？";
+                string message = Localization.Get(
+                    "scan.confirm", matchedIds.Count, categoryLabel, result.TotalVehicleCount);
 
                 ConfirmPanel.ShowModal("AI_Improve", message, (comp, ret) =>
                 {
