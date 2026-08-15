@@ -255,6 +255,25 @@ namespace AIImprove
             new SavedInt("CitizenTransitWeight", FileName, 25, true);
 
         // ---------------------------------------------------------------------------------
+        // Cargo / ships ("繼續深入研究 TransferManager 供需配對" led to finding this gap,
+        // 2026-08-16 - see Cities_Skylines_1_AI_Improve_Document/10)
+        // ---------------------------------------------------------------------------------
+
+        /// Occupancy-aware dock assignment for ShipAI (cargo ships and any passenger ferries) -
+        /// the one vehicle base class that never got the TrainPlatformAssignmentPatch/
+        /// AircraftGateAssignmentPatch treatment. New feature, no legacy category to inherit
+        /// from, defaults on since it reuses the exact same fail-open search-or-leave-vanilla-
+        /// alone logic already proven safe for trains and aircraft.
+        public static readonly SavedBool ShipDockAssignmentEnabled =
+            new SavedBool("ShipDockAssignmentEnabled", FileName, true, true);
+
+        public static readonly SavedInt ShipDockCandidateCount =
+            new SavedInt("ShipDockCandidateCount", FileName, 24, true);
+
+        public static readonly SavedInt ShipDockSaturationThreshold =
+            new SavedInt("ShipDockSaturationThreshold", FileName, 25, true);
+
+        // ---------------------------------------------------------------------------------
         // Races
         // ---------------------------------------------------------------------------------
 

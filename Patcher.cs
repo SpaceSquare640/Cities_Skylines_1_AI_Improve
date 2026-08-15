@@ -37,6 +37,7 @@ namespace AIImprove
             TryPatchHelicopterDispatchTracking(harmony);
             TryPatchTrainPlatformAssignment(harmony);
             TryPatchAircraftGateAssignment(harmony);
+            TryPatchShipDockAssignment(harmony);
             TryPatchFlexibleReroute(harmony, typeof(TrainAI), typeof(FlexibleReroutePatch.Train));
             TryPatchFlexibleReroute(harmony, typeof(AircraftAI), typeof(FlexibleReroutePatch.Aircraft));
             // CarAI is the declaring type of SimulationStep(ushort, ref Vehicle, Vector3) - some
@@ -738,6 +739,42 @@ namespace AIImprove
                 Debug.LogWarning(
                     "[AIImprove] Train platform assignment patch failed to apply, skipping it. " +
                     "Rest of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
+        }
+
+        // Occupancy-aware dock assignment for ships (cargo ships and any passenger ferries) -
+        // ShipAI never had this before (dnSpy-confirmed: no existing patch anywhere in this
+        // project touches ShipAI). See ShipDockAssignmentPatch.cs.
+        private static bool TryPatchShipDockAssignment(Harmony harmony)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    typeof(ShipAI),
+                    "StartPathFind",
+                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType(), typeof(Vector3), typeof(Vector3), typeof(bool), typeof(bool) });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] ShipAI.StartPathFind(6-arg) not found - game version may have " +
+                        "changed. Skipping ship dock assignment patch.");
+                    return false;
+                }
+
+                MethodInfo prefix = typeof(ShipDockAssignmentPatch).GetMethod(
+                    nameof(ShipDockAssignmentPatch.Prefix), BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
+
+                Debug.Log("[AIImprove] Ship dock assignment patch applied.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Ship dock assignment patch failed to apply, skipping it. Rest of " +
+                    "the mod is unaffected. Reason: " + ex.Message);
                 return false;
             }
         }

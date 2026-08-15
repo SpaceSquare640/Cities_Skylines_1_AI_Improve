@@ -13,6 +13,7 @@ Most existing "improved AI" mods for Cities: Skylines change one narrow slice of
 [*] [b]Aircraft[/b]: occupancy-aware gate assignment, mid-flight rerouting, thunderstorm response (airports refuse landings and departures, emergency helicopters stay grounded, for the duration of the storm).
 [*] [b]Buses, passenger helicopters[/b]: dynamic rerouting, boosted helicopter capacity.
 [*] [b]Ordinary city traffic[/b]: every road vehicle reroutes around real-time congestion mid-journey, not just once at trip start.
+[*] [b]Cargo ships and passenger ferries[/b]: occupancy-aware dock assignment, spreading harbor traffic across real dock capacity instead of piling onto the same one.
 [*] [b]Citizens[/b]: less likely to drive into already-congested destinations; taxi usage boosted as the alternative. Optional [b]Citizen Transport AI[/b] (off by default): 4 weight sliders - Walk, Drive, Taxi, Transit - fully replace vanilla's fixed age-based odds, with 4 one-click presets (Balanced, Transit-oriented, Car-dependent, Walkable city).
 [*] [b]Race cars[/b]: racetrack building attractiveness boost. (Racer speed itself is left fully vanilla - an earlier top-speed override caused racers to lose control and has been removed.)
 [/list]
@@ -21,10 +22,10 @@ Most existing "improved AI" mods for Cities: Skylines change one narrow slice of
 
 [h2]Settings[/h2]
 
-Every individual feature - not just broad categories - has its own on/off switch, and every tunable number behind those features is an adjustable slider.
+Every individual feature - not just broad categories - has its own on/off switch, and every tunable number behind those features is an adjustable slider with a hover tooltip explaining what it actually does.
 
 [list]
-[*] [b]Full settings[/b]: ESC → Options → Content Manager → Mods → AI_Improve. Eleven sections down the left (General, Emergency, Metro, Intercity Trains, Aircraft, Local Transport, Intercity Buses, Citizens & Races, Citizen Transport AI, Advanced, About); most sections split into a Toggles tab and a Tuning tab across the top, so a feature's on/off switch and the values that affect it sit together. 22 independent feature toggles and 26 adjustable sliders in total - fire responders per building, reroute density thresholds, gate/platform capacities, citizen car/taxi/walk/transit behavior, and more.
+[*] [b]Full settings[/b]: ESC → Options → Content Manager → Mods → AI_Improve. Twelve sections down the left (General, Emergency, Metro, Intercity Trains, Aircraft, Local Transport, Intercity Buses, Cargo & Ships, Citizens & Races, Citizen Transport AI, Advanced, About); most sections split into a Toggles tab and a Tuning tab across the top, so a feature's on/off switch and the values that affect it sit together. 22 independent feature toggles and 26 adjustable sliders in total - fire responders per building, reroute density thresholds, gate/platform/dock capacities, citizen car/taxi/walk/transit behavior, and more.
 [*] [b]Quick panel[/b]: the AI_Improve button on the [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2966990700]UnifiedUI[/url] toolbar, in-game. Tools to find and remove empty intercity trains/buses without leaving your city - full toggle/tuning control lives in Content Manager. Optional - without UnifiedUI, Content Manager is still the only way in.
 [/list]
 

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using ColossalFramework;
+using UnityEngine;
 
 namespace AIImprove
 {
@@ -33,9 +34,14 @@ namespace AIImprove
                     return false;
                 }
 
+                // "我覺得需要處理一下快速 UI 沒有icon的問題" (2026-08-16): the string-spritefile
+                // overload treats that string as a PNG file path (dnSpy-confirmed against the
+                // player's own UnifiedUILib.dll), which this project has never shipped - hence no
+                // icon ever appeared. The Texture2D overload instead hands UUI a texture built
+                // entirely at runtime (see ModIconTexture.cs), no file path involved.
                 Type[] paramTypes =
                 {
-                    typeof(string), typeof(string), typeof(string), typeof(string),
+                    typeof(string), typeof(string), typeof(string), typeof(Texture2D),
                     typeof(Action<bool>), typeof(Action<ToolBase>),
                     typeof(SavedInputKey), typeof(Dictionary<SavedInputKey, Func<bool>>)
                 };
@@ -47,7 +53,7 @@ namespace AIImprove
                     return false;
                 }
 
-                register.Invoke(null, new object[] { name, groupName, tooltip, null, onToggle, null, null, null });
+                register.Invoke(null, new object[] { name, groupName, tooltip, ModIconTexture.Get(), onToggle, null, null, null });
                 return true;
             }
             catch

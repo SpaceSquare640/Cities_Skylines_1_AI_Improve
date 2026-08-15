@@ -112,10 +112,12 @@ namespace AIImprove
 
                     AddSliderRow(pages[1], Localization.Get("tune.fireResponders"), 5f, 50f, 1f,
                         ModSettings.FireMaxRespondersPerBuilding.value,
-                        v => ModSettings.FireMaxRespondersPerBuilding.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.FireMaxRespondersPerBuilding.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.fireResponders.desc"));
                     AddSliderRow(pages[1], Localization.Get("tune.fireUncapMinutes"), 5f, 60f, 1f,
                         ModSettings.FireUncapAfterMinutes.value,
-                        v => ModSettings.FireUncapAfterMinutes.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.FireUncapAfterMinutes.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.fireUncapMinutes.desc"));
                 });
 
             AddSection(root, nav, sectionX, sectionWidth, "nav.metro",
@@ -127,7 +129,8 @@ namespace AIImprove
 
                     AddSliderRow(pages[1], Localization.Get("tune.rerouteDensity"), 20f, 100f, 5f,
                         ModSettings.MetroRerouteDensityThreshold.value,
-                        v => ModSettings.MetroRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.MetroRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.rerouteDensity.desc"));
                 });
 
             AddSection(root, nav, sectionX, sectionWidth, "nav.intercityTrain",
@@ -141,19 +144,24 @@ namespace AIImprove
 
                     AddSliderRow(pages[1], Localization.Get("tune.stationSaturation"), 5f, 60f, 1f,
                         ModSettings.TrainStationSaturationThreshold.value,
-                        v => ModSettings.TrainStationSaturationThreshold.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.TrainStationSaturationThreshold.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.stationSaturation.desc"));
                     AddSliderRow(pages[1], Localization.Get("tune.platformCandidates"), 8f, 40f, 1f,
                         ModSettings.TrainPlatformCandidateCount.value,
-                        v => ModSettings.TrainPlatformCandidateCount.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.TrainPlatformCandidateCount.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.platformCandidates.desc"));
                     AddSliderRow(pages[1], Localization.Get("tune.rerouteDensity"), 20f, 100f, 5f,
                         ModSettings.IntercityTrainRerouteDensityThreshold.value,
-                        v => ModSettings.IntercityTrainRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.IntercityTrainRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.rerouteDensity.desc"));
                     AddSliderRow(pages[1], Localization.Get("tune.lowRidership"), 0f, 200f, 5f,
                         ModSettings.IntercityLowRidershipThreshold.value,
-                        v => ModSettings.IntercityLowRidershipThreshold.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.IntercityLowRidershipThreshold.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.lowRidership.desc"));
                     AddSliderRow(pages[1], Localization.Get("tune.lowRidershipSkipChance"), 0f, 100f, 5f,
                         ModSettings.IntercityLowRidershipSkipPercent.value,
-                        v => ModSettings.IntercityLowRidershipSkipPercent.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.IntercityLowRidershipSkipPercent.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.lowRidershipSkipChance.desc"));
                 });
 
             AddSection(root, nav, sectionX, sectionWidth, "nav.aircraft",
@@ -166,13 +174,16 @@ namespace AIImprove
 
                     AddSliderRow(pages[1], Localization.Get("tune.gateCandidates"), 8f, 50f, 1f,
                         ModSettings.AircraftGateCandidateCount.value,
-                        v => ModSettings.AircraftGateCandidateCount.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.AircraftGateCandidateCount.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.gateCandidates.desc"));
                     AddSliderRow(pages[1], Localization.Get("tune.perGateCapacity"), 1f, 20f, 1f,
                         ModSettings.AircraftPerGateCapacity.value,
-                        v => ModSettings.AircraftPerGateCapacity.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.AircraftPerGateCapacity.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.perGateCapacity.desc"));
                     AddSliderRow(pages[1], Localization.Get("tune.rerouteDensity"), 20f, 100f, 5f,
                         ModSettings.AircraftRerouteDensityThreshold.value,
-                        v => ModSettings.AircraftRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.AircraftRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.rerouteDensity.desc"));
                 });
 
             AddSection(root, nav, sectionX, sectionWidth, "nav.localTransport",
@@ -187,13 +198,16 @@ namespace AIImprove
 
                     AddSliderRow(pages[1], Localization.Get("tune.rerouteDensity") + " (" + Localization.Get("feature.localBusReroute") + ")",
                         20f, 100f, 5f, ModSettings.LocalBusRerouteDensityThreshold.value,
-                        v => ModSettings.LocalBusRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.LocalBusRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.rerouteDensity.desc"));
                     AddSliderRow(pages[1], Localization.Get("tune.rerouteDensity") + " (" + Localization.Get("feature.trafficReroute") + ")",
                         20f, 100f, 5f, ModSettings.OrdinaryTrafficRerouteDensityThreshold.value,
-                        v => ModSettings.OrdinaryTrafficRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.OrdinaryTrafficRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.rerouteDensity.desc"));
                     AddSliderRow(pages[1], Localization.Get("tune.helicopterCapacity"), 100f, 400f, 10f,
                         ModSettings.PassengerHelicopterCapacityPercent.value,
-                        v => ModSettings.PassengerHelicopterCapacityPercent.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.PassengerHelicopterCapacityPercent.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.helicopterCapacity.desc"));
                 });
 
             AddSection(root, nav, sectionX, sectionWidth, "nav.intercityBus",
@@ -204,7 +218,24 @@ namespace AIImprove
 
                     AddSliderRow(pages[1], Localization.Get("tune.rerouteDensity"), 20f, 100f, 5f,
                         ModSettings.IntercityBusRerouteDensityThreshold.value,
-                        v => ModSettings.IntercityBusRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.IntercityBusRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.rerouteDensity.desc"));
+                });
+
+            AddSection(root, nav, sectionX, sectionWidth, "nav.cargo",
+                new[] { "subtab.toggles", "subtab.tuning" },
+                pages =>
+                {
+                    AddToggleRow(pages[0], "feature.shipDock", ModSettings.ShipDockAssignmentEnabled);
+
+                    AddSliderRow(pages[1], Localization.Get("tune.gateCandidates"), 8f, 50f, 1f,
+                        ModSettings.ShipDockCandidateCount.value,
+                        v => ModSettings.ShipDockCandidateCount.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.gateCandidates.desc"));
+                    AddSliderRow(pages[1], Localization.Get("tune.stationSaturation"), 5f, 60f, 1f,
+                        ModSettings.ShipDockSaturationThreshold.value,
+                        v => ModSettings.ShipDockSaturationThreshold.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.stationSaturation.desc"));
                 });
 
             AddSection(root, nav, sectionX, sectionWidth, "nav.citizensRaces",
@@ -217,19 +248,24 @@ namespace AIImprove
 
                     AddSliderRow(pages[1], Localization.Get("tune.citizenCarDensity"), 20f, 100f, 5f,
                         ModSettings.CitizenCarDensityThreshold.value,
-                        v => ModSettings.CitizenCarDensityThreshold.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.CitizenCarDensityThreshold.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.citizenCarDensity.desc"));
                     AddSliderRow(pages[1], Localization.Get("tune.citizenCarReduction"), 0f, 100f, 5f,
                         ModSettings.CitizenCarMaxReductionPercent.value,
-                        v => ModSettings.CitizenCarMaxReductionPercent.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.CitizenCarMaxReductionPercent.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.citizenCarReduction.desc"));
                     AddSliderRow(pages[1], Localization.Get("tune.taxiMultiplier"), 100f, 400f, 10f,
                         ModSettings.CitizenTaxiMultiplierPercent.value,
-                        v => ModSettings.CitizenTaxiMultiplierPercent.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.CitizenTaxiMultiplierPercent.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.taxiMultiplier.desc"));
                     AddSliderRow(pages[1], Localization.Get("tune.taxiFlatBonus"), 0f, 20f, 1f,
                         ModSettings.CitizenTaxiFlatBonus.value,
-                        v => ModSettings.CitizenTaxiFlatBonus.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.CitizenTaxiFlatBonus.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.taxiFlatBonus.desc"));
                     AddSliderRow(pages[1], Localization.Get("tune.raceAttractiveness"), 100f, 400f, 10f,
                         ModSettings.RaceBuildingAttractivenessPercent.value,
-                        v => ModSettings.RaceBuildingAttractivenessPercent.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.RaceBuildingAttractivenessPercent.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.raceAttractiveness.desc"));
                 });
 
             AddSection(root, nav, sectionX, sectionWidth, "nav.citizenAI",
@@ -240,16 +276,20 @@ namespace AIImprove
 
                     AddSliderRow(pages[1], Localization.Get("tune.citizenWalkWeight"), 0f, 100f, 1f,
                         ModSettings.CitizenWalkWeight.value,
-                        v => ModSettings.CitizenWalkWeight.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.CitizenWalkWeight.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.citizenWalkWeight.desc"));
                     AddSliderRow(pages[1], Localization.Get("tune.citizenDriveWeight"), 0f, 100f, 1f,
                         ModSettings.CitizenDriveWeight.value,
-                        v => ModSettings.CitizenDriveWeight.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.CitizenDriveWeight.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.citizenDriveWeight.desc"));
                     AddSliderRow(pages[1], Localization.Get("tune.citizenTaxiWeight"), 0f, 100f, 1f,
                         ModSettings.CitizenTaxiWeight.value,
-                        v => ModSettings.CitizenTaxiWeight.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.CitizenTaxiWeight.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.citizenTaxiWeight.desc"));
                     AddSliderRow(pages[1], Localization.Get("tune.citizenTransitWeight"), 0f, 100f, 1f,
                         ModSettings.CitizenTransitWeight.value,
-                        v => ModSettings.CitizenTransitWeight.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.CitizenTransitWeight.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.citizenTransitWeight.desc"));
 
                     AddCitizenTransportPresets(pages[1], root, helper);
                 });
@@ -260,10 +300,12 @@ namespace AIImprove
                 {
                     AddSliderRow(pages[0], Localization.Get("tune.rerouteCooldown"), 5f, 120f, 5f,
                         ModSettings.RerouteCooldownSeconds.value,
-                        v => ModSettings.RerouteCooldownSeconds.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.RerouteCooldownSeconds.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.rerouteCooldown.desc"));
                     AddSliderRow(pages[0], Localization.Get("tune.checkInterval"), 1f, 128f, 1f,
                         ModSettings.RerouteCheckIntervalFrames.value,
-                        v => ModSettings.RerouteCheckIntervalFrames.value = Mathf.RoundToInt(v), "0");
+                        v => ModSettings.RerouteCheckIntervalFrames.value = Mathf.RoundToInt(v), "0",
+                        Localization.Get("tune.checkInterval.desc"));
                 });
 
             AddSection(root, nav, sectionX, sectionWidth, "tab.about",
@@ -465,7 +507,8 @@ namespace AIImprove
         private static void BuildGeneralPage(UIPanel page, UIComponent root, UIHelperBase helper)
         {
             AddLanguageDropdown(page, root, helper);
-            AddPlainToggleRow(page, Localization.Get("tune.verboseLogging"), ModSettings.VerboseLogging);
+            AddPlainToggleRow(page, Localization.Get("tune.verboseLogging"), ModSettings.VerboseLogging,
+                Localization.Get("tune.verboseLogging.desc"));
         }
 
         private static void AddLanguageDropdown(UIPanel page, UIComponent root, UIHelperBase helper)
@@ -525,11 +568,15 @@ namespace AIImprove
             AddPillToggle(row, row.width - 54f, 4f, setting);
         }
 
-        private static void AddPlainToggleRow(UIComponent parent, string label, SavedBool setting)
+        private static void AddPlainToggleRow(UIComponent parent, string label, SavedBool setting, string tooltip = null)
         {
             UIPanel row = parent.AddUIComponent<UIPanel>();
             row.width = parent.width - 20f;
             row.height = 30f;
+            if (!string.IsNullOrEmpty(tooltip))
+            {
+                row.tooltip = tooltip;
+            }
 
             UILabel rowLabel = row.AddUIComponent<UILabel>();
             rowLabel.text = label;
@@ -580,7 +627,7 @@ namespace AIImprove
         // current value shown to the right of the track.
         private static void AddSliderRow(
             UIComponent parent, string label, float min, float max, float step,
-            float initialValue, Action<float> setValue, string valueFormat)
+            float initialValue, Action<float> setValue, string valueFormat, string tooltip = null)
         {
             UIPanel row = parent.AttachUIComponent(UITemplateManager.GetAsGameObject(SliderTemplate)) as UIPanel;
             if (row == null)
@@ -589,6 +636,10 @@ namespace AIImprove
             }
 
             row.width = parent.width - 20f;
+            if (!string.IsNullOrEmpty(tooltip))
+            {
+                row.tooltip = tooltip;
+            }
 
             UILabel titleLabel = row.Find<UILabel>("Label");
             if (titleLabel != null)
@@ -732,6 +783,7 @@ namespace AIImprove
             AddFlatGroup(helper, "飛機與機場 (Aircraft)", ModSettings.AircraftGateAssignmentEnabled, ModSettings.AircraftRerouteEnabled, ModSettings.AircraftThunderstormRefusalEnabled);
             AddFlatGroup(helper, "市內巴士與客運直升機 (Local transport)", ModSettings.LocalBusRerouteEnabled, ModSettings.PassengerHelicopterRerouteEnabled);
             AddFlatGroup(helper, "城際巴士 (Intercity buses)", ModSettings.IntercityBusRerouteEnabled);
+            AddFlatGroup(helper, "貨運與船運 (Cargo & ships)", ModSettings.ShipDockAssignmentEnabled);
             AddFlatGroup(helper, "一般市內交通 (Ordinary traffic)", ModSettings.OrdinaryTrafficRerouteEnabled);
             AddFlatGroup(helper, "市民行為 (Citizens)", ModSettings.CitizenCarProbabilityEnabled, ModSettings.CitizenTaxiProbabilityEnabled, ModSettings.CitizenTransportModeEnabled);
             AddFlatGroup(helper, "賽車 (Race cars)", ModSettings.RaceBuildingAttractivenessEnabled);

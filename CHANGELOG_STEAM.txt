@@ -4,16 +4,17 @@ This update adds a real settings interface. Every individual feature - not just 
 
 [h2]New: settings interface[/h2]
 [list]
-[*] [b]Full settings page[/b] - ESC → Options → Content Manager → Mods → AI_Improve. Eleven sections are picked from a list down the left side (General, Emergency, Metro, Intercity Trains, Aircraft, Local Transport, Intercity Buses, Citizens & Races, Citizen Transport AI, Advanced, About); most sections split into a Toggles tab and a Tuning tab across the top, so a feature's switch and the values that affect it sit together.
+[*] [b]Full settings page[/b] - ESC → Options → Content Manager → Mods → AI_Improve. Twelve sections are picked from a list down the left side (General, Emergency, Metro, Intercity Trains, Aircraft, Local Transport, Intercity Buses, Cargo & Ships, Citizens & Races, Citizen Transport AI, Advanced, About); most sections split into a Toggles tab and a Tuning tab across the top, so a feature's switch and the values that affect it sit together.
+[*] [b]Every slider (and Verbose logging) now has a hover tooltip[/b] explaining what the number actually does in plain language, not just its name.
 [*] [b]Quick in-game panel[/b] - adds an AI_Improve button to the [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2966990700]UnifiedUI[/url] toolbar for the empty-vehicle scan tools below, without leaving your city. Full toggle/tuning control lives in Content Manager. UnifiedUI is optional; without it Content Manager is still the only way in.
-[*] [b]21 independent feature toggles[/b], up from the original 9 broad categories - e.g. the fire responder cap and the idle-truck nearby-fire search are now separate switches, as are metro rerouting, intercity train platform assignment, intercity train rerouting, and the low-ridership spawn throttle (previously all one "trains" switch).
+[*] [b]22 independent feature toggles[/b], up from the original 9 broad categories - e.g. the fire responder cap and the idle-truck nearby-fire search are now separate switches, as are metro rerouting, intercity train platform assignment, intercity train rerouting, and the low-ridership spawn throttle (previously all one "trains" switch).
 [*] Turning a feature off makes it behave exactly as if it had never been written - the game's own original code runs untouched.
 [*] [b]Multi-language[/b] - follows your game language automatically, or pick English, 繁體中文 or 简体中文 from the language dropdown on the General page. Each language is listed in its own script, so you can find yours even if the current interface language is unreadable to you.
 [*] The header shows when the build was last updated, so you can tell at a glance whether your copy is current.
 [/list]
 
 [h2]New: adjustable values[/h2]
-[b]22 sliders[/b] covering nearly every number the mod used to hardcode - fire responders per building and uncap timer, reroute density thresholds (per vehicle type), train station saturation/platform candidates, aircraft gate capacity/candidates, citizen car/taxi behavior, race complex attractiveness, reroute cooldown/check interval, and more. Defaults match the old fixed values exactly, so nothing changes until you move one.
+[b]26 sliders[/b] covering nearly every number the mod used to hardcode - fire responders per building and uncap timer, reroute density thresholds (per vehicle type), train station saturation/platform candidates, aircraft gate capacity/candidates, citizen car/taxi behavior, race complex attractiveness, reroute cooldown/check interval, and more. Defaults match the old fixed values exactly, so nothing changes until you move one.
 
 [h2]New: Citizen Transport AI (off by default)[/h2]
 A new "Citizen Transport AI" section with one switch and 4 weight sliders - Walk, Drive, Taxi, Transit - that decide how each citizen picks a way to get around, replacing vanilla's own fixed age-based car/taxi/bike odds entirely while active.
@@ -23,6 +24,9 @@ A new "Citizen Transport AI" section with one switch and 4 weight sliders - Walk
 [*] [b]4 one-click presets[/b] on the Tuning tab: Balanced, Transit-oriented, Car-dependent, Walkable city.
 [*] Off by default - turning it on is an active choice, since it fully replaces vanilla's decision instead of nudging it like the citizen car/taxi toggles above it do.
 [/list]
+
+[h2]New: ship dock assignment (on by default)[/h2]
+Occupancy-aware dock assignment for cargo ships and passenger ferries, closing the one gap found while researching the freight/cargo AI - trains and aircraft already got this treatment previously (indirectly, via their shared base classes), ships never had. Spreads harbor traffic across a harbor's real dock capacity the same way trains/aircraft already spread across platforms/gates, instead of vanilla's blind pathfind piling every ship onto the same dock.
 
 [h2]New: empty vehicle cleanup[/h2]
 [list]
@@ -39,6 +43,7 @@ A new "Citizen Transport AI" section with one switch and 4 weight sliders - Walk
 [*] The settings page previously reported "Version 0.0.0"; it now shows the date the build was last updated, plus the exact source commit it came from.
 [*] Fixed the fire responder cap still applying even when its toggle was turned off (while leaving the idle-truck nearby-fire search on) - it now correctly does nothing when disabled, matching every other toggle.
 [*] [b]Removed the race car max speed override.[/b] Forcing every racer to the same flat top-speed ceiling could make them lose control on turns. Racer speed is fully vanilla again; the racetrack attractiveness boost is unaffected.
+[*] [b]Fixed the toolbar button having no icon.[/b] The UnifiedUI registration was passing an icon file path that this mod never actually shipped, so the button always rendered blank. It now builds a small icon at runtime instead - no file involved.
 [/list]
 
 [h2]Performance[/h2]
