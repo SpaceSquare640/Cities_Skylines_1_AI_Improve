@@ -44,6 +44,7 @@ Occupancy-aware dock assignment for cargo ships and passenger ferries, closing t
 [*] Fixed the fire responder cap still applying even when its toggle was turned off (while leaving the idle-truck nearby-fire search on) - it now correctly does nothing when disabled, matching every other toggle.
 [*] [b]Removed the race car max speed override.[/b] Forcing every racer to the same flat top-speed ceiling could make them lose control on turns. Racer speed is fully vanilla again; the racetrack attractiveness boost is unaffected.
 [*] [b]Fixed the toolbar button having no icon.[/b] The UnifiedUI registration was passing an icon file path that this mod never actually shipped, so the button always rendered blank. It now builds a small icon at runtime instead - no file involved.
+[*] [b]Fixed settings failing to sync with the save file at startup.[/b] Nine internal migration fields (used only as one-time defaults for the per-feature toggles, never shown in the UI) were reading their own saved value before the settings file had finished registering, due to a C# initialization-order pitfall - confirmed via nine startup log warnings. They're now guaranteed to register first.
 [/list]
 
 [h2]Performance[/h2]

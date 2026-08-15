@@ -35,9 +35,25 @@ namespace AIImprove
     {
         private const string FileName = "AIImprove";
 
-        static ModSettings()
+        // BUG FOUND VIA AUDIT (2026-08-16, prompted by a player report that no setting persists
+        // across restarts): this used to live in an explicit `static ModSettings() { ... }` body.
+        // C# always runs a class's static *field* initializers before the body of an explicit
+        // static constructor, regardless of source order - so every SavedBool field below whose
+        // default reads another field's `.value` (the nine Legacy* migration fields do, for all 21
+        // feature toggles) was doing that read *before* this registration ever ran. Confirmed via
+        // output_log.txt: exactly nine "GameSettings: 'AIImprove' is not found or cannot be
+        // loaded" warnings at startup, one per Legacy* field. ColossalFramework's SavedValue.Sync()
+        // sets m_Synced = true even when the lookup fails, so a field poisoned this way never
+        // retries for the rest of the session - it silently stops reading from and writing to disk
+        // permanently. Moving registration into a field initializer of its own, declared first,
+        // fixes it for real: field initializers (unlike a static constructor body) run in strict
+        // declaration order, so this one now genuinely executes before any other field below it.
+        private static readonly bool SettingsFileRegistered = RegisterSettingsFile();
+
+        private static bool RegisterSettingsFile()
         {
             GameSettings.AddSettingsFile(new SettingsFile { fileName = FileName });
+            return true;
         }
 
         // ---------------------------------------------------------------------------------
