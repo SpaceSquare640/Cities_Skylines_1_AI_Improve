@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using ColossalFramework;
 using ColossalFramework.UI;
 using ICities;
@@ -39,80 +38,34 @@ namespace AIImprove
             IngameUI.OnLevelUnloading();
         }
 
-        // Content Manager's per-mod options page. Vanilla UIHelperBase has no concept of separate
-        // "pages"/tabs - AddGroup is the closest equivalent (a titled, visually boxed section
-        // within the single scrollable panel), so "獨立設定頁" (2026-08-15, per user request) is
-        // implemented as one AddGroup per feature instead of one shared group with a flat
-        // checkbox list. Each group's own checkbox is still the same category-level on/off switch
-        // from ModSettings.cs - see that file for the persistence mechanism and KNOWN GAP notes.
+        // Content Manager's per-mod options page - the "detailed settings" half of the TM:PE-style
+        // split requested 2026-08-15: reached via ESC -> Options -> Content Manager, shows every
+        // toggle WITH its full description, and nothing else (no action buttons - those live only
+        // in the simple in-game panel, see IngameUI.cs). Vanilla UIHelperBase has no concept of
+        // separate "pages"/tabs - AddGroup is the closest equivalent (a titled, visually boxed
+        // section within the single scrollable panel), so "獨立設定頁" (2026-08-15, earlier
+        // request) is implemented as one AddGroup per feature instead of one shared group with a
+        // flat checkbox list. Each group's own checkbox is still the same category-level on/off
+        // switch from ModSettings.cs - see that file for the persistence mechanism and KNOWN GAP
+        // notes.
         public void OnSettingsUI(UIHelperBase helper)
         {
             AddFeatureGroup(helper, "category.emergency", ModSettings.EmergencyVehiclesEnabled);
             AddFeatureGroup(helper, "category.metro", ModSettings.TrainsAndMetroEnabled);
-
-            UIHelperBase intercityTrainGroup =
-                AddFeatureGroup(helper, "category.intercityTrain", ModSettings.IntercityTrainEnabled);
-            AddEmptyVehicleScanButton(
-                intercityTrainGroup,
-                Localization.Get("button.scanTrain"),
-                EmptyVehicleAuditor.ScanIntercityTrains,
-                Localization.Get("category.intercityTrain.short"));
-
+            AddFeatureGroup(helper, "category.intercityTrain", ModSettings.IntercityTrainEnabled);
             AddFeatureGroup(helper, "category.aircraft", ModSettings.AircraftEnabled);
             AddFeatureGroup(helper, "category.buses", ModSettings.BusesAndHelicoptersEnabled);
-
-            UIHelperBase intercityBusGroup =
-                AddFeatureGroup(helper, "category.intercityBus", ModSettings.IntercityBusEnabled);
-            AddEmptyVehicleScanButton(
-                intercityBusGroup,
-                Localization.Get("button.scanBus"),
-                EmptyVehicleAuditor.ScanIntercityBuses,
-                Localization.Get("category.intercityBus.short"));
-
+            AddFeatureGroup(helper, "category.intercityBus", ModSettings.IntercityBusEnabled);
             AddFeatureGroup(helper, "category.traffic", ModSettings.OrdinaryTrafficEnabled);
             AddFeatureGroup(helper, "category.citizens", ModSettings.CitizensEnabled);
             AddFeatureGroup(helper, "category.racecars", ModSettings.RaceCarsEnabled);
         }
 
-        private static UIHelperBase AddFeatureGroup(UIHelperBase helper, string categoryKey, SavedBool setting)
+        private static void AddFeatureGroup(UIHelperBase helper, string categoryKey, SavedBool setting)
         {
             UIHelperBase group = helper.AddGroup(Localization.Get(categoryKey + ".title"));
             string label = Localization.Get("toggle.enable") + " - " + Localization.Get(categoryKey + ".desc");
             group.AddCheckbox(label, setting.value, value => setting.value = value);
-            return group;
-        }
-
-        // "一鍵檢測沒有乘客的車輛及檢測後讓玩家選擇是否直接刪除" (2026-08-15): scan first
-        // (read-only), then ask via the game's own confirm dialog before deleting anything -
-        // deletion never happens without an explicit click. See EmptyVehicleAuditor.cs for the
-        // scan/delete logic itself.
-        private static void AddEmptyVehicleScanButton(
-            UIHelperBase group, string buttonLabel, System.Func<EmptyVehicleAuditor.ScanResult> scan, string categoryLabel)
-        {
-            group.AddButton(buttonLabel, () =>
-            {
-                EmptyVehicleAuditor.ScanResult result = scan();
-
-                if (result.LeadVehicleIds.Count == 0)
-                {
-                    ConfirmPanel.ShowModal("AI_Improve", Localization.Get("scan.noneFound", categoryLabel), null);
-                    return;
-                }
-
-                List<ushort> matchedIds = result.LeadVehicleIds;
-                string message = Localization.Get(
-                    "scan.confirm", matchedIds.Count, categoryLabel, result.TotalVehicleCount);
-
-                ConfirmPanel.ShowModal("AI_Improve", message, (component, ret) =>
-                {
-                    if (ret != 1)
-                    {
-                        return;
-                    }
-
-                    EmptyVehicleAuditor.DeleteVehicles(matchedIds);
-                });
-            });
         }
     }
 }
