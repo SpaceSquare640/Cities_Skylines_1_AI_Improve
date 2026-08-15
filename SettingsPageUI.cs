@@ -405,10 +405,11 @@ namespace AIImprove
         }
 
         // "用 GitHub commit 作版本標準" (2026-08-15): prefers AssemblyInformationalVersion, which
-        // the build stamps as "1.0.<commit count>+<short hash>" (see the SetVersionFromGit target
-        // in AIImprove.csproj) - the hash is what actually pins a player's build to an exact commit
-        // when they report a bug. AssemblyVersion can only hold numbers, so it carries the commit
-        // count alone and is used as the fallback if the informational attribute is missing.
+        // the build stamps as "<commit date> (<short hash>)" (see the SetVersionFromGit target in
+        // AIImprove.csproj) - the date answers "is my copy current?", and the hash is what pins a
+        // player's build to an exact commit when they report a bug. AssemblyVersion can only hold
+        // numbers, so it carries the calendar version and is the fallback if the informational
+        // attribute is missing.
         private static string GetVersionString()
         {
             Assembly assembly = Assembly.GetExecutingAssembly();

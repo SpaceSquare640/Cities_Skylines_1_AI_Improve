@@ -10,11 +10,12 @@
          SettingsPageUI.GetVersionString). GenerateAssemblyInfo used to be false with no manual
          AssemblyInfo.cs anywhere, so no version attribute was emitted at all and the header showed
          "Version 0.0.0" (2026-08-15).
-         "用 GitHub commit 作版本標準" (2026-08-15): the version is now derived from git rather
-         than hand-maintained here - see the SetVersionFromGit target below. VersionPrefix is only
-         the fallback used when git isn't available (source zip download, no git on PATH). -->
+         "用 GitHub commit 作版本標準" (2026-08-15): the version is derived from git rather than
+         hand-maintained here - see the SetVersionFromGit target below, which uses calendar
+         versioning. VersionPrefix is only the fallback for when git isn't available at all (source
+         zip download, no git on PATH); it goes stale by design and is not worth maintaining. -->
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionPrefix>0.0.0</VersionPrefix>
     <!-- The SDK otherwise appends the full 40-char commit SHA onto InformationalVersion, on top of
          the short hash SetVersionFromGit already puts there - which is what the settings page
          displays, so it would read "1.0.59+ee242bb.ee242bb25d75...". -->
@@ -56,7 +57,12 @@
   <!-- "用 GitHub commit 作版本標準" (2026-08-15): derives the version from git history instead of a
        hand-bumped number, so what the settings page shows always maps back to an exact commit.
 
-         AssemblyVersion / FileVersion : 1.0.<commit count>   (must be numeric, hashes are illegal here)
+       Calendar versioning (2026-08-15, per user request): the project ships continuously rather
+       than in planned feature releases, so a hand-maintained semantic version would either sit
+       frozen at 1.x forever or need arbitrary bumps. The release date is the honest answer to the
+       only question a player actually asks - "is my copy current?".
+
+         AssemblyVersion / FileVersion : <YYYY>.<MM>.<DD>.<commit count>   (numeric only, no hashes)
          InformationalVersion          : <commit date> (<short hash>[-dirty])
 
        InformationalVersion is what the settings page displays. It leads with the commit date
@@ -101,9 +107,13 @@
       <HasGit Condition="'$(GitExitCode)' == '0' AND '$(GitDateExitCode)' == '0' AND '$(GitCommitCount)' != '' AND '$(GitCommitHash)' != '' AND '$(GitCommitDate)' != ''">true</HasGit>
       <GitDirtySuffix Condition="'$(GitDirtyFiles)' != ''">-dirty</GitDirtySuffix>
 
-      <Version Condition="'$(HasGit)' == 'true'">1.0.$(GitCommitCount)</Version>
-      <AssemblyVersion Condition="'$(HasGit)' == 'true'">1.0.$(GitCommitCount).0</AssemblyVersion>
-      <FileVersion Condition="'$(HasGit)' == 'true'">1.0.$(GitCommitCount).0</FileVersion>
+      <!-- 2026-08-15 → 2026.08.15. Each field is a UInt16, so the year/month/day all fit, and the
+           commit count in the fourth (build) field disambiguates two releases made the same day. -->
+      <CalVer Condition="'$(HasGit)' == 'true'">$(GitCommitDate.Replace('-','.'))</CalVer>
+
+      <Version Condition="'$(HasGit)' == 'true'">$(CalVer).$(GitCommitCount)</Version>
+      <AssemblyVersion Condition="'$(HasGit)' == 'true'">$(CalVer).$(GitCommitCount)</AssemblyVersion>
+      <FileVersion Condition="'$(HasGit)' == 'true'">$(CalVer).$(GitCommitCount)</FileVersion>
       <!-- Displayed verbatim by the settings page: date first, commit hash in parentheses. -->
       <InformationalVersion Condition="'$(HasGit)' == 'true'">$(GitCommitDate) ($(GitCommitHash)$(GitDirtySuffix))</InformationalVersion>
     </PropertyGroup>

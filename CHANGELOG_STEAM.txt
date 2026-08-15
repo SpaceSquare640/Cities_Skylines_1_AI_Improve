@@ -1,4 +1,4 @@
-[h1]v1.0.60 - Settings UI, tuning sliders, and a serious scan fix[/h1]
+[h1]2026-08-15 - Settings UI, tuning sliders, and a serious scan fix[/h1]
 
 This update adds a real settings interface. Every feature can now be turned on or off individually, several values are adjustable, and the interface is available in English, 繁體中文 and 简体中文.
 
