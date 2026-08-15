@@ -67,6 +67,15 @@ namespace AIImprove
                     ["tune.fireResponders"] = "Max fire responders per building",
                     ["tune.lowRidership"] = "Intercity train low-ridership skip threshold",
                     ["tune.verboseLogging"] = "Verbose logging (only for bug reports - slows the game)",
+                    ["nav.general"] = "General",
+                    ["nav.transport"] = "Transport",
+                    ["nav.emergency"] = "Emergency",
+                    ["nav.citizens"] = "Citizens & Races",
+                    ["subtab.settings"] = "Settings",
+                    ["subtab.toggles"] = "Toggles",
+                    ["subtab.tuning"] = "Tuning",
+                    ["subtab.links"] = "Links",
+                    ["lang.label"] = "Language",
                 },
                 ["zh-tw"] = new Dictionary<string, string>
                 {
@@ -113,6 +122,15 @@ namespace AIImprove
                     ["tune.fireResponders"] = "消防車/直升機每棟建築派遣上限",
                     ["tune.lowRidership"] = "城際火車低載客量跳過閾值",
                     ["tune.verboseLogging"] = "詳細記錄 (只在回報問題時開啟，會拖慢遊戲)",
+                    ["nav.general"] = "一般",
+                    ["nav.transport"] = "交通運輸",
+                    ["nav.emergency"] = "緊急服務",
+                    ["nav.citizens"] = "市民與賽車",
+                    ["subtab.settings"] = "設定",
+                    ["subtab.toggles"] = "功能開關",
+                    ["subtab.tuning"] = "數值調整",
+                    ["subtab.links"] = "相關連結",
+                    ["lang.label"] = "語言 (Language)",
                 },
                 ["zh-cn"] = new Dictionary<string, string>
                 {
@@ -159,6 +177,15 @@ namespace AIImprove
                     ["tune.fireResponders"] = "消防车/直升机每栋建筑派遣上限",
                     ["tune.lowRidership"] = "城际火车低载客量跳过阈值",
                     ["tune.verboseLogging"] = "详细记录 (只在报告问题时开启，会拖慢游戏)",
+                    ["nav.general"] = "一般",
+                    ["nav.transport"] = "交通运输",
+                    ["nav.emergency"] = "紧急服务",
+                    ["nav.citizens"] = "市民与赛车",
+                    ["subtab.settings"] = "设置",
+                    ["subtab.toggles"] = "功能开关",
+                    ["subtab.tuning"] = "数值调整",
+                    ["subtab.links"] = "相关链接",
+                    ["lang.label"] = "语言 (Language)",
                 },
             };
 

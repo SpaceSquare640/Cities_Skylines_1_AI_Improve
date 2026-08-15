@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using ColossalFramework;
 using ColossalFramework.UI;
@@ -7,40 +8,61 @@ using UnityEngine;
 
 namespace AIImprove
 {
-    // "你參考一下這兩個模組的 UI 設計...做得類似那兩個的 UI 設計" (2026-08-15, "完全還原" chosen
-    // explicitly over the two lighter options): rebuilds the Content Manager settings page to match
-    // the tabbed, card-header, pill-switch style ACME / Advanced Stop Selection use, instead of the
-    // flat AddGroup-per-category list this page used before. Built directly on the page's real
-    // UIComponent tree (obtained via the concrete UIHelper.self, which UIHelperBase's own interface
-    // doesn't expose - see GetRoot below) rather than UIHelperBase's convenience methods, since
-    // UIHelperBase has no concept of tabs at all. Every ColossalFramework.UI member used here (
-    // UIHelper.self, UITabstrip/UITabContainer wiring, UITextureAtlas construction) was confirmed
-    // via dnSpy against the installed game's Assembly-CSharp.dll/ColossalManaged.dll before writing
-    // this, since none of it can be exercised by a plain `dotnet build` until tested in-game - if
-    // any of it renders wrong, the fallback is reverting to the previous AddGroup-based page, not a
-    // hard crash (every risky step here is additive UI construction, nothing game-state-affecting).
+    // Content Manager settings page. Rebuilt 2026-08-15 against three Workshop mods the user
+    // pointed at as references:
+    //   - Natural Disasters Renewal : vertical section list down the left side, language as a
+    //                                 dropdown rather than a cycling button
+    //   - IOperateIt Revisited      : sliders with their current value shown to the right
+    //   - Node Controller Renewal   : horizontal tab strip across the top
+    // The user asked for both nav directions at once, so sections are chosen from the vertical
+    // list on the left and each section's sub-pages from the horizontal strip above the content.
+    //
+    // Built on the page's real UIComponent tree (via the concrete UIHelper.self, which
+    // UIHelperBase's interface doesn't expose - see GetRoot) rather than UIHelperBase's own
+    // methods, since UIHelperBase has no concept of tabs at all. Dropdowns and sliders are cloned
+    // from the game's own "OptionsDropdownTemplate" / "OptionsSliderTemplate" prefabs - the same
+    // ones UIHelper.AddDropdown/AddSlider use - instead of being hand-assembled, so they come out
+    // correctly styled without guessing at a dozen sprite names that can't be verified offline.
+    //
+    // Every ColossalFramework.UI member used here was checked against the installed game's
+    // assemblies with dnSpy before being written, since none of it can be exercised by a plain
+    // `dotnet build`. If the tree fails to come together at runtime the page degrades to a plain
+    // flat toggle list (BuildFlatFallback) rather than rendering empty.
     internal static class SettingsPageUI
     {
         private const string RepoUrl = "https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve";
         private const string WorkshopUrl = "https://steamcommunity.com/sharedfiles/filedetails/?id=3782858610";
 
+        private const string DropdownTemplate = "OptionsDropdownTemplate";
+        private const string SliderTemplate = "OptionsSliderTemplate";
+
+        private const float HeaderHeight = 100f;
+        private const float NavWidth = 172f;
+        private const float BodyHeight = 430f;
+        private const float SubTabHeight = 32f;
+
         private static readonly Color32 AccentColor = new Color32(58, 121, 187, 255);
         private static readonly Color32 AccentHoverColor = new Color32(78, 141, 207, 255);
         private static readonly Color32 AccentPressedColor = new Color32(45, 98, 154, 255);
         private static readonly Color32 HeaderColor = new Color32(30, 40, 56, 255);
+        private static readonly Color32 NavColor = new Color32(38, 42, 50, 255);
+        private static readonly Color32 NavItemColor = new Color32(52, 57, 66, 255);
+        private static readonly Color32 NavItemHoverColor = new Color32(68, 74, 85, 255);
         private static readonly Color32 TabColor = new Color32(48, 52, 60, 255);
         private static readonly Color32 TabHoverColor = new Color32(64, 68, 78, 255);
         private static readonly Color32 PillOnColor = new Color32(76, 175, 80, 255);
         private static readonly Color32 PillOffColor = new Color32(95, 95, 100, 255);
+        private static readonly Color32 MutedTextColor = new Color32(190, 195, 205, 255);
+
+        // Left-hand nav buttons and the section panel each one reveals, paired by index.
+        private static readonly List<UIButton> NavButtons = new List<UIButton>();
+        private static readonly List<UIPanel> Sections = new List<UIPanel>();
 
         public static void Build(UIHelperBase helper)
         {
             UIComponent root = GetRoot(helper);
             if (root == null)
             {
-                // Fall back to the plain flat list rather than showing nothing - see GetRoot's
-                // notes on why this could return null (a future game update changing UIHelper's
-                // internals).
                 BuildFlatFallback(helper);
                 return;
             }
@@ -48,11 +70,9 @@ namespace AIImprove
             BuildContent(root, helper);
         }
 
-        // "還是看不到切換語言的按鈕" (2026-08-15): the language-cycle button (see BuildHeader)
-        // changes ModSettings.LanguageOverride and then needs every already-built label on this
-        // page to switch text immediately - simplest correct way to do that without hand-tracking
-        // every UILabel/UIButton this page creates is to tear the page down and build it again from
-        // scratch, the same construction path Build() already uses.
+        // The language dropdown changes every label already on the page, so the page is torn down
+        // and rebuilt through the same path that created it rather than each control being hunted
+        // down and re-textured individually.
         private static void RebuildInPlace(UIComponent root, UIHelperBase helper)
         {
             for (int i = root.components.Count - 1; i >= 0; i--)
@@ -65,64 +85,81 @@ namespace AIImprove
 
         private static void BuildContent(UIComponent root, UIHelperBase helper)
         {
+            NavButtons.Clear();
+            Sections.Clear();
+
             BuildHeader(root, helper);
 
-            UITabstrip tabstrip = root.AddUIComponent<UITabstrip>();
-            tabstrip.width = root.width;
-            tabstrip.height = 34f;
+            UIPanel nav = root.AddUIComponent<UIPanel>();
+            nav.width = NavWidth;
+            nav.height = BodyHeight;
+            nav.atlas = SolidColorSprite.Atlas;
+            nav.backgroundSprite = SolidColorSprite.SpriteName;
+            nav.color = NavColor;
+            nav.relativePosition = new Vector3(0f, HeaderHeight + 6f);
+            nav.autoLayout = true;
+            nav.autoLayoutDirection = LayoutDirection.Vertical;
+            nav.autoLayoutPadding = new RectOffset(0, 0, 0, 2);
+            nav.padding = new RectOffset(6, 6, 8, 6);
 
-            UITabContainer tabContainer = root.AddUIComponent<UITabContainer>();
-            tabContainer.width = root.width;
-            tabContainer.height = 420f;
-            tabstrip.tabPages = tabContainer;
+            float sectionX = NavWidth + 8f;
+            float sectionWidth = root.width - sectionX;
 
-            StyleTab(tabstrip.AddTab(Localization.Get("tab.toggles")));
-            StyleTab(tabstrip.AddTab(Localization.Get("tab.tuning")));
-            StyleTab(tabstrip.AddTab(Localization.Get("tab.about")));
-            tabstrip.selectedIndex = 0;
+            AddSection(root, nav, sectionX, sectionWidth, "nav.general",
+                new[] { "subtab.settings" },
+                pages => BuildGeneralPage(pages[0], root, helper));
 
-            if (tabContainer.components.Count >= 3 &&
-                tabContainer.components[0] is UIPanel togglesPage &&
-                tabContainer.components[1] is UIPanel tuningPage &&
-                tabContainer.components[2] is UIPanel aboutPage)
-            {
-                // BUG FOUND VIA SCREENSHOT (2026-08-15): UITabContainer.AddTabPage(string) never
-                // sets isVisible=false on the pages it creates (confirmed via dnSpy - only the
-                // lower-level AddTabPage(string, GameObject, ...) overload does that), and
-                // UITabstrip.selectedIndex's setter no-ops when the value already equals its
-                // default (0), so the "hide every page except the selected one" logic never ran -
-                // both tab pages rendered stacked on top of each other. Hiding every page but the
-                // initially-selected one here sidesteps both quirks directly instead of fighting
-                // the setter's default-value guard.
-                tuningPage.isVisible = false;
-                aboutPage.isVisible = false;
+            AddSection(root, nav, sectionX, sectionWidth, "nav.transport",
+                new[] { "subtab.toggles", "subtab.tuning" },
+                pages =>
+                {
+                    BuildTransportToggles(pages[0]);
+                    BuildTransportTuning(pages[1]);
+                });
 
-                BuildTogglesPage(togglesPage);
-                BuildTuningPage(tuningPage);
-                BuildAboutPage(aboutPage);
-            }
-            else
-            {
-                Debug.Log("[AIImprove] SettingsPageUI: tab pages missing after AddTab, falling back to flat list.");
-                BuildFlatFallback(helper);
-            }
+            AddSection(root, nav, sectionX, sectionWidth, "nav.emergency",
+                new[] { "subtab.toggles", "subtab.tuning" },
+                pages =>
+                {
+                    AddToggleRow(pages[0], "category.emergency", ModSettings.EmergencyVehiclesEnabled);
+                    AddSliderRow(pages[1], Localization.Get("tune.fireResponders"), 5f, 50f, 1f,
+                        ModSettings.FireMaxRespondersPerBuilding.value,
+                        v => ModSettings.FireMaxRespondersPerBuilding.value = Mathf.RoundToInt(v), "0");
+                });
+
+            AddSection(root, nav, sectionX, sectionWidth, "nav.citizens",
+                new[] { "subtab.toggles", "subtab.tuning" },
+                pages =>
+                {
+                    AddToggleRow(pages[0], "category.citizens", ModSettings.CitizensEnabled);
+                    AddToggleRow(pages[0], "category.racecars", ModSettings.RaceCarsEnabled);
+                    AddSliderRow(pages[1], Localization.Get("tune.raceCarSpeed"), 40f, 160f, 5f,
+                        ModSettings.RaceCarMaxSpeed.value,
+                        v => ModSettings.RaceCarMaxSpeed.value = v, "0");
+                });
+
+            AddSection(root, nav, sectionX, sectionWidth, "tab.about",
+                new[] { "subtab.links" },
+                pages => BuildAboutPage(pages[0]));
+
+            SelectSection(0);
         }
 
-        // UIHelperBase (the interface OnSettingsUI receives) doesn't expose the underlying
-        // UIComponent - only the concrete UIHelper class does, via its `self` property (confirmed
-        // via dnSpy: `public object self => this.m_Root;`). Content Manager always hands OnSettingsUI
-        // a real UIHelper instance in practice, but this stays defensive in case a future game
-        // update swaps the concrete type.
+        // UIHelperBase (what OnSettingsUI receives) doesn't expose the underlying UIComponent -
+        // only the concrete UIHelper does, via `self` (dnSpy: `public object self => this.m_Root;`).
+        // Content Manager always passes a real UIHelper in practice; this stays defensive in case a
+        // future game update swaps the concrete type.
         private static UIComponent GetRoot(UIHelperBase helper) => (helper as UIHelper)?.self as UIComponent;
 
         private static void BuildHeader(UIComponent root, UIHelperBase helper)
         {
             UIPanel header = root.AddUIComponent<UIPanel>();
             header.width = root.width;
-            header.height = 100f;
+            header.height = HeaderHeight;
             header.atlas = SolidColorSprite.Atlas;
             header.backgroundSprite = SolidColorSprite.SpriteName;
             header.color = HeaderColor;
+            header.relativePosition = Vector3.zero;
 
             UILabel title = header.AddUIComponent<UILabel>();
             title.text = "AI_Improve";
@@ -133,7 +170,7 @@ namespace AIImprove
             UILabel version = header.AddUIComponent<UILabel>();
             version.text = Localization.Get("about.version", GetVersionString());
             version.textScale = 0.75f;
-            version.textColor = new Color32(190, 195, 205, 255);
+            version.textColor = MutedTextColor;
             version.relativePosition = new Vector3(16f, 46f);
 
             UILabel status = header.AddUIComponent<UILabel>();
@@ -142,54 +179,102 @@ namespace AIImprove
             status.textColor = new Color32(120, 220, 140, 255);
             status.relativePosition = new Vector3(16f, 62f);
 
-            UIButton languageButton = header.AddUIComponent<UIButton>();
-            languageButton.width = 130f;
-            languageButton.height = 34f;
-            languageButton.textScale = 0.8f;
-            StyleAccentButton(languageButton);
-            RefreshLanguageButtonText(languageButton);
-            languageButton.relativePosition = new Vector3(header.width - languageButton.width - 16f, 14f);
-            languageButton.eventClick += (component, param) =>
-            {
-                CycleLanguage();
-                RebuildInPlace(root, helper);
-            };
-
             UIButton changelog = header.AddUIComponent<UIButton>();
             changelog.text = Localization.Get("header.changelog");
             changelog.width = 170f;
-            changelog.height = 34f;
+            changelog.height = 32f;
             changelog.textScale = 0.8f;
             StyleAccentButton(changelog);
-            changelog.relativePosition = new Vector3(header.width - changelog.width - 16f, 14f + languageButton.height + 6f);
+            changelog.relativePosition = new Vector3(header.width - changelog.width - 16f, 34f);
             changelog.eventClick += (component, param) => Application.OpenURL(RepoUrl + "/commits/main");
         }
 
-        // "還是看不到切換語言的按鈕" (2026-08-15): language names are shown in their OWN language
-        // (not run through Localization.Get) so a player can find their target language even when
-        // the current UI text is unreadable to them - the whole point of the button. Parallel
-        // arrays instead of a tuple array - this project's target framework has no
-        // System.ValueTuple reference.
-        private static readonly string[] LanguageCodes = { "auto", "en", "zh-tw", "zh-cn" };
-        private static readonly string[] LanguageLabels = { "Auto", "English", "繁體中文", "简体中文" };
-
-        private static void CycleLanguage()
+        // One vertical nav entry plus the section it reveals. The section owns its own horizontal
+        // tab strip, so the two nav directions stay independent of each other.
+        private static void AddSection(
+            UIComponent root, UIComponent nav, float sectionX, float sectionWidth,
+            string navKey, string[] subTabKeys, Action<UIPanel[]> fillPages)
         {
-            int index = System.Array.IndexOf(LanguageCodes, ModSettings.LanguageOverride.value);
-            int nextIndex = (Mathf.Max(index, 0) + 1) % LanguageCodes.Length;
-            ModSettings.LanguageOverride.value = LanguageCodes[nextIndex];
+            int index = Sections.Count;
+
+            UIButton navButton = nav.AddUIComponent<UIButton>();
+            navButton.text = Localization.Get(navKey);
+            navButton.width = NavWidth - 12f;
+            navButton.height = 32f;
+            navButton.textScale = 0.85f;
+            navButton.atlas = SolidColorSprite.Atlas;
+            navButton.normalBgSprite = SolidColorSprite.SpriteName;
+            navButton.color = NavItemColor;
+            navButton.hoveredColor = NavItemHoverColor;
+            navButton.pressedColor = AccentPressedColor;
+            navButton.textColor = Color.white;
+            navButton.textHorizontalAlignment = UIHorizontalAlignment.Left;
+            navButton.textPadding = new RectOffset(10, 0, 8, 0);
+            navButton.eventClick += (component, param) => SelectSection(index);
+            NavButtons.Add(navButton);
+
+            UIPanel section = root.AddUIComponent<UIPanel>();
+            section.width = sectionWidth;
+            section.height = BodyHeight;
+            section.relativePosition = new Vector3(sectionX, HeaderHeight + 6f);
+            section.isVisible = false;
+            Sections.Add(section);
+
+            UITabstrip strip = section.AddUIComponent<UITabstrip>();
+            strip.width = sectionWidth;
+            strip.height = SubTabHeight;
+            strip.relativePosition = Vector3.zero;
+
+            UITabContainer container = section.AddUIComponent<UITabContainer>();
+            container.width = sectionWidth;
+            container.height = BodyHeight - SubTabHeight - 6f;
+            container.relativePosition = new Vector3(0f, SubTabHeight + 6f);
+            strip.tabPages = container;
+
+            foreach (string key in subTabKeys)
+            {
+                StyleTab(strip.AddTab(Localization.Get(key)));
+            }
+
+            UIPanel[] pages = new UIPanel[subTabKeys.Length];
+            for (int i = 0; i < subTabKeys.Length; i++)
+            {
+                if (i >= container.components.Count || !(container.components[i] is UIPanel page))
+                {
+                    Debug.Log("[AIImprove] SettingsPageUI: sub-tab page " + i + " missing for " + navKey + ".");
+                    return;
+                }
+
+                // UITabContainer.AddTabPage(string) doesn't hide the pages it creates (only the
+                // lower-level GameObject overload does), and UITabstrip.selectedIndex no-ops when
+                // set to its already-default 0 - so without this every page in a section renders
+                // stacked on top of the others. Found via screenshot, 2026-08-15.
+                page.isVisible = i == 0;
+                page.autoLayout = true;
+                page.autoLayoutDirection = LayoutDirection.Vertical;
+                page.autoLayoutPadding = new RectOffset(0, 0, 0, 6);
+                page.padding = new RectOffset(10, 10, 12, 10);
+                pages[i] = page;
+            }
+
+            strip.selectedIndex = 0;
+            fillPages(pages);
         }
 
-        private static void RefreshLanguageButtonText(UIButton button)
+        private static void SelectSection(int index)
         {
-            int index = System.Array.IndexOf(LanguageCodes, ModSettings.LanguageOverride.value);
-            button.text = LanguageLabels[Mathf.Max(index, 0)];
+            for (int i = 0; i < Sections.Count; i++)
+            {
+                Sections[i].isVisible = i == index;
+                NavButtons[i].color = i == index ? AccentColor : NavItemColor;
+                NavButtons[i].hoveredColor = i == index ? AccentHoverColor : NavItemHoverColor;
+            }
         }
 
         private static void StyleTab(UIButton tab)
         {
-            tab.width = 150f;
-            tab.height = 34f;
+            tab.width = 140f;
+            tab.height = SubTabHeight;
             tab.atlas = SolidColorSprite.Atlas;
             tab.normalBgSprite = SolidColorSprite.SpriteName;
             tab.textColor = Color.white;
@@ -210,137 +295,104 @@ namespace AIImprove
             button.textColor = Color.white;
         }
 
-        private static void BuildTogglesPage(UIPanel page)
+        private static void BuildGeneralPage(UIPanel page, UIComponent root, UIHelperBase helper)
         {
-            page.autoLayout = true;
-            page.autoLayoutDirection = LayoutDirection.Vertical;
-            page.autoLayoutPadding = new RectOffset(0, 0, 0, 6);
-            page.padding = new RectOffset(10, 10, 10, 10);
+            AddLanguageDropdown(page, root, helper);
+            AddPlainToggleRow(page, Localization.Get("tune.verboseLogging"), ModSettings.VerboseLogging);
+        }
 
-            AddToggleRow(page, "category.emergency", ModSettings.EmergencyVehiclesEnabled);
+        private static void BuildTransportToggles(UIPanel page)
+        {
             AddToggleRow(page, "category.metro", ModSettings.TrainsAndMetroEnabled);
             AddToggleRow(page, "category.intercityTrain", ModSettings.IntercityTrainEnabled);
             AddToggleRow(page, "category.aircraft", ModSettings.AircraftEnabled);
             AddToggleRow(page, "category.buses", ModSettings.BusesAndHelicoptersEnabled);
             AddToggleRow(page, "category.intercityBus", ModSettings.IntercityBusEnabled);
             AddToggleRow(page, "category.traffic", ModSettings.OrdinaryTrafficEnabled);
-            AddToggleRow(page, "category.citizens", ModSettings.CitizensEnabled);
-            AddToggleRow(page, "category.racecars", ModSettings.RaceCarsEnabled);
         }
 
-        // "現在的設定就只有開啟和關閉" (2026-08-15): the three tunables players have actually
-        // asked about/complained about in this project's history (see ModSettings.cs's notes),
-        // exposed as sliders on their own tab instead of the fixed constants they used to be.
-        private static void BuildTuningPage(UIPanel page)
+        private static void BuildTransportTuning(UIPanel page)
         {
-            page.autoLayout = true;
-            page.autoLayoutDirection = LayoutDirection.Vertical;
-            page.autoLayoutPadding = new RectOffset(0, 0, 0, 10);
-            page.padding = new RectOffset(10, 10, 14, 10);
-
-            AddSliderRow(
-                page, Localization.Get("tune.raceCarSpeed"), 40f, 160f, 5f,
-                () => ModSettings.RaceCarMaxSpeed.value,
-                v => ModSettings.RaceCarMaxSpeed.value = v,
-                "{0:0}");
-
-            AddSliderRow(
-                page, Localization.Get("tune.fireResponders"), 5f, 50f, 1f,
-                () => ModSettings.FireMaxRespondersPerBuilding.value,
-                v => ModSettings.FireMaxRespondersPerBuilding.value = Mathf.RoundToInt(v),
-                "{0:0}");
-
-            AddSliderRow(
-                page, Localization.Get("tune.lowRidership"), 0f, 200f, 5f,
-                () => ModSettings.IntercityLowRidershipThreshold.value,
-                v => ModSettings.IntercityLowRidershipThreshold.value = Mathf.RoundToInt(v),
-                "{0:0}");
-
-            AddPlainToggleRow(page, Localization.Get("tune.verboseLogging"), ModSettings.VerboseLogging);
+            AddSliderRow(page, Localization.Get("tune.lowRidership"), 0f, 200f, 5f,
+                ModSettings.IntercityLowRidershipThreshold.value,
+                v => ModSettings.IntercityLowRidershipThreshold.value = Mathf.RoundToInt(v), "0");
         }
 
-        // Same shape as AddToggleRow but takes literal label text rather than a category key -
-        // used for settings that aren't one of the nine feature categories.
-        private static void AddPlainToggleRow(UIComponent parent, string label, SavedBool setting)
+        // Language names are written in their own language, never translated, so a player can find
+        // theirs even when the current interface language is unreadable to them.
+        private static readonly string[] LanguageCodes = { "auto", "en", "zh-tw", "zh-cn" };
+        private static readonly string[] LanguageLabels = { "Auto", "English", "繁體中文", "简体中文" };
+
+        private static void AddLanguageDropdown(UIPanel page, UIComponent root, UIHelperBase helper)
         {
-            UIPanel row = parent.AddUIComponent<UIPanel>();
-            row.width = parent.width - 20f;
-            row.height = 34f;
-
-            UILabel rowLabel = row.AddUIComponent<UILabel>();
-            rowLabel.text = label;
-            rowLabel.textScale = 0.9f;
-            rowLabel.relativePosition = new Vector3(4f, 8f);
-
-            AddPillToggle(row, row.width - 54f, 6f, setting);
-        }
-
-        private static void AddSliderRow(
-            UIComponent parent, string label, float min, float max, float step,
-            System.Func<float> getValue, System.Action<float> setValue, string valueFormat)
-        {
-            UIPanel row = parent.AddUIComponent<UIPanel>();
-            row.width = parent.width - 20f;
-            row.height = 52f;
-
-            UILabel titleLabel = row.AddUIComponent<UILabel>();
-            titleLabel.text = label;
-            titleLabel.textScale = 0.9f;
-            titleLabel.relativePosition = new Vector3(4f, 0f);
-
-            UILabel valueLabel = row.AddUIComponent<UILabel>();
-            valueLabel.textScale = 0.85f;
-            valueLabel.textColor = new Color32(190, 195, 205, 255);
-            valueLabel.text = string.Format(valueFormat, getValue());
-            valueLabel.relativePosition = new Vector3(row.width - valueLabel.width - 4f, 0f);
-
-            UISlider slider = row.AddUIComponent<UISlider>();
-            slider.width = row.width - 8f;
-            slider.height = 18f;
-            slider.relativePosition = new Vector3(4f, 26f);
-            slider.minValue = min;
-            slider.maxValue = max;
-            slider.stepSize = step;
-            slider.atlas = SolidColorSprite.Atlas;
-            slider.backgroundSprite = SolidColorSprite.SpriteName;
-            slider.color = new Color32(60, 64, 72, 255);
-
-            UIPanel thumb = slider.AddUIComponent<UIPanel>();
-            thumb.atlas = SolidColorSprite.Atlas;
-            thumb.backgroundSprite = SolidColorSprite.SpriteName;
-            thumb.color = AccentColor;
-            thumb.width = 14f;
-            thumb.height = 18f;
-            slider.thumbObject = thumb;
-
-            slider.value = getValue();
-
-            slider.eventValueChanged += (component, val) =>
+            UIPanel row = page.AttachUIComponent(UITemplateManager.GetAsGameObject(DropdownTemplate)) as UIPanel;
+            if (row == null)
             {
-                setValue(val);
-                valueLabel.text = string.Format(valueFormat, val);
+                return;
+            }
+
+            row.width = page.width - 20f;
+
+            UILabel label = row.Find<UILabel>("Label");
+            if (label != null)
+            {
+                label.text = Localization.Get("lang.label");
+            }
+
+            UIDropDown dropdown = row.Find<UIDropDown>("Dropdown");
+            if (dropdown == null)
+            {
+                return;
+            }
+
+            dropdown.items = LanguageLabels;
+            int current = Array.IndexOf(LanguageCodes, ModSettings.LanguageOverride.value);
+            dropdown.selectedIndex = Mathf.Max(current, 0);
+
+            dropdown.eventSelectedIndexChanged += (component, index) =>
+            {
+                if (index < 0 || index >= LanguageCodes.Length ||
+                    ModSettings.LanguageOverride.value == LanguageCodes[index])
+                {
+                    return;
+                }
+
+                ModSettings.LanguageOverride.value = LanguageCodes[index];
+                RebuildInPlace(root, helper);
             };
         }
 
-        // Row shows just the category name plus a pill switch - matching Advanced Stop Selection's
-        // "通知消息" toggle rows in the reference screenshot, which don't show inline descriptions
-        // either. The description text still exists (Localization's ".desc" keys) - it's on the
-        // row's tooltip instead of always-on wrapped text, so hovering still explains what the
-        // toggle affects without risking wrapped text overflowing a fixed-height row we can't
-        // live-test the wrapping of.
+        // Row is the category name plus a pill switch, matching the reference mods' toggle rows.
+        // The description text still exists (Localization's ".desc" keys) but sits on the row's
+        // tooltip rather than as always-on wrapped text, which would risk overflowing a
+        // fixed-height row whose wrapping can't be checked offline.
         private static void AddToggleRow(UIComponent parent, string categoryKey, SavedBool setting)
         {
             UIPanel row = parent.AddUIComponent<UIPanel>();
             row.width = parent.width - 20f;
-            row.height = 34f;
+            row.height = 32f;
             row.tooltip = Localization.Get(categoryKey + ".desc");
 
             UILabel label = row.AddUIComponent<UILabel>();
             label.text = Localization.Get(categoryKey + ".title");
-            label.textScale = 0.9f;
+            label.textScale = 0.85f;
             label.relativePosition = new Vector3(4f, 8f);
 
-            AddPillToggle(row, row.width - 54f, 6f, setting);
+            AddPillToggle(row, row.width - 54f, 5f, setting);
+        }
+
+        private static void AddPlainToggleRow(UIComponent parent, string label, SavedBool setting)
+        {
+            UIPanel row = parent.AddUIComponent<UIPanel>();
+            row.width = parent.width - 20f;
+            row.height = 32f;
+
+            UILabel rowLabel = row.AddUIComponent<UILabel>();
+            rowLabel.text = label;
+            rowLabel.textScale = 0.85f;
+            rowLabel.relativePosition = new Vector3(4f, 8f);
+
+            AddPillToggle(row, row.width - 54f, 5f, setting);
         }
 
         private static void AddPillToggle(UIComponent parent, float x, float y, SavedBool setting)
@@ -380,13 +432,59 @@ namespace AIImprove
             };
         }
 
+        // Cloned from the game's own options slider prefab so it matches vanilla styling, with the
+        // current value shown to the right of the track (the IOperateIt Revisited layout the user
+        // referenced).
+        private static void AddSliderRow(
+            UIComponent parent, string label, float min, float max, float step,
+            float initialValue, Action<float> setValue, string valueFormat)
+        {
+            UIPanel row = parent.AttachUIComponent(UITemplateManager.GetAsGameObject(SliderTemplate)) as UIPanel;
+            if (row == null)
+            {
+                return;
+            }
+
+            row.width = parent.width - 20f;
+
+            UILabel titleLabel = row.Find<UILabel>("Label");
+            if (titleLabel != null)
+            {
+                titleLabel.text = label;
+                titleLabel.textScale = 0.85f;
+            }
+
+            UISlider slider = row.Find<UISlider>("Slider");
+            if (slider == null)
+            {
+                return;
+            }
+
+            slider.minValue = min;
+            slider.maxValue = max;
+            slider.stepSize = step;
+            slider.value = initialValue;
+            slider.width = row.width - 90f;
+
+            UILabel valueLabel = row.AddUIComponent<UILabel>();
+            valueLabel.textScale = 0.85f;
+            valueLabel.textColor = MutedTextColor;
+            valueLabel.autoSize = false;
+            valueLabel.width = 70f;
+            valueLabel.height = 20f;
+            valueLabel.textAlignment = UIHorizontalAlignment.Right;
+            valueLabel.text = initialValue.ToString(valueFormat);
+            valueLabel.relativePosition = new Vector3(row.width - 78f, slider.relativePosition.y);
+
+            slider.eventValueChanged += (component, val) =>
+            {
+                setValue(val);
+                valueLabel.text = val.ToString(valueFormat);
+            };
+        }
+
         private static void BuildAboutPage(UIPanel page)
         {
-            page.autoLayout = true;
-            page.autoLayoutDirection = LayoutDirection.Vertical;
-            page.autoLayoutPadding = new RectOffset(0, 0, 0, 10);
-            page.padding = new RectOffset(10, 10, 14, 10);
-
             AddLinkButton(page, Localization.Get("about.github"), RepoUrl);
             AddLinkButton(page, Localization.Get("about.wiki"), RepoUrl + "/wiki");
             AddLinkButton(page, Localization.Get("about.workshop"), WorkshopUrl);
@@ -398,7 +496,7 @@ namespace AIImprove
             UIButton button = parent.AddUIComponent<UIButton>();
             button.text = label;
             button.width = parent.width - 20f;
-            button.height = 34f;
+            button.height = 32f;
             button.textScale = 0.85f;
             StyleAccentButton(button);
             button.eventClick += (component, param) => Application.OpenURL(url);
@@ -428,9 +526,8 @@ namespace AIImprove
             return version.Major + "." + version.Minor + "." + version.Build;
         }
 
-        // Same page this project shipped before the "完全還原" redesign - kept as a safety net for
-        // the (unlikely) case GetRoot/tab construction doesn't work in-game, so a failed redesign
-        // degrades to a known-working page instead of an empty one.
+        // Safety net for the unlikely case GetRoot or the tab construction doesn't work in-game -
+        // a failed layout degrades to this known-working flat list instead of an empty page.
         private static void BuildFlatFallback(UIHelperBase helper)
         {
             AddFlatGroup(helper, "category.emergency", ModSettings.EmergencyVehiclesEnabled);
