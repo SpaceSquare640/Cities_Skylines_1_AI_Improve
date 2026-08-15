@@ -1,0 +1,47 @@
+[h1]v1.0.60 - Settings UI, tuning sliders, and a serious scan fix[/h1]
+
+This update adds a real settings interface. Every feature can now be turned on or off individually, several values are adjustable, and the interface is available in English, 繁體中文 and 简体中文.
+
+[h2]New: settings interface[/h2]
+[list]
+[*] [b]Full settings page[/b] - ESC → Options → Content Manager → Mods → AI_Improve. Tabbed page with a header showing the mod version, nine feature toggles, tuning sliders, and links.
+[*] [b]Quick in-game panel[/b] - adds an AI_Improve button to the [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2966990700]UnifiedUI[/url] toolbar so settings can be changed without leaving your city. UnifiedUI is optional; without it everything is still fully configurable from Content Manager.
+[*] [b]Nine independent toggles[/b] - emergency vehicles, metro, intercity trains, aircraft, local buses & passenger helicopters, intercity buses, ordinary city traffic, citizens, race cars. Metro and intercity trains are separate switches, as are local and intercity buses.
+[*] Turning a category off makes it behave exactly as if the feature had never been written - the game's own original code runs untouched.
+[*] [b]Multi-language[/b] - follows your game language automatically, and can be overridden to English, 繁體中文 or 简体中文 from the settings header.
+[/list]
+
+[h2]New: adjustable values[/h2]
+Previously fixed constants, now sliders on the Tuning tab. Defaults match the old fixed values exactly, so nothing changes until you move one.
+[list]
+[*] Race car max speed (40-160, default 80)
+[*] Max fire responders per burning building (5-50, default 20)
+[*] Intercity train low-ridership skip threshold (0-200, default 50; set to 0 to disable that throttle entirely)
+[/list]
+
+[h2]New: empty vehicle cleanup[/h2]
+[list]
+[*] Two buttons on the in-game panel scan for intercity trains / intercity buses currently carrying zero passengers, report how many were found, and delete them only if you confirm. Scanning by itself changes nothing.
+[/list]
+
+[h2]Fixes[/h2]
+[list]
+[*] [b]Important - empty vehicle scan could match your own train lines.[/b] The scan treated any non-metro passenger train as "intercity", which also matched player-created in-city train lines and monorail. If one of those trains happened to be empty when you ran a scan, it was offered up for deletion. It now correctly matches only trains arriving from outside connections. Your own train lines, metro, monorail and trams are never touched.
+[*] Vehicles are also re-checked immediately before deletion, so a vehicle that picked up passengers while the confirmation dialog was open is skipped rather than removed.
+[*] Vehicle deletion now runs on the simulation thread instead of the UI thread, removing a race condition that could corrupt internal state.
+[*] Fixed the UnifiedUI button appearing as a detached grey box instead of joining the toolbar, on setups where several mods each bundle a different version of the UnifiedUI library.
+[*] Fixed stale per-vehicle state surviving after a vehicle despawned. Because the game recycles vehicle IDs, a new vehicle could inherit a dead one's rerouting cooldown (blocking it from rerouting for up to 40 seconds) or its dispatch timestamp (producing wildly wrong emergency response times in the log).
+[*] The settings page previously reported "Version 0.0.0"; it now shows a real version tied to the exact source commit the build came from.
+[/list]
+
+[h2]Performance[/h2]
+[list]
+[*] [b]Log output reduced by roughly 96%.[/b] Measured on a real city, over 2500 of the mod's ~2600 log lines in a single session came from one per-aircraft diagnostic - and every line is a disk write. Per-vehicle logging is now off by default, behind a [b]Verbose logging[/b] switch on the Tuning tab. Turn it on only when reproducing a problem for a bug report.
+[*] Per-vehicle congestion checks are now spread across simulation ticks instead of every vehicle being checked every tick, cutting that hot path's cost substantially in large cities.
+[*] Reordered the same hot path so the cheapest checks run first - a string lookup was running for every vehicle every tick, ahead of the very check meant to make that path cheap.
+[/list]
+
+[h2]Reporting problems[/h2]
+Please open an issue on [url=https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/issues/new/choose]GitHub[/url] and attach your full Cities_Data/output_log.txt. Turn on Verbose logging before reproducing the problem, and include the version string shown in the settings header - it identifies the exact code your build came from.
+
+Full settings reference: [url=https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/wiki/Settings]Settings wiki page[/url]
