@@ -46,7 +46,11 @@ namespace AIImprove
                 Debug.Log("[AIImprove] HelicopterWeatherHaltPatch is executing.");
             }
 
-            Debug.Log("[AIImprove] Helicopter " + vehicleID + " dispatch refused - grounded for thunderstorm.");
+            // BUG FOUND VIA LOG ANALYSIS (2026-08-16): this was an unconditional Debug.Log on a
+            // per-dispatch path, so it bypassed the Verbose gate the rest of the project moved to
+            // during the 96%-log-reduction pass - 530 lines in a single session even with Verbose
+            // off, and every line is a disk write.
+            Log.Verbose("[AIImprove] Helicopter " + vehicleID + " dispatch refused - grounded for thunderstorm.");
             __result = false;
             return false;
         }

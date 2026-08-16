@@ -108,7 +108,9 @@ namespace AIImprove
             AirTrafficControlManager.AssignGate(vehicleID, bestSegment);
             endPos = bestPos;
 
-            Debug.Log("[AIImprove] Passenger helicopter " + vehicleID + " assigned landing segment " + bestSegment + " (occupancy was " + bestOccupancy + ").");
+            // Same unconditional-Debug.Log-on-a-hot-path bug as HelicopterWeatherHaltPatch, found
+            // in the same 2026-08-16 audit - one line per landing, ignoring the Verbose gate.
+            Log.Verbose("[AIImprove] Passenger helicopter " + vehicleID + " assigned landing segment " + bestSegment + " (occupancy was " + bestOccupancy + ").");
             return true;
         }
     }

@@ -37,6 +37,29 @@ namespace AIImprove
                     continue;
                 }
 
+                // BUG FOUND VIA LOG ANALYSIS (2026-08-16), root cause of the player report
+                // "建築物火災，但沒有派遣任何消防車輛或直升機":
+                //
+                // `Created && !Deleted` is NOT "this disaster is happening right now" - it only
+                // means the record still occupies a slot. A thunderstorm that fully ran its course
+                // keeps Created set (and stays undeleted) until the game eventually recycles the
+                // slot, so this loop kept reporting an active storm long after the weather had
+                // cleared. Measured in a real 62-minute session: emergency helicopters were
+                // refused dispatch in 55 of those minutes continuously, and airports refused
+                // 13,003 landings - a real thunderstorm lasts minutes, not an hour. Because
+                // HelicopterWeatherHaltPatch grounds FireCopterAI along with the other emergency
+                // copters, this is exactly why burning buildings got no response at all.
+                //
+                // The correct test is the one vanilla itself uses (confirmed via dnSpy against
+                // DisasterManager, which gates its own experience-milestone logic on precisely
+                // this): a disaster is in progress only while Active or Clearing is set. Emerging
+                // is deliberately excluded - the storm hasn't actually hit yet - and Finished is
+                // the explicit terminal state that this check used to keep treating as live.
+                if ((flags & (DisasterData.Flags.Active | DisasterData.Flags.Clearing)) == DisasterData.Flags.None)
+                {
+                    continue;
+                }
+
                 DisasterInfo info = disasters.m_buffer[i].Info;
                 if (info != null && info.m_disasterAI is ThunderStormAI)
                 {

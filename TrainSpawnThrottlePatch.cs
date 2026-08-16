@@ -68,7 +68,9 @@ namespace AIImprove
             if (ridership < (uint)ModSettings.IntercityLowRidershipThreshold.value &&
                 Singleton<SimulationManager>.instance.m_randomizer.Int32(100U) < (uint)(LowRidershipSkipChance * 100f))
             {
-                Debug.Log(
+                // Verbose-gated for the same reason as the helicopter logs (2026-08-16 audit):
+                // this fires per spawn attempt, not once.
+                Log.Verbose(
                     "[AIImprove] Skipped spawning an incoming intercity train - city-wide train " +
                     "ridership (" + ridership + ") is low, fewer trains are needed to serve real " +
                     "demand now that each one already carries a realistic pre-loaded passenger count.");
@@ -81,7 +83,7 @@ namespace AIImprove
                 return true;
             }
 
-            Debug.Log(
+            Log.Verbose(
                 "[AIImprove] Skipped spawning an incoming intercity train toward building " +
                 destinationStation + " - station was saturated as of its last observed platform " +
                 "search. Offer left unfulfilled this tick for TransferManager to retry.");
