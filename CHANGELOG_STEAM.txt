@@ -1,3 +1,10 @@
+[h1]2026-08-17 - Important fire response fix[/h1]
+[list]
+[*] [b]Fixed emergency helicopters being grounded (and airports closed) indefinitely after a thunderstorm ended.[/b] The check for "is a thunderstorm happening" only tested whether a disaster record still existed, not whether it was still running - and a finished storm's record lingers long after the weather clears. Measured in one 62-minute session: emergency helicopters were refused dispatch in 55 of those minutes continuously and airports refused over 13,000 landings. Because fire helicopters are grounded along with the other emergency helicopters, [b]this is why burning buildings could get no response at all[/b]. It now uses the same test the game itself uses, so a storm only counts while it is genuinely in progress.
+[*] [b]Fixed a growing slowdown around fire dispatch.[/b] The list of known burning buildings was never cleaned up - every building that had ever caught fire stayed in it for the rest of the session, and that whole list is re-scanned every time a fire vehicle looks for another fire to attend. It now drops buildings once their fire is out.
+[*] [b]Much smaller logs.[/b] Several per-vehicle diagnostics were still writing to the log even with Verbose logging turned off. In one player's session those accounted for 90% of the mod's entire log output. They now respect the Verbose logging switch like everything else.
+[/list]
+
 [h1]2026-08-16 - Two real bug fixes[/h1]
 [list]
 [*] [b]Fires could go completely unserviced when Transfer Manager CE is installed.[/b] Once the fire responder cap was hit, this mod handed target selection to TMCE and trusted it to eventually try a different building - in practice, TMCE could keep sending fresh trucks/helicopters back to the exact same already-full building indefinitely, so the fire never got a real responder. Now tracks consecutive failed hand-offs per building and, past a threshold, picks an alternate burning building itself instead of continuing to trust TMCE.

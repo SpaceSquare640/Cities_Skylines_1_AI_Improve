@@ -56,6 +56,11 @@ namespace AIImprove
         // rather than needing explicit removal here.
         private static readonly HashSet<ushort> KnownBurningBuildings = new HashSet<ushort>();
 
+        // Scratch buffer for TryFindAlternateBurningBuilding's cleanup pass - reused rather than
+        // allocated per call, since that method runs on an emergency dispatch hot path and this
+        // is only ever touched from the simulation thread.
+        private static readonly List<ushort> StaleBuildings = new List<ushort>();
+
         // Call before actually setting a vehicle's target building. Returns true if the
         // assignment is allowed (building is 0, i.e. clearing target, is always allowed).
         // Returns false if buildingId is already at the responder cap - caller should redirect
@@ -146,6 +151,19 @@ namespace AIImprove
             ushort best = 0;
             float bestDistSqr = float.MaxValue;
 
+            // BUG FOUND VIA AUDIT (2026-08-17): KnownBurningBuildings only ever grew - nothing
+            // anywhere removed from it. The original note below claimed it was "self-cleaning"
+            // because a dead entry gets skipped by the live m_fireIntensity re-check, but skipping
+            // is not removing: every building that has ever caught fire stayed in the set for the
+            // rest of the session, and this method walks the entire set on every call. On a mature
+            // city that is thousands of dead entries re-checked per call, and this runs on an
+            // emergency hot path - once per capped dispatch, plus once per idle fire vehicle when
+            // FireIdleSeekEnabled is on. Now genuinely self-cleaning: entries confirmed dead by
+            // the live check are collected and dropped after the walk (a HashSet can't be
+            // modified while enumerating it), so the set stays proportional to fires actually
+            // burning rather than fires that ever burned.
+            StaleBuildings.Clear();
+
             foreach (ushort candidate in KnownBurningBuildings)
             {
                 if (candidate == 0 || candidate == excludeBuilding)
@@ -155,6 +173,7 @@ namespace AIImprove
 
                 if (GetFireIntensity(candidate) <= 0f)
                 {
+                    StaleBuildings.Add(candidate);
                     continue;
                 }
 
@@ -181,6 +200,12 @@ namespace AIImprove
                 }
             }
 
+            for (int i = 0; i < StaleBuildings.Count; i++)
+            {
+                KnownBurningBuildings.Remove(StaleBuildings[i]);
+            }
+
+            StaleBuildings.Clear();
             return best;
         }
 

@@ -66,6 +66,11 @@ namespace AIImprove
 
         private static bool TmceIsStarvingBuilding(ushort buildingId)
         {
+            // Only ever counts up while the building keeps being punted; ResetPuntStreak drops the
+            // entry entirely on any successful assignment, so this dictionary stays proportional
+            // to buildings currently stuck rather than every building that was ever capped.
+            // Deliberately not growing it for a building whose fire has since gone out - callers
+            // only reach here while that building is an active, capped dispatch target.
             int streak;
             TmcePuntStreak.TryGetValue(buildingId, out streak);
             streak++;
