@@ -1,3 +1,9 @@
+[h1]2026-08-16 - Two real bug fixes[/h1]
+[list]
+[*] [b]Fires could go completely unserviced when Transfer Manager CE is installed.[/b] Once the fire responder cap was hit, this mod handed target selection to TMCE and trusted it to eventually try a different building - in practice, TMCE could keep sending fresh trucks/helicopters back to the exact same already-full building indefinitely, so the fire never got a real responder. Now tracks consecutive failed hand-offs per building and, past a threshold, picks an alternate burning building itself instead of continuing to trust TMCE.
+[*] [b]Settings could silently fail to load correctly on startup.[/b] A C# initialization-order issue meant some internal state was reading a value before the save file had finished registering. Fixed by guaranteeing registration always runs first.
+[/list]
+
 [h1]2026-08-15 - Settings UI, per-feature toggles, tuning sliders[/h1]
 
 This update adds a real settings interface. Every individual feature - not just broad categories - can now be turned on or off on its own, most of the numbers behind those features are adjustable, and the interface is available in English, 繁體中文 and 简体中文.
@@ -44,7 +50,6 @@ Occupancy-aware dock assignment for cargo ships and passenger ferries, closing t
 [*] Fixed the fire responder cap still applying even when its toggle was turned off (while leaving the idle-truck nearby-fire search on) - it now correctly does nothing when disabled, matching every other toggle.
 [*] [b]Removed the race car max speed override.[/b] Forcing every racer to the same flat top-speed ceiling could make them lose control on turns. Racer speed is fully vanilla again; the racetrack attractiveness boost is unaffected.
 [*] [b]Fixed the toolbar button having no icon.[/b] The UnifiedUI registration was passing an icon file path that this mod never actually shipped, so the button always rendered blank. It now builds a small icon at runtime instead - no file involved.
-[*] [b]Fixed settings failing to sync with the save file at startup.[/b] Nine internal migration fields (used only as one-time defaults for the per-feature toggles, never shown in the UI) were reading their own saved value before the settings file had finished registering, due to a C# initialization-order pitfall - confirmed via nine startup log warnings. They're now guaranteed to register first.
 [/list]
 
 [h2]Performance[/h2]
