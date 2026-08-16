@@ -127,7 +127,10 @@ namespace AIImprove
                 ushort otherVehicle;
                 if (ApproachingVehicle.TryGetValue(position.m_segment, out otherVehicle) && otherVehicle != vehicleID)
                 {
-                    Debug.Log(
+                    // Verbose-gated (2026-08-16 audit, same bug class as
+                    // EmergencyIgnoreCostsPatch): fires once per detected conflict, and on a map
+                    // with a lot of single-track rail that is a per-vehicle-pair message.
+                    Log.Verbose(
                         "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " and vehicle " +
                         otherVehicle + " are both approaching shared single-track segment " +
                         position.m_segment + " - this is the head-on-deadlock scenario a real " +

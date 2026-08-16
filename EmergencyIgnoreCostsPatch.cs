@@ -122,9 +122,19 @@ namespace AIImprove
             count++;
             HitCounts[ownerTypeName] = count;
 
+            // BUG FOUND VIA A REAL PLAYER'S LOG (hzs178073, 2026-08-16): this was an
+            // unconditional Debug.Log, so it survived the 96%-log-reduction pass untouched and
+            // became the single biggest source of this mod's log volume all over again - 584 of
+            // that player's 647 AIImprove lines (90%) were this one message, all from police
+            // dispatches in a busy city (their counter reached #2916 in one session).
+            //
+            // The one-time "is executing" sanity check above stays unconditional: it's a single
+            // line and it's the only cheap proof the transpiler actually runs. This per-dispatch
+            // counter has already served that purpose and is pure diagnostic detail, so it now
+            // sits behind the Verbose gate like every other per-vehicle message.
             if (count % DiagnosticLogInterval == 1)
             {
-                Debug.Log("[AIImprove] " + ownerTypeName + " emergency dispatch #" + count + " requested ignoreCosts=true.");
+                Log.Verbose("[AIImprove] " + ownerTypeName + " emergency dispatch #" + count + " requested ignoreCosts=true.");
             }
 
             return true;

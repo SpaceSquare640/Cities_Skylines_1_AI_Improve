@@ -149,9 +149,14 @@ namespace AIImprove
             }
 
             long hitNumber = System.Threading.Interlocked.Increment(ref emergencyHitCount);
+
+            // Verbose-gated in the same 2026-08-16 audit that caught the identical bug in
+            // EmergencyIgnoreCostsPatch (see its notes). This one sits on the per-segment path
+            // cost calculation - the hottest path this mod touches at all - so an unconditional
+            // Debug.Log here is the worst possible place to leave one, even at interval 200.
             if (hitNumber % DiagnosticLogInterval == 1)
             {
-                Debug.Log(
+                Log.Verbose(
                     "[AIImprove] Emergency priority cost adjustment fired (hit #" + hitNumber +
                     "): " + postCongestionCost + " -> " +
                     (preCongestionCost + (postCongestionCost - preCongestionCost) * EmergencyCongestionRetention));
