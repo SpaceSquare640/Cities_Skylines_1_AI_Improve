@@ -306,11 +306,15 @@ namespace AIImprove
                 NavKey = "nav.shipping",
                 Features =
                 {
+                    // Deliberately NOT reusing tune.gateCandidates / tune.stationSaturation here.
+                    // They were shared with Aviation and Rail, whose labels read "boarding gate"
+                    // and "station" - wording that is simply wrong for a harbour (2026-08-17,
+                    // spotted by the user in-game). Ships get their own dock/harbour keys.
                     Toggle("feature.shipDock", ModSettings.ShipDockAssignmentEnabled)
-                        .With("tune.gateCandidates", 8f, 50f, 1f,
+                        .With("tune.dockCandidates", 8f, 50f, 1f,
                             () => ModSettings.ShipDockCandidateCount.value,
                             v => ModSettings.ShipDockCandidateCount.value = Mathf.RoundToInt(v))
-                        .With("tune.stationSaturation", 5f, 60f, 1f,
+                        .With("tune.harborSaturation", 5f, 60f, 1f,
                             () => ModSettings.ShipDockSaturationThreshold.value,
                             v => ModSettings.ShipDockSaturationThreshold.value = Mathf.RoundToInt(v)),
                 },
