@@ -10,21 +10,30 @@ namespace AIImprove
 {
     // Content Manager settings page.
     //
-    // "我想把全部功能拆開，然後每個功能中的調整設定及數據可以拆開以及詳細調整" (2026-08-15):
-    // rebuilt again from the 9-category version to expose every one of the ~19 individual
-    // features and ~25 previously-hardcoded values ModSettings.cs now defines, instead of one
-    // toggle covering several unrelated behaviours. Ten sections instead of five, each with its
-    // own Toggles/Tuning tabs (or a single page where there's little to show).
+    // REBUILT (2026-08-17, "全新設計 content manager 中的 UI" + a Canva mockup the user approved).
+    // The previous version split every section into a "Toggles" tab and a "Tuning" tab, which
+    // meant a feature's switch and the numbers belonging to that same feature could never be on
+    // screen together. Four changes came out of that redesign:
     //
-    // Layout pattern (left-hand vertical section list + per-section horizontal tabs, dropdowns
-    // and sliders cloned from the game's own OptionsDropdownTemplate/OptionsSliderTemplate) is
-    // unchanged from the previous version - see AddSection/AddSliderRow for the mechanics and
-    // their notes on why templates are used instead of hand-assembling UIDropDown/UISlider.
+    //  1. CARDS, NOT TABS. One card per feature, holding its toggle and its own sliders. The
+    //     per-section tab strip is gone entirely (UITabstrip/UITabContainer no longer used, which
+    //     also retires the AddTabPage visibility bug worked around in the old build).
+    //  2. SEARCH. 48 controls across 12 sections was unnavigable. Features are now declared as
+    //     data (Section/Feature/Tunable below) instead of being hand-built per section, so a
+    //     single filter can match across every section at once.
+    //  3. DESCRIPTIONS ARE VISIBLE. They used to live only in a tooltip, which players had no
+    //     reason to know existed. Each card now renders its description under the title.
+    //  4. RESET. See ModSettings.ResetAllToDefaults.
+    //
+    // Section bodies are UIScrollablePanel: cards are much taller than the old one-line rows, so
+    // a busy section (Local Transport has five features) no longer fits in BodyHeight.
     //
     // Built on the page's real UIComponent tree (via the concrete UIHelper.self, which
-    // UIHelperBase's interface doesn't expose) rather than UIHelperBase's own methods, since
-    // UIHelperBase has no concept of tabs. If the tree fails to come together at runtime the page
-    // degrades to a plain flat toggle list (BuildFlatFallback) rather than rendering empty.
+    // UIHelperBase's interface doesn't expose). BuildContent is wrapped in a try/catch that falls
+    // back to a plain checkbox list - this version leans on more hand-assembled components
+    // (UITextField, UIScrollablePanel) than the old one, and a settings page that throws halfway
+    // through would otherwise leave the player with a half-drawn page and no way to change
+    // anything.
     internal static class SettingsPageUI
     {
         private const string RepoUrl = "https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve";
@@ -33,26 +42,315 @@ namespace AIImprove
         private const string DropdownTemplate = "OptionsDropdownTemplate";
         private const string SliderTemplate = "OptionsSliderTemplate";
 
-        private const float HeaderHeight = 100f;
+        private const float HeaderHeight = 112f;
         private const float NavWidth = 172f;
-        private const float BodyHeight = 440f;
-        private const float SubTabHeight = 32f;
+        private const float BodyHeight = 430f;
+        private const float CardPadding = 14f;
+        private const float RowHeight = 30f;
 
         private static readonly Color32 AccentColor = new Color32(58, 121, 187, 255);
         private static readonly Color32 AccentHoverColor = new Color32(78, 141, 207, 255);
         private static readonly Color32 AccentPressedColor = new Color32(45, 98, 154, 255);
-        private static readonly Color32 HeaderColor = new Color32(30, 40, 56, 255);
-        private static readonly Color32 NavColor = new Color32(38, 42, 50, 255);
-        private static readonly Color32 NavItemColor = new Color32(52, 57, 66, 255);
+        private static readonly Color32 HeaderColor = new Color32(35, 42, 54, 255);
+        private static readonly Color32 NavColor = new Color32(30, 36, 46, 255);
+        private static readonly Color32 NavItemColor = new Color32(36, 43, 55, 255);
         private static readonly Color32 NavItemHoverColor = new Color32(68, 74, 85, 255);
-        private static readonly Color32 TabColor = new Color32(48, 52, 60, 255);
-        private static readonly Color32 TabHoverColor = new Color32(64, 68, 78, 255);
+        private static readonly Color32 CardColor = new Color32(37, 44, 56, 255);
+        private static readonly Color32 FieldColor = new Color32(22, 26, 33, 255);
         private static readonly Color32 PillOnColor = new Color32(76, 175, 80, 255);
         private static readonly Color32 PillOffColor = new Color32(95, 95, 100, 255);
-        private static readonly Color32 MutedTextColor = new Color32(190, 195, 205, 255);
+        private static readonly Color32 MutedTextColor = new Color32(155, 163, 180, 255);
+        private static readonly Color32 LabelTextColor = new Color32(195, 202, 216, 255);
 
         private static readonly List<UIButton> NavButtons = new List<UIButton>();
         private static readonly List<UIPanel> Sections = new List<UIPanel>();
+
+        // Current search text. Kept across a RebuildInPlace so changing language (which rebuilds
+        // the whole tree) doesn't silently drop what the player typed.
+        private static string searchText = string.Empty;
+
+        // Remembered so controls built deep inside a card (the citizen transport presets) can ask
+        // for a rebuild without every builder having to thread root/helper down to them.
+        private static UIComponent currentRoot;
+        private static UIHelperBase currentHelper;
+
+        // ------------------------------------------------------------------------------------
+        // Declarative model
+        // ------------------------------------------------------------------------------------
+        // Everything the page renders is described here rather than imperatively built per
+        // section. That is what makes cross-section search possible at all: filtering is just a
+        // predicate over this list, instead of trying to reach into an already-constructed tree.
+
+        private sealed class Tunable
+        {
+            public string LabelKey;
+            public string DescKey;
+            public float Min;
+            public float Max;
+            public float Step;
+            public Func<float> Get;
+            public Action<float> Set;
+            public string Suffix = string.Empty;
+            /// Optional extra text appended to the localized label, for the two cases where one
+            /// section has the same tunable twice (local bus vs ordinary traffic density).
+            public string LabelQualifierKey;
+        }
+
+        private sealed class Feature
+        {
+            /// Localization key stem: Key is the title, Key + ".desc" is the description.
+            public string Key;
+            /// null for a card that is only tunables (the Advanced section).
+            public SavedBool Toggle;
+            public readonly List<Tunable> Tunables = new List<Tunable>();
+            /// Optional extra content drawn at the bottom of the card, after the sliders.
+            /// Signature: (card, x, y, width) => vertical space consumed. Used for the citizen
+            /// transport presets, which are buttons rather than a toggle or a slider.
+            public Func<UIPanel, float, float, float, float> ExtraBuilder;
+        }
+
+        private sealed class Section
+        {
+            public string NavKey;
+            public readonly List<Feature> Features = new List<Feature>();
+            /// Non-null for the hand-built pages (General, About) that aren't feature cards.
+            public Action<UIPanel, UIComponent, UIHelperBase> CustomBuilder;
+        }
+
+        private static Feature Toggle(string key, SavedBool setting)
+        {
+            return new Feature { Key = key, Toggle = setting };
+        }
+
+        private static Feature With(this Feature feature, string labelKey, float min, float max, float step,
+            Func<float> get, Action<float> set, string suffix = "", string labelQualifierKey = null)
+        {
+            feature.Tunables.Add(new Tunable
+            {
+                LabelKey = labelKey,
+                DescKey = labelKey + ".desc",
+                Min = min,
+                Max = max,
+                Step = step,
+                Get = get,
+                Set = set,
+                Suffix = suffix,
+                LabelQualifierKey = labelQualifierKey,
+            });
+            return feature;
+        }
+
+        private static Feature WithExtra(this Feature feature, Func<UIPanel, float, float, float, float> builder)
+        {
+            feature.ExtraBuilder = builder;
+            return feature;
+        }
+
+        private static List<Section> BuildModel()
+        {
+            var model = new List<Section>();
+
+            // REORGANISED (2026-08-17, "我覺得要重新分類選單上的選項，就例如市民與賽車及市民交通AI").
+            // The old section list still had the shape of the pre-split category toggles, and two
+            // problems came out of that. "Citizens & Races" bundled citizen behaviour together
+            // with a Races-DLC building bonus that has nothing to do with it, while "Citizen
+            // Transport AI" - also citizen behaviour - sat in a separate section further down with
+            // unrelated sections in between, so one topic was split across two places. Metro and
+            // intercity trains were likewise apart despite both being rail, and "Local Transport"
+            // mixed buses, passenger helicopters and private cars into one page.
+            //
+            // Sections are now ordered the way a player thinks about their city - who moves
+            // (citizens), what responds to trouble (emergency), then one section per transport
+            // mode - with races standing on their own as the DLC extra they are.
+            //
+            // Several sections still contain a slider labelled just "Reroute density threshold".
+            // That is fine now in a way it wasn't under the old shared tuning tab: each one sits
+            // inside its own feature card, so the card title supplies the context that previously
+            // needed a qualifier appended to the label.
+
+            model.Add(new Section { NavKey = "nav.general", CustomBuilder = BuildGeneralPage });
+
+            model.Add(new Section
+            {
+                NavKey = "nav.citizens",
+                Features =
+                {
+                    Toggle("feature.citizenCar", ModSettings.CitizenCarProbabilityEnabled)
+                        .With("tune.citizenCarDensity", 20f, 100f, 5f,
+                            () => ModSettings.CitizenCarDensityThreshold.value,
+                            v => ModSettings.CitizenCarDensityThreshold.value = Mathf.RoundToInt(v))
+                        .With("tune.citizenCarReduction", 0f, 100f, 5f,
+                            () => ModSettings.CitizenCarMaxReductionPercent.value,
+                            v => ModSettings.CitizenCarMaxReductionPercent.value = Mathf.RoundToInt(v), "%"),
+                    Toggle("feature.citizenTaxi", ModSettings.CitizenTaxiProbabilityEnabled)
+                        .With("tune.taxiMultiplier", 100f, 400f, 10f,
+                            () => ModSettings.CitizenTaxiMultiplierPercent.value,
+                            v => ModSettings.CitizenTaxiMultiplierPercent.value = Mathf.RoundToInt(v), "%")
+                        .With("tune.taxiFlatBonus", 0f, 20f, 1f,
+                            () => ModSettings.CitizenTaxiFlatBonus.value,
+                            v => ModSettings.CitizenTaxiFlatBonus.value = Mathf.RoundToInt(v)),
+                    Toggle("feature.citizenTransportMode", ModSettings.CitizenTransportModeEnabled)
+                        .With("tune.citizenWalkWeight", 0f, 100f, 1f,
+                            () => ModSettings.CitizenWalkWeight.value,
+                            v => ModSettings.CitizenWalkWeight.value = Mathf.RoundToInt(v))
+                        .With("tune.citizenDriveWeight", 0f, 100f, 1f,
+                            () => ModSettings.CitizenDriveWeight.value,
+                            v => ModSettings.CitizenDriveWeight.value = Mathf.RoundToInt(v))
+                        .With("tune.citizenTaxiWeight", 0f, 100f, 1f,
+                            () => ModSettings.CitizenTaxiWeight.value,
+                            v => ModSettings.CitizenTaxiWeight.value = Mathf.RoundToInt(v))
+                        .With("tune.citizenTransitWeight", 0f, 100f, 1f,
+                            () => ModSettings.CitizenTransitWeight.value,
+                            v => ModSettings.CitizenTransitWeight.value = Mathf.RoundToInt(v))
+                        .WithExtra(AddCitizenTransportPresets),
+                },
+            });
+
+            model.Add(new Section
+            {
+                NavKey = "nav.emergency",
+                Features =
+                {
+                    Toggle("feature.fireResponseCap", ModSettings.FireResponseCapEnabled)
+                        .With("tune.fireResponders", 5f, 50f, 1f,
+                            () => ModSettings.FireMaxRespondersPerBuilding.value,
+                            v => ModSettings.FireMaxRespondersPerBuilding.value = Mathf.RoundToInt(v))
+                        .With("tune.fireUncapMinutes", 5f, 60f, 1f,
+                            () => ModSettings.FireUncapAfterMinutes.value,
+                            v => ModSettings.FireUncapAfterMinutes.value = Mathf.RoundToInt(v)),
+                    Toggle("feature.fireIdleSeek", ModSettings.FireIdleSeekEnabled),
+                    Toggle("feature.helicopterWeatherHalt", ModSettings.HelicopterWeatherHaltEnabled),
+                },
+            });
+
+            model.Add(new Section
+            {
+                NavKey = "nav.road",
+                Features =
+                {
+                    Toggle("feature.trafficReroute", ModSettings.OrdinaryTrafficRerouteEnabled)
+                        .With("tune.rerouteDensity", 20f, 100f, 5f,
+                            () => ModSettings.OrdinaryTrafficRerouteDensityThreshold.value,
+                            v => ModSettings.OrdinaryTrafficRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
+                    Toggle("feature.localBusReroute", ModSettings.LocalBusRerouteEnabled)
+                        .With("tune.rerouteDensity", 20f, 100f, 5f,
+                            () => ModSettings.LocalBusRerouteDensityThreshold.value,
+                            v => ModSettings.LocalBusRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
+                    Toggle("feature.intercityBusReroute", ModSettings.IntercityBusRerouteEnabled)
+                        .With("tune.rerouteDensity", 20f, 100f, 5f,
+                            () => ModSettings.IntercityBusRerouteDensityThreshold.value,
+                            v => ModSettings.IntercityBusRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
+                },
+            });
+
+            model.Add(new Section
+            {
+                NavKey = "nav.rail",
+                Features =
+                {
+                    Toggle("feature.metroPlatform", ModSettings.MetroPlatformAssignmentEnabled),
+                    Toggle("feature.metroReroute", ModSettings.MetroRerouteEnabled)
+                        .With("tune.rerouteDensity", 20f, 100f, 5f,
+                            () => ModSettings.MetroRerouteDensityThreshold.value,
+                            v => ModSettings.MetroRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
+                    Toggle("feature.trainPlatform", ModSettings.IntercityTrainPlatformAssignmentEnabled)
+                        .With("tune.stationSaturation", 5f, 60f, 1f,
+                            () => ModSettings.TrainStationSaturationThreshold.value,
+                            v => ModSettings.TrainStationSaturationThreshold.value = Mathf.RoundToInt(v))
+                        .With("tune.platformCandidates", 8f, 40f, 1f,
+                            () => ModSettings.TrainPlatformCandidateCount.value,
+                            v => ModSettings.TrainPlatformCandidateCount.value = Mathf.RoundToInt(v)),
+                    Toggle("feature.trainReroute", ModSettings.IntercityTrainRerouteEnabled)
+                        .With("tune.rerouteDensity", 20f, 100f, 5f,
+                            () => ModSettings.IntercityTrainRerouteDensityThreshold.value,
+                            v => ModSettings.IntercityTrainRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
+                    Toggle("feature.trainSpawnThrottle", ModSettings.IntercityTrainSpawnThrottleEnabled)
+                        .With("tune.lowRidership", 0f, 200f, 5f,
+                            () => ModSettings.IntercityLowRidershipThreshold.value,
+                            v => ModSettings.IntercityLowRidershipThreshold.value = Mathf.RoundToInt(v))
+                        .With("tune.lowRidershipSkipChance", 0f, 100f, 5f,
+                            () => ModSettings.IntercityLowRidershipSkipPercent.value,
+                            v => ModSettings.IntercityLowRidershipSkipPercent.value = Mathf.RoundToInt(v), "%"),
+                    Toggle("feature.singleTrackDetector", ModSettings.SingleTrackConflictDetectorEnabled),
+                },
+            });
+
+            model.Add(new Section
+            {
+                NavKey = "nav.aviation",
+                Features =
+                {
+                    Toggle("feature.aircraftGate", ModSettings.AircraftGateAssignmentEnabled)
+                        .With("tune.gateCandidates", 8f, 50f, 1f,
+                            () => ModSettings.AircraftGateCandidateCount.value,
+                            v => ModSettings.AircraftGateCandidateCount.value = Mathf.RoundToInt(v))
+                        .With("tune.perGateCapacity", 1f, 20f, 1f,
+                            () => ModSettings.AircraftPerGateCapacity.value,
+                            v => ModSettings.AircraftPerGateCapacity.value = Mathf.RoundToInt(v)),
+                    Toggle("feature.aircraftReroute", ModSettings.AircraftRerouteEnabled)
+                        .With("tune.rerouteDensity", 20f, 100f, 5f,
+                            () => ModSettings.AircraftRerouteDensityThreshold.value,
+                            v => ModSettings.AircraftRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
+                    Toggle("feature.aircraftThunderstorm", ModSettings.AircraftThunderstormRefusalEnabled),
+                    Toggle("feature.helicopterGate", ModSettings.PassengerHelicopterGateAssignmentEnabled),
+                    Toggle("feature.helicopterReroute", ModSettings.PassengerHelicopterRerouteEnabled),
+                    Toggle("feature.helicopterCapacity", ModSettings.PassengerHelicopterCapacityEnabled)
+                        .With("tune.helicopterCapacity", 100f, 400f, 10f,
+                            () => ModSettings.PassengerHelicopterCapacityPercent.value,
+                            v => ModSettings.PassengerHelicopterCapacityPercent.value = Mathf.RoundToInt(v), "%"),
+                },
+            });
+
+            model.Add(new Section
+            {
+                NavKey = "nav.shipping",
+                Features =
+                {
+                    Toggle("feature.shipDock", ModSettings.ShipDockAssignmentEnabled)
+                        .With("tune.gateCandidates", 8f, 50f, 1f,
+                            () => ModSettings.ShipDockCandidateCount.value,
+                            v => ModSettings.ShipDockCandidateCount.value = Mathf.RoundToInt(v))
+                        .With("tune.stationSaturation", 5f, 60f, 1f,
+                            () => ModSettings.ShipDockSaturationThreshold.value,
+                            v => ModSettings.ShipDockSaturationThreshold.value = Mathf.RoundToInt(v)),
+                },
+            });
+
+            model.Add(new Section
+            {
+                NavKey = "nav.races",
+                Features =
+                {
+                    Toggle("feature.raceAttractiveness", ModSettings.RaceBuildingAttractivenessEnabled)
+                        .With("tune.raceAttractiveness", 100f, 400f, 10f,
+                            () => ModSettings.RaceBuildingAttractivenessPercent.value,
+                            v => ModSettings.RaceBuildingAttractivenessPercent.value = Mathf.RoundToInt(v), "%"),
+                },
+            });
+
+            model.Add(new Section
+            {
+                NavKey = "nav.advanced",
+                Features =
+                {
+                    new Feature { Key = "feature.rerouteTiming" }
+                        .With("tune.rerouteCooldown", 5f, 120f, 5f,
+                            () => ModSettings.RerouteCooldownSeconds.value,
+                            v => ModSettings.RerouteCooldownSeconds.value = Mathf.RoundToInt(v), "s")
+                        .With("tune.checkInterval", 1f, 128f, 1f,
+                            () => ModSettings.RerouteCheckIntervalFrames.value,
+                            v => ModSettings.RerouteCheckIntervalFrames.value = Mathf.RoundToInt(v)),
+                },
+            });
+
+            model.Add(new Section { NavKey = "tab.about", CustomBuilder = BuildAboutPage });
+
+            return model;
+        }
+
+        // ------------------------------------------------------------------------------------
+        // Entry point
+        // ------------------------------------------------------------------------------------
 
         public static void Build(UIHelperBase helper)
         {
@@ -63,7 +361,25 @@ namespace AIImprove
                 return;
             }
 
-            BuildContent(root, helper);
+            try
+            {
+                BuildContent(root, helper);
+            }
+            catch (Exception ex)
+            {
+                // A half-built page would leave the player unable to change anything at all, so
+                // wipe whatever got as far as being created and fall back to the plain list.
+                Debug.LogWarning(
+                    "[AIImprove] SettingsPageUI failed to build the full page, falling back to a " +
+                    "plain checkbox list. Reason: " + ex);
+
+                for (int i = root.components.Count - 1; i >= 0; i--)
+                {
+                    UnityEngine.Object.Destroy(root.components[i].gameObject);
+                }
+
+                BuildFlatFallback(helper);
+            }
         }
 
         private static void RebuildInPlace(UIComponent root, UIHelperBase helper)
@@ -80,6 +396,37 @@ namespace AIImprove
         {
             NavButtons.Clear();
             Sections.Clear();
+
+            currentRoot = root;
+            currentHelper = helper;
+
+            List<Section> model = BuildModel();
+
+            // BUG FOUND VIA SCREENSHOT (2026-08-17): the page came out as header, then the nav
+            // list, then the section content stacked underneath at full width - the left-nav /
+            // content-beside-it layout was gone entirely, and the top of the header was scrolled
+            // out of view.
+            //
+            // Root cause: the container Content Manager hands us has autoLayout switched on, so it
+            // positions children itself and every relativePosition assigned below is discarded.
+            // The stacked result (header + nav + a full-height section) is also taller than the
+            // options viewport, which is why the title, search box and reset button had scrolled
+            // off the top rather than being missing.
+            //
+            // Everything in this page is positioned absolutely, so auto-layout has to be off. Both
+            // concrete types that can turn up here own their own autoLayout property (they don't
+            // share a base class that declares it), hence the two casts.
+            UIPanel rootPanel = root as UIPanel;
+            if (rootPanel != null)
+            {
+                rootPanel.autoLayout = false;
+            }
+
+            UIScrollablePanel rootScrollable = root as UIScrollablePanel;
+            if (rootScrollable != null)
+            {
+                rootScrollable.autoLayout = false;
+            }
 
             BuildHeader(root, helper);
 
@@ -98,224 +445,30 @@ namespace AIImprove
             float sectionX = NavWidth + 8f;
             float sectionWidth = root.width - sectionX;
 
-            AddSection(root, nav, sectionX, sectionWidth, "nav.general",
-                new[] { "subtab.settings" },
-                pages => BuildGeneralPage(pages[0], root, helper));
+            bool searching = !string.IsNullOrEmpty(searchText);
 
-            AddSection(root, nav, sectionX, sectionWidth, "nav.emergency",
-                new[] { "subtab.toggles", "subtab.tuning" },
-                pages =>
-                {
-                    AddToggleRow(pages[0], "feature.fireResponseCap", ModSettings.FireResponseCapEnabled);
-                    AddToggleRow(pages[0], "feature.fireIdleSeek", ModSettings.FireIdleSeekEnabled);
-                    AddToggleRow(pages[0], "feature.helicopterWeatherHalt", ModSettings.HelicopterWeatherHaltEnabled);
+            if (searching)
+            {
+                // Search results replace the whole body: matches are drawn as one flat list
+                // across every section, with the owning section named on each card.
+                nav.isVisible = false;
+                BuildSearchResults(root, model, 0f, root.width);
+                return;
+            }
 
-                    AddSliderRow(pages[1], Localization.Get("tune.fireResponders"), 5f, 50f, 1f,
-                        ModSettings.FireMaxRespondersPerBuilding.value,
-                        v => ModSettings.FireMaxRespondersPerBuilding.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.fireResponders.desc"));
-                    AddSliderRow(pages[1], Localization.Get("tune.fireUncapMinutes"), 5f, 60f, 1f,
-                        ModSettings.FireUncapAfterMinutes.value,
-                        v => ModSettings.FireUncapAfterMinutes.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.fireUncapMinutes.desc"));
-                });
-
-            AddSection(root, nav, sectionX, sectionWidth, "nav.metro",
-                new[] { "subtab.toggles", "subtab.tuning" },
-                pages =>
-                {
-                    AddToggleRow(pages[0], "feature.metroPlatform", ModSettings.MetroPlatformAssignmentEnabled);
-                    AddToggleRow(pages[0], "feature.metroReroute", ModSettings.MetroRerouteEnabled);
-
-                    AddSliderRow(pages[1], Localization.Get("tune.rerouteDensity"), 20f, 100f, 5f,
-                        ModSettings.MetroRerouteDensityThreshold.value,
-                        v => ModSettings.MetroRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.rerouteDensity.desc"));
-                });
-
-            AddSection(root, nav, sectionX, sectionWidth, "nav.intercityTrain",
-                new[] { "subtab.toggles", "subtab.tuning" },
-                pages =>
-                {
-                    AddToggleRow(pages[0], "feature.trainPlatform", ModSettings.IntercityTrainPlatformAssignmentEnabled);
-                    AddToggleRow(pages[0], "feature.trainReroute", ModSettings.IntercityTrainRerouteEnabled);
-                    AddToggleRow(pages[0], "feature.trainSpawnThrottle", ModSettings.IntercityTrainSpawnThrottleEnabled);
-                    AddToggleRow(pages[0], "feature.singleTrackDetector", ModSettings.SingleTrackConflictDetectorEnabled);
-
-                    AddSliderRow(pages[1], Localization.Get("tune.stationSaturation"), 5f, 60f, 1f,
-                        ModSettings.TrainStationSaturationThreshold.value,
-                        v => ModSettings.TrainStationSaturationThreshold.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.stationSaturation.desc"));
-                    AddSliderRow(pages[1], Localization.Get("tune.platformCandidates"), 8f, 40f, 1f,
-                        ModSettings.TrainPlatformCandidateCount.value,
-                        v => ModSettings.TrainPlatformCandidateCount.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.platformCandidates.desc"));
-                    AddSliderRow(pages[1], Localization.Get("tune.rerouteDensity"), 20f, 100f, 5f,
-                        ModSettings.IntercityTrainRerouteDensityThreshold.value,
-                        v => ModSettings.IntercityTrainRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.rerouteDensity.desc"));
-                    AddSliderRow(pages[1], Localization.Get("tune.lowRidership"), 0f, 200f, 5f,
-                        ModSettings.IntercityLowRidershipThreshold.value,
-                        v => ModSettings.IntercityLowRidershipThreshold.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.lowRidership.desc"));
-                    AddSliderRow(pages[1], Localization.Get("tune.lowRidershipSkipChance"), 0f, 100f, 5f,
-                        ModSettings.IntercityLowRidershipSkipPercent.value,
-                        v => ModSettings.IntercityLowRidershipSkipPercent.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.lowRidershipSkipChance.desc"));
-                });
-
-            AddSection(root, nav, sectionX, sectionWidth, "nav.aircraft",
-                new[] { "subtab.toggles", "subtab.tuning" },
-                pages =>
-                {
-                    AddToggleRow(pages[0], "feature.aircraftGate", ModSettings.AircraftGateAssignmentEnabled);
-                    AddToggleRow(pages[0], "feature.aircraftReroute", ModSettings.AircraftRerouteEnabled);
-                    AddToggleRow(pages[0], "feature.aircraftThunderstorm", ModSettings.AircraftThunderstormRefusalEnabled);
-
-                    AddSliderRow(pages[1], Localization.Get("tune.gateCandidates"), 8f, 50f, 1f,
-                        ModSettings.AircraftGateCandidateCount.value,
-                        v => ModSettings.AircraftGateCandidateCount.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.gateCandidates.desc"));
-                    AddSliderRow(pages[1], Localization.Get("tune.perGateCapacity"), 1f, 20f, 1f,
-                        ModSettings.AircraftPerGateCapacity.value,
-                        v => ModSettings.AircraftPerGateCapacity.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.perGateCapacity.desc"));
-                    AddSliderRow(pages[1], Localization.Get("tune.rerouteDensity"), 20f, 100f, 5f,
-                        ModSettings.AircraftRerouteDensityThreshold.value,
-                        v => ModSettings.AircraftRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.rerouteDensity.desc"));
-                });
-
-            AddSection(root, nav, sectionX, sectionWidth, "nav.localTransport",
-                new[] { "subtab.toggles", "subtab.tuning" },
-                pages =>
-                {
-                    AddToggleRow(pages[0], "feature.localBusReroute", ModSettings.LocalBusRerouteEnabled);
-                    AddToggleRow(pages[0], "feature.trafficReroute", ModSettings.OrdinaryTrafficRerouteEnabled);
-                    AddToggleRow(pages[0], "feature.helicopterGate", ModSettings.PassengerHelicopterGateAssignmentEnabled);
-                    AddToggleRow(pages[0], "feature.helicopterReroute", ModSettings.PassengerHelicopterRerouteEnabled);
-                    AddToggleRow(pages[0], "feature.helicopterCapacity", ModSettings.PassengerHelicopterCapacityEnabled);
-
-                    AddSliderRow(pages[1], Localization.Get("tune.rerouteDensity") + " (" + Localization.Get("feature.localBusReroute") + ")",
-                        20f, 100f, 5f, ModSettings.LocalBusRerouteDensityThreshold.value,
-                        v => ModSettings.LocalBusRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.rerouteDensity.desc"));
-                    AddSliderRow(pages[1], Localization.Get("tune.rerouteDensity") + " (" + Localization.Get("feature.trafficReroute") + ")",
-                        20f, 100f, 5f, ModSettings.OrdinaryTrafficRerouteDensityThreshold.value,
-                        v => ModSettings.OrdinaryTrafficRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.rerouteDensity.desc"));
-                    AddSliderRow(pages[1], Localization.Get("tune.helicopterCapacity"), 100f, 400f, 10f,
-                        ModSettings.PassengerHelicopterCapacityPercent.value,
-                        v => ModSettings.PassengerHelicopterCapacityPercent.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.helicopterCapacity.desc"));
-                });
-
-            AddSection(root, nav, sectionX, sectionWidth, "nav.intercityBus",
-                new[] { "subtab.toggles", "subtab.tuning" },
-                pages =>
-                {
-                    AddToggleRow(pages[0], "feature.intercityBusReroute", ModSettings.IntercityBusRerouteEnabled);
-
-                    AddSliderRow(pages[1], Localization.Get("tune.rerouteDensity"), 20f, 100f, 5f,
-                        ModSettings.IntercityBusRerouteDensityThreshold.value,
-                        v => ModSettings.IntercityBusRerouteDensityThreshold.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.rerouteDensity.desc"));
-                });
-
-            AddSection(root, nav, sectionX, sectionWidth, "nav.cargo",
-                new[] { "subtab.toggles", "subtab.tuning" },
-                pages =>
-                {
-                    AddToggleRow(pages[0], "feature.shipDock", ModSettings.ShipDockAssignmentEnabled);
-
-                    AddSliderRow(pages[1], Localization.Get("tune.gateCandidates"), 8f, 50f, 1f,
-                        ModSettings.ShipDockCandidateCount.value,
-                        v => ModSettings.ShipDockCandidateCount.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.gateCandidates.desc"));
-                    AddSliderRow(pages[1], Localization.Get("tune.stationSaturation"), 5f, 60f, 1f,
-                        ModSettings.ShipDockSaturationThreshold.value,
-                        v => ModSettings.ShipDockSaturationThreshold.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.stationSaturation.desc"));
-                });
-
-            AddSection(root, nav, sectionX, sectionWidth, "nav.citizensRaces",
-                new[] { "subtab.toggles", "subtab.tuning" },
-                pages =>
-                {
-                    AddToggleRow(pages[0], "feature.citizenCar", ModSettings.CitizenCarProbabilityEnabled);
-                    AddToggleRow(pages[0], "feature.citizenTaxi", ModSettings.CitizenTaxiProbabilityEnabled);
-                    AddToggleRow(pages[0], "feature.raceAttractiveness", ModSettings.RaceBuildingAttractivenessEnabled);
-
-                    AddSliderRow(pages[1], Localization.Get("tune.citizenCarDensity"), 20f, 100f, 5f,
-                        ModSettings.CitizenCarDensityThreshold.value,
-                        v => ModSettings.CitizenCarDensityThreshold.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.citizenCarDensity.desc"));
-                    AddSliderRow(pages[1], Localization.Get("tune.citizenCarReduction"), 0f, 100f, 5f,
-                        ModSettings.CitizenCarMaxReductionPercent.value,
-                        v => ModSettings.CitizenCarMaxReductionPercent.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.citizenCarReduction.desc"));
-                    AddSliderRow(pages[1], Localization.Get("tune.taxiMultiplier"), 100f, 400f, 10f,
-                        ModSettings.CitizenTaxiMultiplierPercent.value,
-                        v => ModSettings.CitizenTaxiMultiplierPercent.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.taxiMultiplier.desc"));
-                    AddSliderRow(pages[1], Localization.Get("tune.taxiFlatBonus"), 0f, 20f, 1f,
-                        ModSettings.CitizenTaxiFlatBonus.value,
-                        v => ModSettings.CitizenTaxiFlatBonus.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.taxiFlatBonus.desc"));
-                    AddSliderRow(pages[1], Localization.Get("tune.raceAttractiveness"), 100f, 400f, 10f,
-                        ModSettings.RaceBuildingAttractivenessPercent.value,
-                        v => ModSettings.RaceBuildingAttractivenessPercent.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.raceAttractiveness.desc"));
-                });
-
-            AddSection(root, nav, sectionX, sectionWidth, "nav.citizenAI",
-                new[] { "subtab.toggles", "subtab.tuning" },
-                pages =>
-                {
-                    AddToggleRow(pages[0], "feature.citizenTransportMode", ModSettings.CitizenTransportModeEnabled);
-
-                    AddSliderRow(pages[1], Localization.Get("tune.citizenWalkWeight"), 0f, 100f, 1f,
-                        ModSettings.CitizenWalkWeight.value,
-                        v => ModSettings.CitizenWalkWeight.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.citizenWalkWeight.desc"));
-                    AddSliderRow(pages[1], Localization.Get("tune.citizenDriveWeight"), 0f, 100f, 1f,
-                        ModSettings.CitizenDriveWeight.value,
-                        v => ModSettings.CitizenDriveWeight.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.citizenDriveWeight.desc"));
-                    AddSliderRow(pages[1], Localization.Get("tune.citizenTaxiWeight"), 0f, 100f, 1f,
-                        ModSettings.CitizenTaxiWeight.value,
-                        v => ModSettings.CitizenTaxiWeight.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.citizenTaxiWeight.desc"));
-                    AddSliderRow(pages[1], Localization.Get("tune.citizenTransitWeight"), 0f, 100f, 1f,
-                        ModSettings.CitizenTransitWeight.value,
-                        v => ModSettings.CitizenTransitWeight.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.citizenTransitWeight.desc"));
-
-                    AddCitizenTransportPresets(pages[1], root, helper);
-                });
-
-            AddSection(root, nav, sectionX, sectionWidth, "nav.advanced",
-                new[] { "subtab.tuning" },
-                pages =>
-                {
-                    AddSliderRow(pages[0], Localization.Get("tune.rerouteCooldown"), 5f, 120f, 5f,
-                        ModSettings.RerouteCooldownSeconds.value,
-                        v => ModSettings.RerouteCooldownSeconds.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.rerouteCooldown.desc"));
-                    AddSliderRow(pages[0], Localization.Get("tune.checkInterval"), 1f, 128f, 1f,
-                        ModSettings.RerouteCheckIntervalFrames.value,
-                        v => ModSettings.RerouteCheckIntervalFrames.value = Mathf.RoundToInt(v), "0",
-                        Localization.Get("tune.checkInterval.desc"));
-                });
-
-            AddSection(root, nav, sectionX, sectionWidth, "tab.about",
-                new[] { "subtab.links" },
-                pages => BuildAboutPage(pages[0]));
+            for (int i = 0; i < model.Count; i++)
+            {
+                AddSection(root, nav, sectionX, sectionWidth, model[i], helper);
+            }
 
             SelectSection(0);
         }
 
         private static UIComponent GetRoot(UIHelperBase helper) => (helper as UIHelper)?.self as UIComponent;
+
+        // ------------------------------------------------------------------------------------
+        // Header
+        // ------------------------------------------------------------------------------------
 
         private static void BuildHeader(UIComponent root, UIHelperBase helper)
         {
@@ -329,78 +482,141 @@ namespace AIImprove
 
             UILabel title = header.AddUIComponent<UILabel>();
             title.text = "AI_Improve";
-            title.textScale = 1.4f;
+            title.textScale = 1.35f;
             title.textColor = Color.white;
-            title.relativePosition = new Vector3(16f, 14f);
+            title.relativePosition = new Vector3(16f, 12f);
 
             UILabel version = header.AddUIComponent<UILabel>();
             version.text = Localization.Get("about.version", GetVersionString());
-            version.textScale = 0.75f;
+            version.textScale = 0.7f;
             version.textColor = MutedTextColor;
-            version.relativePosition = new Vector3(16f, 46f);
+            version.relativePosition = new Vector3(16f, 44f);
 
             UILabel status = header.AddUIComponent<UILabel>();
             status.text = Localization.Get("header.status");
-            status.textScale = 0.75f;
+            status.textScale = 0.7f;
             status.textColor = new Color32(120, 220, 140, 255);
             status.relativePosition = new Vector3(16f, 62f);
 
-            UIButton languageButton = header.AddUIComponent<UIButton>();
-            languageButton.width = 130f;
-            languageButton.height = 32f;
-            languageButton.textScale = 0.8f;
-            StyleAccentButton(languageButton);
-            RefreshLanguageButtonText(languageButton);
-            languageButton.relativePosition = new Vector3(header.width - languageButton.width - 16f, 14f);
-            languageButton.eventClick += (component, param) =>
+            // Right-hand controls, laid out right to left.
+            UIButton reset = header.AddUIComponent<UIButton>();
+            reset.text = Localization.Get("header.reset");
+            reset.width = 150f;
+            reset.height = 28f;
+            reset.textScale = 0.72f;
+            reset.tooltip = Localization.Get("header.reset.desc");
+            StyleAccentButton(reset);
+            reset.relativePosition = new Vector3(header.width - reset.width - 16f, 12f);
+            reset.eventClick += (component, param) =>
             {
-                CycleLanguage();
-                RebuildInPlace(root, helper);
+                ConfirmPanel.ShowModal("AI_Improve", Localization.Get("header.reset.confirm"), (comp, ret) =>
+                {
+                    if (ret != 1)
+                    {
+                        return;
+                    }
+
+                    ModSettings.ResetAllToDefaults();
+                    RebuildInPlace(root, helper);
+                });
             };
 
             UIButton changelog = header.AddUIComponent<UIButton>();
             changelog.text = Localization.Get("header.changelog");
-            changelog.width = 170f;
-            changelog.height = 32f;
-            changelog.textScale = 0.8f;
+            changelog.width = 150f;
+            changelog.height = 28f;
+            changelog.textScale = 0.72f;
             StyleAccentButton(changelog);
-            changelog.relativePosition = new Vector3(header.width - changelog.width - 16f, 14f + languageButton.height + 6f);
+            changelog.relativePosition = new Vector3(header.width - changelog.width - 16f, 46f);
             changelog.eventClick += (component, param) => Application.OpenURL(RepoUrl + "/commits/main");
+
+            AddSearchField(header, root, helper);
         }
 
-        private static readonly string[] LanguageCodes = { "auto", "en", "zh-tw", "zh-cn" };
-        private static readonly string[] LanguageLabels = { "Auto", "English", "繁體中文", "简体中文" };
-
-        private static void CycleLanguage()
+        // Hand-assembled rather than cloned from a template: the game ships no options-page text
+        // field prefab (UITemplateManager has OptionsDropdownTemplate/OptionsSliderTemplate but no
+        // text-field equivalent), so the sprites come from SolidColorSprite like the pill toggles.
+        //
+        // Search applies on submit (Enter) and on focus loss rather than per keystroke, because
+        // every change rebuilds the entire page - doing that on each character typed would destroy
+        // the field mid-input and drop the player's caret.
+        private static void AddSearchField(UIPanel header, UIComponent root, UIHelperBase helper)
         {
-            int index = Array.IndexOf(LanguageCodes, ModSettings.LanguageOverride.value);
-            int nextIndex = (Mathf.Max(index, 0) + 1) % LanguageCodes.Length;
-            ModSettings.LanguageOverride.value = LanguageCodes[nextIndex];
+            float fieldWidth = Mathf.Min(300f, header.width - 400f);
+            if (fieldWidth < 140f)
+            {
+                // Not enough header width on this resolution to place a search box without
+                // colliding with the buttons - skip it rather than overlap them.
+                return;
+            }
+
+            UILabel caption = header.AddUIComponent<UILabel>();
+            caption.text = Localization.Get("header.search");
+            caption.textScale = 0.7f;
+            caption.textColor = MutedTextColor;
+            caption.relativePosition = new Vector3(header.width - 182f - fieldWidth, 14f);
+
+            UITextField field = header.AddUIComponent<UITextField>();
+            field.atlas = SolidColorSprite.Atlas;
+            field.normalBgSprite = SolidColorSprite.SpriteName;
+            field.color = FieldColor;
+            field.width = fieldWidth;
+            field.height = 30f;
+            field.padding = new RectOffset(8, 8, 7, 0);
+            field.textScale = 0.8f;
+            field.textColor = Color.white;
+            field.cursorWidth = 2;
+            field.cursorBlinkTime = 0.45f;
+            field.selectOnFocus = true;
+            field.selectionSprite = SolidColorSprite.SpriteName;
+            field.selectionBackgroundColor = AccentColor;
+            field.horizontalAlignment = UIHorizontalAlignment.Left;
+            field.verticalAlignment = UIVerticalAlignment.Middle;
+            field.builtinKeyNavigation = true;
+            field.submitOnFocusLost = true;
+            field.text = searchText;
+            field.relativePosition = new Vector3(header.width - 182f - fieldWidth, 34f);
+
+            field.eventTextSubmitted += (component, value) =>
+            {
+                string trimmed = (value ?? string.Empty).Trim();
+                if (trimmed == searchText)
+                {
+                    return;
+                }
+
+                searchText = trimmed;
+                RebuildInPlace(root, helper);
+            };
         }
 
-        private static void RefreshLanguageButtonText(UIButton button)
-        {
-            int index = Array.IndexOf(LanguageCodes, ModSettings.LanguageOverride.value);
-            button.text = LanguageLabels[Mathf.Max(index, 0)];
-        }
+        // ------------------------------------------------------------------------------------
+        // Sections
+        // ------------------------------------------------------------------------------------
 
         private static void AddSection(
             UIComponent root, UIComponent nav, float sectionX, float sectionWidth,
-            string navKey, string[] subTabKeys, Action<UIPanel[]> fillPages)
+            Section spec, UIHelperBase helper)
         {
             int index = Sections.Count;
 
             UIButton navButton = nav.AddUIComponent<UIButton>();
-            navButton.text = Localization.Get(navKey);
+            navButton.text = Localization.Get(spec.NavKey);
             navButton.width = NavWidth - 12f;
             navButton.height = 30f;
-            navButton.textScale = 0.8f;
+            navButton.textScale = 0.78f;
             navButton.atlas = SolidColorSprite.Atlas;
             navButton.normalBgSprite = SolidColorSprite.SpriteName;
             navButton.color = NavItemColor;
             navButton.hoveredColor = NavItemHoverColor;
             navButton.pressedColor = AccentPressedColor;
-            navButton.textColor = Color.white;
+            // BUG FOUND VIA SCREENSHOT (2026-08-17): the clicked nav entry rendered as a blank
+            // white box. UIButton keeps focus after a click and falls back to its own default
+            // focusedColor, which overrode the accent colour SelectSection assigns - and with
+            // white-on-white the label vanished too. SelectSection drives the selected look, so
+            // focus must not re-tint the button at all.
+            navButton.focusedColor = NavItemColor;
+            navButton.textColor = LabelTextColor;
             navButton.textHorizontalAlignment = UIHorizontalAlignment.Left;
             navButton.textPadding = new RectOffset(10, 0, 7, 0);
             navButton.eventClick += (component, param) => SelectSection(index);
@@ -413,85 +629,446 @@ namespace AIImprove
             section.isVisible = false;
             Sections.Add(section);
 
-            if (subTabKeys.Length == 1)
+            UIScrollablePanel body = CreateScrollBody(section, sectionWidth, BodyHeight);
+
+            if (spec.CustomBuilder != null)
             {
-                // Single-page section (General/Advanced/About) - no point in a one-item tab strip.
-                UIPanel onlyPage = section.AddUIComponent<UIPanel>();
-                onlyPage.width = sectionWidth;
-                onlyPage.height = BodyHeight;
-                onlyPage.relativePosition = Vector3.zero;
-                onlyPage.autoLayout = true;
-                onlyPage.autoLayoutDirection = LayoutDirection.Vertical;
-                onlyPage.autoLayoutPadding = new RectOffset(0, 0, 0, 6);
-                onlyPage.padding = new RectOffset(10, 10, 12, 10);
-
-                fillPages(new[] { onlyPage });
-                return;
-            }
-
-            UITabstrip strip = section.AddUIComponent<UITabstrip>();
-            strip.width = sectionWidth;
-            strip.height = SubTabHeight;
-            strip.relativePosition = Vector3.zero;
-
-            UITabContainer container = section.AddUIComponent<UITabContainer>();
-            container.width = sectionWidth;
-            container.height = BodyHeight - SubTabHeight - 6f;
-            container.relativePosition = new Vector3(0f, SubTabHeight + 6f);
-            strip.tabPages = container;
-
-            foreach (string key in subTabKeys)
-            {
-                StyleTab(strip.AddTab(Localization.Get(key)));
-            }
-
-            UIPanel[] pages = new UIPanel[subTabKeys.Length];
-            for (int i = 0; i < subTabKeys.Length; i++)
-            {
-                if (i >= container.components.Count || !(container.components[i] is UIPanel page))
-                {
-                    Debug.Log("[AIImprove] SettingsPageUI: sub-tab page " + i + " missing for " + navKey + ".");
-                    return;
-                }
-
-                // BUG FOUND VIA SCREENSHOT (2026-08-15): UITabContainer.AddTabPage(string) doesn't
-                // hide the pages it creates (only the lower-level GameObject overload does), and
-                // UITabstrip.selectedIndex no-ops when set to its already-default 0 - so without
-                // this every page in a section renders stacked on top of the others.
-                page.isVisible = i == 0;
+                UIPanel page = body.AddUIComponent<UIPanel>();
+                page.width = body.width - 20f;
                 page.autoLayout = true;
                 page.autoLayoutDirection = LayoutDirection.Vertical;
                 page.autoLayoutPadding = new RectOffset(0, 0, 0, 6);
-                page.padding = new RectOffset(10, 10, 12, 10);
-                pages[i] = page;
+                page.autoFitChildrenVertically = true;
+                spec.CustomBuilder(page, root, helper);
+                return;
             }
 
-            strip.selectedIndex = 0;
-            fillPages(pages);
+            for (int i = 0; i < spec.Features.Count; i++)
+            {
+                AddFeatureCard(body, spec.Features[i], null);
+            }
+        }
+
+        private static UIScrollablePanel CreateScrollBody(UIComponent parent, float width, float height)
+        {
+            UIScrollablePanel body = parent.AddUIComponent<UIScrollablePanel>();
+            body.width = width;
+            body.height = height;
+            body.relativePosition = Vector3.zero;
+            body.autoLayout = true;
+            body.autoLayoutDirection = LayoutDirection.Vertical;
+            body.autoLayoutPadding = new RectOffset(0, 0, 0, 8);
+            body.clipChildren = true;
+            body.scrollWheelDirection = UIOrientation.Vertical;
+            body.scrollWheelAmount = 24;
+            body.builtinKeyNavigation = true;
+            return body;
         }
 
         private static void SelectSection(int index)
         {
             for (int i = 0; i < Sections.Count; i++)
             {
-                Sections[i].isVisible = i == index;
-                NavButtons[i].color = i == index ? AccentColor : NavItemColor;
-                NavButtons[i].hoveredColor = i == index ? AccentHoverColor : NavItemHoverColor;
+                bool selected = i == index;
+                Sections[i].isVisible = selected;
+
+                // focusedColor is set alongside color on purpose: the entry the player just
+                // clicked is also the focused one, so leaving focusedColor at the non-selected
+                // colour would immediately undo the accent highlight (see AddSection's note).
+                NavButtons[i].color = selected ? AccentColor : NavItemColor;
+                NavButtons[i].focusedColor = selected ? AccentColor : NavItemColor;
+                NavButtons[i].hoveredColor = selected ? AccentHoverColor : NavItemHoverColor;
+                NavButtons[i].textColor = selected ? Color.white : LabelTextColor;
             }
         }
 
-        private static void StyleTab(UIButton tab)
+        // ------------------------------------------------------------------------------------
+        // Search
+        // ------------------------------------------------------------------------------------
+
+        private static void BuildSearchResults(UIComponent root, List<Section> model, float x, float width)
         {
-            tab.width = 140f;
-            tab.height = SubTabHeight;
-            tab.atlas = SolidColorSprite.Atlas;
-            tab.normalBgSprite = SolidColorSprite.SpriteName;
-            tab.textColor = Color.white;
-            tab.textScale = 0.85f;
-            tab.color = TabColor;
-            tab.hoveredColor = TabHoverColor;
-            tab.focusedColor = AccentColor;
-            tab.pressedColor = AccentPressedColor;
+            UIPanel section = root.AddUIComponent<UIPanel>();
+            section.width = width;
+            section.height = BodyHeight;
+            section.relativePosition = new Vector3(x, HeaderHeight + 6f);
+            Sections.Add(section);
+
+            UIScrollablePanel body = CreateScrollBody(section, width, BodyHeight);
+
+            string needle = searchText.ToLowerInvariant();
+            int matches = 0;
+
+            for (int s = 0; s < model.Count; s++)
+            {
+                Section spec = model[s];
+                for (int f = 0; f < spec.Features.Count; f++)
+                {
+                    Feature feature = spec.Features[f];
+                    if (!FeatureMatches(feature, needle))
+                    {
+                        continue;
+                    }
+
+                    AddFeatureCard(body, feature, Localization.Get(spec.NavKey));
+                    matches++;
+                }
+            }
+
+            if (matches == 0)
+            {
+                UILabel empty = body.AddUIComponent<UILabel>();
+                empty.text = Localization.Get("search.noResults", searchText);
+                empty.textScale = 0.85f;
+                empty.textColor = MutedTextColor;
+                empty.padding = new RectOffset(14, 14, 20, 0);
+            }
+        }
+
+        private static bool FeatureMatches(Feature feature, string needle)
+        {
+            if (Contains(Localization.Get(feature.Key), needle) ||
+                Contains(Localization.Get(feature.Key + ".desc"), needle))
+            {
+                return true;
+            }
+
+            for (int i = 0; i < feature.Tunables.Count; i++)
+            {
+                Tunable tunable = feature.Tunables[i];
+                if (Contains(Localization.Get(tunable.LabelKey), needle) ||
+                    Contains(Localization.Get(tunable.DescKey), needle))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool Contains(string haystack, string needle)
+        {
+            return !string.IsNullOrEmpty(haystack) && haystack.ToLowerInvariant().Contains(needle);
+        }
+
+        // ------------------------------------------------------------------------------------
+        // Feature card
+        // ------------------------------------------------------------------------------------
+
+        // One card = one feature: its title, its always-visible description, its pill toggle, and
+        // every slider that belongs to it. `sectionLabel`, when non-null, is drawn as a small
+        // caption so a search result still says which section it came from.
+        private static void AddFeatureCard(UIComponent parent, Feature feature, string sectionLabel)
+        {
+            UIPanel card = parent.AddUIComponent<UIPanel>();
+            card.width = parent.width - 24f;
+            card.atlas = SolidColorSprite.Atlas;
+            card.backgroundSprite = SolidColorSprite.SpriteName;
+            card.color = CardColor;
+
+            float y = CardPadding;
+            float innerWidth = card.width - (CardPadding * 2f);
+            float titleRightEdge = feature.Toggle != null ? innerWidth - 60f : innerWidth;
+
+            if (!string.IsNullOrEmpty(sectionLabel))
+            {
+                UILabel caption = card.AddUIComponent<UILabel>();
+                caption.text = sectionLabel.ToUpperInvariant();
+                caption.textScale = 0.62f;
+                caption.textColor = new Color32(120, 150, 200, 255);
+                caption.relativePosition = new Vector3(CardPadding, y);
+                y += 16f;
+            }
+
+            UILabel title = card.AddUIComponent<UILabel>();
+            title.text = Localization.Get(feature.Key);
+            title.textScale = 0.95f;
+            title.textColor = Color.white;
+            title.autoSize = false;
+            title.autoHeight = true;
+            title.wordWrap = true;
+            title.width = titleRightEdge;
+            title.relativePosition = new Vector3(CardPadding, y);
+
+            if (feature.Toggle != null)
+            {
+                AddPillToggle(card, card.width - CardPadding - 44f, y - 2f, feature.Toggle);
+            }
+
+            y += Mathf.Max(title.height, 20f) + 4f;
+
+            string description = Localization.Get(feature.Key + ".desc");
+            if (!string.IsNullOrEmpty(description) && description != feature.Key + ".desc")
+            {
+                // Also on the card as a whole, so hovering anywhere in it (not just the exact
+                // description line) surfaces the text - same reasoning as AddTunableRow's note.
+                card.tooltip = description;
+
+                UILabel desc = card.AddUIComponent<UILabel>();
+                desc.text = description;
+                desc.textScale = 0.75f;
+                desc.textColor = MutedTextColor;
+                desc.autoSize = false;
+                desc.autoHeight = true;
+                desc.wordWrap = true;
+                desc.width = innerWidth;
+                desc.relativePosition = new Vector3(CardPadding, y);
+                y += Mathf.Max(desc.height, 16f) + 6f;
+            }
+
+            for (int i = 0; i < feature.Tunables.Count; i++)
+            {
+                y += AddTunableRow(card, feature.Tunables[i], CardPadding, y, innerWidth);
+            }
+
+            if (feature.ExtraBuilder != null)
+            {
+                y += feature.ExtraBuilder(card, CardPadding, y, innerWidth);
+            }
+
+            card.height = y + CardPadding - 4f;
+        }
+
+        // Returns the vertical space consumed, so the caller can stack rows without needing the
+        // template's own (auto-layout driven) height to be correct first.
+        //
+        // REVISED (2026-08-17, player report "滑鼠放在滑桿或按鈕上並沒有顯示註解"): the explanation
+        // for each value used to exist only as a tooltip on the small caption label. Hovering the
+        // obvious target - the slider track itself - therefore showed nothing at all. Rather than
+        // chase that with more tooltips, the description is now drawn as visible text between the
+        // label and the track, which is exactly what this redesign already decided to do for
+        // feature descriptions and for the same reason: a tooltip nobody knows to hover for is not
+        // documentation. The tooltip is still attached as well, on the whole row, so the text
+        // being clipped on a narrow page doesn't lose the information.
+        private static float AddTunableRow(UIPanel card, Tunable tunable, float x, float y, float width)
+        {
+            string label = Localization.Get(tunable.LabelKey);
+            if (!string.IsNullOrEmpty(tunable.LabelQualifierKey))
+            {
+                label += " (" + Localization.Get(tunable.LabelQualifierKey) + ")";
+            }
+
+            string description = Localization.Get(tunable.DescKey);
+            bool hasDescription = !string.IsNullOrEmpty(description) && description != tunable.DescKey;
+
+            UILabel caption = card.AddUIComponent<UILabel>();
+            caption.text = label;
+            caption.textScale = 0.75f;
+            caption.textColor = LabelTextColor;
+            caption.relativePosition = new Vector3(x, y);
+            if (hasDescription)
+            {
+                caption.tooltip = description;
+            }
+
+            UILabel valueLabel = card.AddUIComponent<UILabel>();
+            valueLabel.textScale = 0.78f;
+            valueLabel.textColor = Color.white;
+            valueLabel.autoSize = false;
+            valueLabel.width = 70f;
+            valueLabel.height = 18f;
+            valueLabel.textAlignment = UIHorizontalAlignment.Right;
+            valueLabel.text = FormatValue(tunable, tunable.Get());
+            valueLabel.relativePosition = new Vector3(x + width - 70f, y);
+
+            float cursor = y + 18f;
+
+            if (hasDescription)
+            {
+                UILabel desc = card.AddUIComponent<UILabel>();
+                desc.text = description;
+                desc.textScale = 0.68f;
+                desc.textColor = MutedTextColor;
+                desc.autoSize = false;
+                desc.autoHeight = true;
+                desc.wordWrap = true;
+                desc.width = width;
+                desc.relativePosition = new Vector3(x, cursor);
+                cursor += Mathf.Max(desc.height, 13f) + 3f;
+            }
+
+            // Cloned from the game's own options slider so the track/thumb match vanilla exactly -
+            // hand-building a UISlider needs several sprite names this project can't verify.
+            UIPanel row = card.AttachUIComponent(UITemplateManager.GetAsGameObject(SliderTemplate)) as UIPanel;
+            if (row == null)
+            {
+                return (cursor - y) + 6f;
+            }
+
+            row.autoLayout = false;
+            row.width = width;
+            row.height = 18f;
+            row.relativePosition = new Vector3(x, cursor);
+            if (hasDescription)
+            {
+                row.tooltip = description;
+            }
+
+            UILabel templateLabel = row.Find<UILabel>("Label");
+            if (templateLabel != null)
+            {
+                // The template ships with its own caption; ours already sits above the track with
+                // the value readout aligned to it, so hide the built-in one rather than have two.
+                templateLabel.isVisible = false;
+            }
+
+            UISlider slider = row.Find<UISlider>("Slider");
+            if (slider == null)
+            {
+                return (cursor - y) + 24f;
+            }
+
+            slider.minValue = tunable.Min;
+            slider.maxValue = tunable.Max;
+            slider.stepSize = tunable.Step;
+            slider.value = tunable.Get();
+            slider.width = width;
+            slider.relativePosition = Vector3.zero;
+            if (hasDescription)
+            {
+                slider.tooltip = description;
+            }
+
+            slider.eventValueChanged += (component, val) =>
+            {
+                tunable.Set(val);
+                valueLabel.text = FormatValue(tunable, val);
+            };
+
+            return (cursor - y) + 26f;
+        }
+
+        private static string FormatValue(Tunable tunable, float value)
+        {
+            return Mathf.RoundToInt(value).ToString() + tunable.Suffix;
+        }
+
+        private struct CitizenTransportPreset
+        {
+            public readonly string LabelKey;
+            public readonly int Walk;
+            public readonly int Drive;
+            public readonly int Taxi;
+            public readonly int Transit;
+
+            public CitizenTransportPreset(string labelKey, int walk, int drive, int taxi, int transit)
+            {
+                LabelKey = labelKey;
+                Walk = walk;
+                Drive = drive;
+                Taxi = taxi;
+                Transit = transit;
+            }
+        }
+
+        // "直接套用模板［我想總共會有 4 個模板］" (2026-08-15). Percentages sum to 100 for
+        // readability, though CitizenTransportModePatch normalizes whatever four values it finds.
+        private static readonly CitizenTransportPreset[] CitizenTransportPresets =
+        {
+            new CitizenTransportPreset("preset.balanced", 30, 25, 5, 40),
+            new CitizenTransportPreset("preset.transitOriented", 25, 10, 5, 60),
+            new CitizenTransportPreset("preset.carDependent", 15, 60, 10, 15),
+            new CitizenTransportPreset("preset.walkable", 55, 5, 5, 35),
+        };
+
+        private static float AddCitizenTransportPresets(UIPanel card, float x, float y, float width)
+        {
+            UILabel caption = card.AddUIComponent<UILabel>();
+            caption.text = Localization.Get("preset.label");
+            caption.textScale = 0.75f;
+            caption.textColor = LabelTextColor;
+            caption.relativePosition = new Vector3(x, y);
+
+            float buttonY = y + 20f;
+            float gap = 6f;
+            float buttonWidth = (width - (gap * (CitizenTransportPresets.Length - 1))) / CitizenTransportPresets.Length;
+
+            for (int i = 0; i < CitizenTransportPresets.Length; i++)
+            {
+                CitizenTransportPreset preset = CitizenTransportPresets[i];
+
+                UIButton button = card.AddUIComponent<UIButton>();
+                button.text = Localization.Get(preset.LabelKey);
+                button.width = buttonWidth;
+                button.height = 26f;
+                button.textScale = 0.68f;
+                StyleAccentButton(button);
+                button.relativePosition = new Vector3(x + (buttonWidth + gap) * i, buttonY);
+                button.eventClick += (component, param) =>
+                {
+                    ModSettings.CitizenWalkWeight.value = preset.Walk;
+                    ModSettings.CitizenDriveWeight.value = preset.Drive;
+                    ModSettings.CitizenTaxiWeight.value = preset.Taxi;
+                    ModSettings.CitizenTransitWeight.value = preset.Transit;
+
+                    // The four sliders above show the old positions until they are rebuilt.
+                    if (currentRoot != null && currentHelper != null)
+                    {
+                        RebuildInPlace(currentRoot, currentHelper);
+                    }
+                };
+            }
+
+            return 52f;
+        }
+
+        // ------------------------------------------------------------------------------------
+        // Shared controls
+        // ------------------------------------------------------------------------------------
+
+        private static void AddPillToggle(UIComponent parent, float x, float y, SavedBool setting)
+        {
+            const float width = 40f;
+            const float height = 20f;
+
+            UIPanel background = parent.AddUIComponent<UIPanel>();
+            background.atlas = SolidColorSprite.Atlas;
+            background.backgroundSprite = SolidColorSprite.SpriteName;
+            background.width = width;
+            background.height = height;
+            background.relativePosition = new Vector3(x, y);
+            background.isInteractive = true;
+
+            UIPanel knob = background.AddUIComponent<UIPanel>();
+            knob.atlas = SolidColorSprite.Atlas;
+            knob.backgroundSprite = SolidColorSprite.SpriteName;
+            knob.color = Color.white;
+            knob.width = height - 4f;
+            knob.height = height - 4f;
+            knob.isInteractive = false;
+
+            void Refresh()
+            {
+                bool isOn = setting.value;
+                background.color = isOn ? PillOnColor : PillOffColor;
+                knob.relativePosition = new Vector3(isOn ? width - height + 2f : 2f, 2f);
+            }
+
+            Refresh();
+
+            background.eventClick += (component, param) =>
+            {
+                setting.value = !setting.value;
+                Refresh();
+            };
+        }
+
+        private static void AddPlainToggleRow(UIComponent parent, string label, SavedBool setting, string tooltip = null)
+        {
+            UIPanel row = parent.AddUIComponent<UIPanel>();
+            row.width = parent.width - 20f;
+            row.height = RowHeight;
+            if (!string.IsNullOrEmpty(tooltip))
+            {
+                row.tooltip = tooltip;
+            }
+
+            UILabel rowLabel = row.AddUIComponent<UILabel>();
+            rowLabel.text = label;
+            rowLabel.textScale = 0.85f;
+            rowLabel.relativePosition = new Vector3(4f, 7f);
+
+            AddPillToggle(row, row.width - 50f, 4f, setting);
         }
 
         private static void StyleAccentButton(UIButton button)
@@ -504,12 +1081,19 @@ namespace AIImprove
             button.textColor = Color.white;
         }
 
+        // ------------------------------------------------------------------------------------
+        // Hand-built pages
+        // ------------------------------------------------------------------------------------
+
         private static void BuildGeneralPage(UIPanel page, UIComponent root, UIHelperBase helper)
         {
             AddLanguageDropdown(page, root, helper);
             AddPlainToggleRow(page, Localization.Get("tune.verboseLogging"), ModSettings.VerboseLogging,
                 Localization.Get("tune.verboseLogging.desc"));
         }
+
+        private static readonly string[] LanguageCodes = { "auto", "en", "zh-tw", "zh-cn" };
+        private static readonly string[] LanguageLabels = { "Auto", "English", "繁體中文", "简体中文" };
 
         private static void AddLanguageDropdown(UIPanel page, UIComponent root, UIHelperBase helper)
         {
@@ -550,191 +1134,7 @@ namespace AIImprove
             };
         }
 
-        // Row shows just the feature name plus a pill switch. The description text still exists
-        // (Localization's ".desc" keys) but sits on the row's tooltip rather than always-on
-        // wrapped text, which would risk overflowing a fixed-height row.
-        private static void AddToggleRow(UIComponent parent, string featureKey, SavedBool setting)
-        {
-            UIPanel row = parent.AddUIComponent<UIPanel>();
-            row.width = parent.width - 20f;
-            row.height = 30f;
-            row.tooltip = Localization.Get(featureKey + ".desc");
-
-            UILabel label = row.AddUIComponent<UILabel>();
-            label.text = Localization.Get(featureKey);
-            label.textScale = 0.85f;
-            label.relativePosition = new Vector3(4f, 7f);
-
-            AddPillToggle(row, row.width - 54f, 4f, setting);
-        }
-
-        private static void AddPlainToggleRow(UIComponent parent, string label, SavedBool setting, string tooltip = null)
-        {
-            UIPanel row = parent.AddUIComponent<UIPanel>();
-            row.width = parent.width - 20f;
-            row.height = 30f;
-            if (!string.IsNullOrEmpty(tooltip))
-            {
-                row.tooltip = tooltip;
-            }
-
-            UILabel rowLabel = row.AddUIComponent<UILabel>();
-            rowLabel.text = label;
-            rowLabel.textScale = 0.85f;
-            rowLabel.relativePosition = new Vector3(4f, 7f);
-
-            AddPillToggle(row, row.width - 54f, 4f, setting);
-        }
-
-        private static void AddPillToggle(UIComponent parent, float x, float y, SavedBool setting)
-        {
-            const float width = 44f;
-            const float height = 22f;
-
-            UIPanel background = parent.AddUIComponent<UIPanel>();
-            background.atlas = SolidColorSprite.Atlas;
-            background.backgroundSprite = SolidColorSprite.SpriteName;
-            background.width = width;
-            background.height = height;
-            background.relativePosition = new Vector3(x, y);
-            background.isInteractive = true;
-
-            UIPanel knob = background.AddUIComponent<UIPanel>();
-            knob.atlas = SolidColorSprite.Atlas;
-            knob.backgroundSprite = SolidColorSprite.SpriteName;
-            knob.color = Color.white;
-            knob.width = height - 4f;
-            knob.height = height - 4f;
-            knob.isInteractive = false;
-
-            void Refresh()
-            {
-                bool isOn = setting.value;
-                background.color = isOn ? PillOnColor : PillOffColor;
-                knob.relativePosition = new Vector3(isOn ? width - height + 2f : 2f, 2f);
-            }
-
-            Refresh();
-
-            background.eventClick += (component, param) =>
-            {
-                setting.value = !setting.value;
-                Refresh();
-            };
-        }
-
-        // Cloned from the game's own options slider prefab so it matches vanilla styling, with the
-        // current value shown to the right of the track.
-        private static void AddSliderRow(
-            UIComponent parent, string label, float min, float max, float step,
-            float initialValue, Action<float> setValue, string valueFormat, string tooltip = null)
-        {
-            UIPanel row = parent.AttachUIComponent(UITemplateManager.GetAsGameObject(SliderTemplate)) as UIPanel;
-            if (row == null)
-            {
-                return;
-            }
-
-            row.width = parent.width - 20f;
-            if (!string.IsNullOrEmpty(tooltip))
-            {
-                row.tooltip = tooltip;
-            }
-
-            UILabel titleLabel = row.Find<UILabel>("Label");
-            if (titleLabel != null)
-            {
-                titleLabel.text = label;
-                titleLabel.textScale = 0.8f;
-            }
-
-            UISlider slider = row.Find<UISlider>("Slider");
-            if (slider == null)
-            {
-                return;
-            }
-
-            slider.minValue = min;
-            slider.maxValue = max;
-            slider.stepSize = step;
-            slider.value = initialValue;
-            slider.width = row.width - 90f;
-
-            UILabel valueLabel = row.AddUIComponent<UILabel>();
-            valueLabel.textScale = 0.85f;
-            valueLabel.textColor = MutedTextColor;
-            valueLabel.autoSize = false;
-            valueLabel.width = 70f;
-            valueLabel.height = 20f;
-            valueLabel.textAlignment = UIHorizontalAlignment.Right;
-            valueLabel.text = initialValue.ToString(valueFormat);
-            valueLabel.relativePosition = new Vector3(row.width - 78f, slider.relativePosition.y);
-
-            slider.eventValueChanged += (component, val) =>
-            {
-                setValue(val);
-                valueLabel.text = val.ToString(valueFormat);
-            };
-        }
-
-        private struct CitizenTransportPreset
-        {
-            public string LabelKey;
-            public int Walk;
-            public int Drive;
-            public int Taxi;
-            public int Transit;
-
-            public CitizenTransportPreset(string labelKey, int walk, int drive, int taxi, int transit)
-            {
-                LabelKey = labelKey;
-                Walk = walk;
-                Drive = drive;
-                Taxi = taxi;
-                Transit = transit;
-            }
-        }
-
-        // Four one-click presets for the Walk/Drive/Taxi/Transit weights - "直接套用模板［模板中的
-        // 百分比我想你幫我分配］［我想總共會有 4 個模板］" (2026-08-15). Percentages are mine to pick;
-        // each sums to 100 for readability, though the patch itself normalizes any 4 values.
-        private static readonly CitizenTransportPreset[] CitizenTransportPresets =
-        {
-            new CitizenTransportPreset("preset.balanced", 30, 25, 5, 40),
-            new CitizenTransportPreset("preset.transitOriented", 25, 10, 5, 60),
-            new CitizenTransportPreset("preset.carDependent", 15, 60, 10, 15),
-            new CitizenTransportPreset("preset.walkable", 55, 5, 5, 35),
-        };
-
-        private static void AddCitizenTransportPresets(UIComponent parent, UIComponent root, UIHelperBase helper)
-        {
-            UIPanel row = parent.AddUIComponent<UIPanel>();
-            row.width = parent.width - 20f;
-            row.height = 32f;
-            row.autoLayout = true;
-            row.autoLayoutDirection = LayoutDirection.Horizontal;
-            row.autoLayoutPadding = new RectOffset(0, 8, 0, 0);
-
-            foreach (CitizenTransportPreset preset in CitizenTransportPresets)
-            {
-                UIButton button = row.AddUIComponent<UIButton>();
-                button.text = Localization.Get(preset.LabelKey);
-                button.width = (row.width - 24f) / 4f;
-                button.height = 30f;
-                button.textScale = 0.7f;
-                StyleAccentButton(button);
-                button.eventClick += (component, param) =>
-                {
-                    ModSettings.CitizenWalkWeight.value = preset.Walk;
-                    ModSettings.CitizenDriveWeight.value = preset.Drive;
-                    ModSettings.CitizenTaxiWeight.value = preset.Taxi;
-                    ModSettings.CitizenTransitWeight.value = preset.Transit;
-                    RebuildInPlace(root, helper);
-                };
-            }
-        }
-
-        private static void BuildAboutPage(UIPanel page)
+        private static void BuildAboutPage(UIPanel page, UIComponent root, UIHelperBase helper)
         {
             AddLinkButton(page, Localization.Get("about.github"), RepoUrl);
             AddLinkButton(page, Localization.Get("about.wiki"), RepoUrl + "/wiki");
@@ -747,8 +1147,8 @@ namespace AIImprove
             UIButton button = parent.AddUIComponent<UIButton>();
             button.text = label;
             button.width = parent.width - 20f;
-            button.height = 32f;
-            button.textScale = 0.85f;
+            button.height = 30f;
+            button.textScale = 0.82f;
             StyleAccentButton(button);
             button.eventClick += (component, param) => Application.OpenURL(url);
         }
@@ -771,10 +1171,8 @@ namespace AIImprove
             return version.Major + "." + version.Minor + "." + version.Build;
         }
 
-        // Safety net for the unlikely case GetRoot or the tab construction doesn't work in-game.
-        // Flat list of the nine broad categories (not all ~19 features - this is a degraded
-        // fallback, not a second full UI to maintain), each toggle driving every feature that used
-        // to share that legacy category so the fallback still does something sensible.
+        // Safety net for the unlikely case GetRoot returns null or the real page throws while
+        // building. Deliberately a degraded view, not a second full UI to maintain.
         private static void BuildFlatFallback(UIHelperBase helper)
         {
             AddFlatGroup(helper, "緊急車輛 (Emergency)", ModSettings.FireResponseCapEnabled, ModSettings.FireIdleSeekEnabled, ModSettings.HelicopterWeatherHaltEnabled);

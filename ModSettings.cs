@@ -332,5 +332,89 @@ namespace AIImprove
         /// measurement that motivated it.
         public static readonly SavedBool VerboseLogging =
             new SavedBool("VerboseLogging", FileName, false, true);
+
+        // ---------------------------------------------------------------------------------
+        // Reset ("全新設計 content manager 中的 UI", 2026-08-17)
+        // ---------------------------------------------------------------------------------
+
+        /// Restores every player-facing setting to the value it ships with. Added alongside the
+        /// settings page redesign because there was previously no way back from a bad tuning
+        /// session other than editing each of the ~48 controls by hand.
+        ///
+        /// The feature toggles below reset to `true` rather than to their Legacy* migration
+        /// default: those legacy fields exist only to carry a pre-split save's choice forward on
+        /// first run, and all nine of them default to true anyway. "Reset to defaults" means the
+        /// values a fresh install would have, not a replay of that one-time migration.
+        ///
+        /// LanguageOverride is deliberately NOT reset - it is a display preference, not a
+        /// behaviour tuning value, and silently flipping a player's language back to "auto" while
+        /// they are reading this page would be hostile.
+        public static void ResetAllToDefaults()
+        {
+            FireResponseCapEnabled.value = true;
+            FireMaxRespondersPerBuilding.value = 20;
+            FireUncapAfterMinutes.value = 15;
+            FireIdleSeekEnabled.value = true;
+            HelicopterWeatherHaltEnabled.value = true;
+
+            MetroPlatformAssignmentEnabled.value = true;
+            MetroRerouteEnabled.value = true;
+            MetroRerouteDensityThreshold.value = 80;
+
+            IntercityTrainPlatformAssignmentEnabled.value = true;
+            TrainStationSaturationThreshold.value = 25;
+            TrainPlatformCandidateCount.value = 24;
+            IntercityTrainRerouteEnabled.value = true;
+            IntercityTrainRerouteDensityThreshold.value = 80;
+            IntercityTrainSpawnThrottleEnabled.value = true;
+            IntercityLowRidershipThreshold.value = 50;
+            IntercityLowRidershipSkipPercent.value = 50;
+            SingleTrackConflictDetectorEnabled.value = true;
+
+            AircraftGateAssignmentEnabled.value = true;
+            AircraftPerGateCapacity.value = 6;
+            AircraftGateCandidateCount.value = 26;
+            AircraftRerouteEnabled.value = true;
+            AircraftRerouteDensityThreshold.value = 80;
+            AircraftThunderstormRefusalEnabled.value = true;
+
+            PassengerHelicopterGateAssignmentEnabled.value = true;
+            PassengerHelicopterRerouteEnabled.value = true;
+            PassengerHelicopterCapacityEnabled.value = true;
+            PassengerHelicopterCapacityPercent.value = 200;
+
+            LocalBusRerouteEnabled.value = true;
+            LocalBusRerouteDensityThreshold.value = 80;
+            IntercityBusRerouteEnabled.value = true;
+            IntercityBusRerouteDensityThreshold.value = 60;
+
+            OrdinaryTrafficRerouteEnabled.value = true;
+            OrdinaryTrafficRerouteDensityThreshold.value = 80;
+
+            ShipDockAssignmentEnabled.value = true;
+            ShipDockCandidateCount.value = 24;
+            ShipDockSaturationThreshold.value = 25;
+
+            CitizenCarProbabilityEnabled.value = true;
+            CitizenCarDensityThreshold.value = 70;
+            CitizenCarMaxReductionPercent.value = 60;
+            CitizenTaxiProbabilityEnabled.value = true;
+            CitizenTaxiMultiplierPercent.value = 150;
+            CitizenTaxiFlatBonus.value = 2;
+
+            CitizenTransportModeEnabled.value = false;
+            CitizenWalkWeight.value = 25;
+            CitizenDriveWeight.value = 25;
+            CitizenTaxiWeight.value = 25;
+            CitizenTransitWeight.value = 25;
+
+            RaceBuildingAttractivenessEnabled.value = true;
+            RaceBuildingAttractivenessPercent.value = 200;
+
+            RerouteCooldownSeconds.value = 40;
+            RerouteCheckIntervalFrames.value = 32;
+
+            VerboseLogging.value = false;
+        }
     }
 }
