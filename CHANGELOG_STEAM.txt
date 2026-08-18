@@ -1,4 +1,15 @@
-[h1]2026-08-17 - Important fire response fix[/h1]
+[h1]2026-08-17 - Settings page rebuilt, and an important fire response fix[/h1]
+
+[h2]Settings page rebuilt[/h2]
+[list]
+[*] [b]Every feature is now a card[/b] holding its own switch and its own sliders together - the old design put a section's switches on one tab and its numbers on a different tab, so you could never see both at once for the same feature.
+[*] [b]Search box[/b] at the top of the page filters every setting across every section at once, showing which section each match came from.
+[*] [b]Descriptions are visible text now, not just a tooltip[/b] - under each feature's title and above each slider, in plain language.
+[*] [b]Reset to defaults[/b] button (with a confirmation prompt) restores every switch and every slider to what a fresh install ships with. Your language choice is left alone.
+[*] [b]Sections reorganized by transport mode[/b] instead of the old category split: General, Citizens, Emergency, Road Traffic, Rail, Aviation, Shipping & Cargo, Races, Advanced, About. Citizen behavior (car/taxi probability and the Citizen Transport AI weights) now lives in one place instead of two; Metro and Intercity Trains are merged into Rail; race cars are no longer bundled in with citizen settings.
+[/list]
+
+[h2]Important fire response fix[/h2]
 [list]
 [*] [b]Fixed emergency helicopters being grounded (and airports closed) indefinitely after a thunderstorm ended.[/b] The check for "is a thunderstorm happening" only tested whether a disaster record still existed, not whether it was still running - and a finished storm's record lingers long after the weather clears. Measured in one 62-minute session: emergency helicopters were refused dispatch in 55 of those minutes continuously and airports refused over 13,000 landings. Because fire helicopters are grounded along with the other emergency helicopters, [b]this is why burning buildings could get no response at all[/b]. It now uses the same test the game itself uses, so a storm only counts while it is genuinely in progress.
 [*] [b]Fixed a growing slowdown around fire dispatch.[/b] The list of known burning buildings was never cleaned up - every building that had ever caught fire stayed in it for the rest of the session, and that whole list is re-scanned every time a fire vehicle looks for another fire to attend. It now drops buildings once their fire is out.
