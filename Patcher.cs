@@ -55,6 +55,8 @@ namespace AIImprove
             TryPatchFlexibleReroute(harmony, typeof(CargoTruckAI), typeof(FlexibleReroutePatch.Car));
             TryPatchFireResponseCap(harmony, typeof(FireTruckAI), typeof(FireResponseCapPatch.Truck));
             TryPatchFireResponseCap(harmony, typeof(FireCopterAI), typeof(FireResponseCapPatch.Copter));
+            TryPatchSanitationIdleSeek(harmony, typeof(GarbageTruckAI), typeof(SanitationIdleSeekPatch.Garbage));
+            TryPatchSanitationIdleSeek(harmony, typeof(HearseAI), typeof(SanitationIdleSeekPatch.Hearse));
             TryPatchTrainSpawnThrottle(harmony);
             TryPatchCitizenCarProbability(harmony);
             TryPatchCitizenTaxiProbability(harmony);
@@ -628,6 +630,42 @@ namespace AIImprove
             {
                 Debug.LogWarning(
                     "[AIImprove] Fire response cap patch failed to apply for " + vehicleAiType.Name +
+                    ", skipping it. Rest of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
+        }
+
+        // Idle garbage trucks / hearses seek nearby buildings that still need collection instead
+        // of waiting on TransferManager's own priority/distance-weighted matching - see
+        // SanitationIdleSeekPatch.cs / SanitationIdleSeekTracker.cs. Same SetTarget(ushort, ref
+        // Vehicle, ushort) shape as TryPatchFireResponseCap.
+        private static bool TryPatchSanitationIdleSeek(Harmony harmony, Type vehicleAiType, Type patchWrapperType)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    vehicleAiType,
+                    "SetTarget",
+                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType(), typeof(ushort) });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] " + vehicleAiType.Name + ".SetTarget not found - game version " +
+                        "may have changed. Skipping sanitation idle-seek patch for " + vehicleAiType.Name + ".");
+                    return false;
+                }
+
+                MethodInfo prefix = patchWrapperType.GetMethod("Prefix", BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
+
+                Debug.Log("[AIImprove] Sanitation idle-seek patch applied for " + vehicleAiType.Name + ".");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Sanitation idle-seek patch failed to apply for " + vehicleAiType.Name +
                     ", skipping it. Rest of the mod is unaffected. Reason: " + ex.Message);
                 return false;
             }

@@ -290,6 +290,20 @@ namespace AIImprove
             new SavedInt("ShipDockSaturationThreshold", FileName, 25, true);
 
         // ---------------------------------------------------------------------------------
+        // Sanitation ("垃圾車／殯儀車調度", 2026-08-17 - see
+        // Cities_Skylines_1_AI_Improve_Document/10 for the TransferManager research this builds
+        // on without touching MatchOffers itself)
+        // ---------------------------------------------------------------------------------
+
+        /// New feature, no legacy category to inherit from - defaults on since it reuses the same
+        /// fail-open search-or-leave-vanilla-alone logic already proven safe for fire idle-seek.
+        public static readonly SavedBool GarbageIdleSeekEnabled =
+            new SavedBool("GarbageIdleSeekEnabled", FileName, true, true);
+
+        public static readonly SavedBool HearseIdleSeekEnabled =
+            new SavedBool("HearseIdleSeekEnabled", FileName, true, true);
+
+        // ---------------------------------------------------------------------------------
         // Races
         // ---------------------------------------------------------------------------------
 

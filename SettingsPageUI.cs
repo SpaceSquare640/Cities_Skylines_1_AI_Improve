@@ -225,6 +225,16 @@ namespace AIImprove
 
             model.Add(new Section
             {
+                NavKey = "nav.sanitation",
+                Features =
+                {
+                    Toggle("feature.garbageIdleSeek", ModSettings.GarbageIdleSeekEnabled),
+                    Toggle("feature.hearseIdleSeek", ModSettings.HearseIdleSeekEnabled),
+                },
+            });
+
+            model.Add(new Section
+            {
                 NavKey = "nav.road",
                 Features =
                 {
