@@ -20,20 +20,29 @@ namespace AIImprove
             string ownerTypeName, TransferManager.TransferReason material, VehicleAI aiInstance,
             ushort vehicleID, ref Vehicle data, ref ushort targetBuilding)
         {
-            if (targetBuilding != 0)
-            {
-                // Vanilla itself just proved this building has the need - record it as a future
-                // idle-seek candidate regardless of whether idle-seek is enabled, so the pool is
-                // already warm the moment a player turns the toggle on.
-                SanitationIdleSeekTracker.Observe(material, targetBuilding);
-                return;
-            }
-
             bool enabled = material == TransferManager.TransferReason.Dead
                 ? ModSettings.HearseIdleSeekEnabled.value
                 : ModSettings.GarbageIdleSeekEnabled.value;
+
+            // BUG FOUND VIA AUDIT (2026-08-23): Observe used to run unconditionally, including
+            // while the toggle is off, with the "pool stays warm for whenever it's turned on"
+            // rationale left in the comment below. That comment missed that the *only* place
+            // stale entries get pruned is inside TryFindNearby, a few lines down - which never
+            // runs at all while the toggle is off. Net effect: with idle-seek disabled, this
+            // silently grew KnownGarbageBuildings/KnownDeadBuildings for the entire session with
+            // no cleanup ever running - the opposite of every other feature's "off = never
+            // written" contract (see FireResponseTracker.TryAssign for the pattern this was
+            // supposed to mirror). Gating Observe behind the same toggle fixes both at once.
             if (!enabled)
             {
+                return;
+            }
+
+            if (targetBuilding != 0)
+            {
+                // Vanilla itself just proved this building has the need - record it as a future
+                // idle-seek candidate.
+                SanitationIdleSeekTracker.Observe(material, targetBuilding);
                 return;
             }
 
