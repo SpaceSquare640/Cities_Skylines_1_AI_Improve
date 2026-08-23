@@ -1,3 +1,10 @@
+[h1]2026-08-23 - Maintenance update[/h1]
+
+[list]
+[*] [b]Fixed the two new sanitation toggles growing their tracking lists forever while turned off.[/b] Garbage trucks/hearses idle-seeking still recorded every building it saw regardless of the toggle, but only cleaned that list up while the toggle was on - so turning it off meant the list just grew for the rest of the session instead of staying untouched like every other feature.
+[*] [b]Fixed "Reset to defaults" skipping the two new sanitation toggles.[/b] They were added after the reset button was built and never got wired into it, so resetting left them at whatever you'd set instead of restoring them too.
+[/list]
+
 [h1]2026-08-20 - Garbage trucks and hearses stop waiting on distant work[/h1]
 
 [b]New: idle garbage trucks/hearses seek nearby buildings[/b] (on by default, new "Sanitation" section). A truck or hearse that still has room checks for a nearby building that genuinely still needs it first, instead of only posting an offer and waiting on the game's own priority/distance-*weighted* matching - which is not the same as nearest-first, and can leave a truck idling while a much closer building with the same need goes unserved. Mid-route congestion rerouting was already covered for these vehicles (they're ordinary road vehicles); this closes the other real gap.
