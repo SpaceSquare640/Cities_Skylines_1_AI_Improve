@@ -371,6 +371,9 @@ namespace AIImprove
             FireIdleSeekEnabled.value = true;
             HelicopterWeatherHaltEnabled.value = true;
 
+            GarbageIdleSeekEnabled.value = true;
+            HearseIdleSeekEnabled.value = true;
+
             MetroPlatformAssignmentEnabled.value = true;
             MetroRerouteEnabled.value = true;
             MetroRerouteDensityThreshold.value = 80;
