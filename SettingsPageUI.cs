@@ -1106,8 +1106,10 @@ namespace AIImprove
                 Localization.Get("tune.verboseLogging.desc"));
         }
 
-        private static readonly string[] LanguageCodes = { "auto", "en", "zh-tw", "zh-cn" };
-        private static readonly string[] LanguageLabels = { "Auto", "English", "繁體中文", "简体中文" };
+        private static readonly string[] LanguageCodes =
+            { "auto", "en", "zh-tw", "zh-cn", "de", "fr", "ru", "es", "ja", "ko" };
+        private static readonly string[] LanguageLabels =
+            { "Auto", "English", "繁體中文", "简体中文", "Deutsch", "Français", "Русский", "Español", "日本語", "한국어" };
 
         private static void AddLanguageDropdown(UIPanel page, UIComponent root, UIHelperBase helper)
         {

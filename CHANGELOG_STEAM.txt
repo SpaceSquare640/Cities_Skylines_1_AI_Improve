@@ -1,3 +1,7 @@
+[h1]2026-08-24 - Six new interface languages[/h1]
+
+[b]New: German, French, Russian, Spanish, Japanese, and Korean[/b] join English, 繁體中文, and 简体中文 in the language dropdown (Settings → Advanced), each listed in its own script. Interface language still follows the game automatically unless you override it here.
+
 [h1]2026-08-23 - Maintenance update[/h1]
 
 [list]
