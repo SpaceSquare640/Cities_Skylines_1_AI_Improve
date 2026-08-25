@@ -132,7 +132,7 @@ namespace AIImprove
             // line and it's the only cheap proof the transpiler actually runs. This per-dispatch
             // counter has already served that purpose and is pure diagnostic detail, so it now
             // sits behind the Verbose gate like every other per-vehicle message.
-            if (count % DiagnosticLogInterval == 1)
+            if (count % DiagnosticLogInterval == 1 && Log.VerboseEnabled)
             {
                 Log.Verbose("[AIImprove] " + ownerTypeName + " emergency dispatch #" + count + " requested ignoreCosts=true.");
             }

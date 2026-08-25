@@ -154,7 +154,10 @@ namespace AIImprove
             // EmergencyIgnoreCostsPatch (see its notes). This one sits on the per-segment path
             // cost calculation - the hottest path this mod touches at all - so an unconditional
             // Debug.Log here is the worst possible place to leave one, even at interval 200.
-            if (hitNumber % DiagnosticLogInterval == 1)
+            // PERF (2026-08-24): the interval check alone still let 1-in-200 calls through even
+            // with Verbose logging off, on the hottest path this mod touches - added the missing
+            // VerboseEnabled check to match every other diagnostic in the project.
+            if (hitNumber % DiagnosticLogInterval == 1 && Log.VerboseEnabled)
             {
                 Log.Verbose(
                     "[AIImprove] Emergency priority cost adjustment fired (hit #" + hitNumber +

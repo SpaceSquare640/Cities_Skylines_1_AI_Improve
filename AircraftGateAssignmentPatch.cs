@@ -77,6 +77,16 @@ namespace AIImprove
         // guaranteeing the timeout path always actually lands the plane somewhere.
         private static readonly HashSet<ushort> ForceAssign = new HashSet<ushort>();
 
+        // PERF (2026-08-24 optimization pass): TryFindBestGate used to allocate a fresh
+        // HashSet<ushort> every single call - this Prefix fires on the main simulation thread for
+        // every aircraft landing decision (and again periodically per holding plane via
+        // HoldingPatternPatch), so a busy airport meant a steady stream of short-lived allocations
+        // purely to dedupe segments within one search. Reused across calls instead (cleared at the
+        // top of each search, same technique as PassengerHelicopterGateAssignmentPatch and
+        // ShipDockAssignmentPatch) - safe because this method never re-enters itself and always
+        // runs synchronously on the sim thread, never from the async PathManager worker threads.
+        private static readonly HashSet<ushort> SeenSegmentsScratch = new HashSet<ushort>();
+
         public static void BeginForceAssign(ushort vehicleId)
         {
             ForceAssign.Add(vehicleId);
@@ -105,7 +115,8 @@ namespace AIImprove
             bestSegment = 0;
             bestOccupancy = int.MaxValue;
             bool found = false;
-            var seenSegments = new HashSet<ushort>();
+            HashSet<ushort> seenSegments = SeenSegmentsScratch;
+            seenSegments.Clear();
 
             foreach (float searchRadius in SearchRadii)
             {
@@ -236,7 +247,14 @@ namespace AIImprove
                 WeatherDisasterDetector.IsThunderstormActive() &&
                 (IsAirportBuilding(vehicleData.m_sourceBuilding) || IsAirportBuilding(vehicleData.m_targetBuilding)))
             {
-                Log.Verbose("[AIImprove] Aircraft " + vehicleID + " refused - airport closed for thunderstorm.");
+                // PERF (2026-08-24): was concatenating unconditionally - see Log.cs's own
+                // guidance, callers must guard message-building with VerboseEnabled or pay the
+                // concatenation cost even with Verbose logging off.
+                if (Log.VerboseEnabled)
+                {
+                    Log.Verbose("[AIImprove] Aircraft " + vehicleID + " refused - airport closed for thunderstorm.");
+                }
+
                 return false;
             }
 

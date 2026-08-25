@@ -50,7 +50,14 @@ namespace AIImprove
             // per-dispatch path, so it bypassed the Verbose gate the rest of the project moved to
             // during the 96%-log-reduction pass - 530 lines in a single session even with Verbose
             // off, and every line is a disk write.
-            Log.Verbose("[AIImprove] Helicopter " + vehicleID + " dispatch refused - grounded for thunderstorm.");
+            // PERF (2026-08-24): was concatenating unconditionally - see Log.cs's own guidance,
+            // callers must guard message-building with VerboseEnabled or pay the concatenation
+            // cost even with Verbose logging off.
+            if (Log.VerboseEnabled)
+            {
+                Log.Verbose("[AIImprove] Helicopter " + vehicleID + " dispatch refused - grounded for thunderstorm.");
+            }
+
             __result = false;
             return false;
         }

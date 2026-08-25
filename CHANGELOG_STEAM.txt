@@ -1,3 +1,10 @@
+[h1]2026-08-25 - Performance pass[/h1]
+
+[list]
+[*] [b]Fixed several diagnostic log lines paying their full formatting cost even with Verbose logging off.[/b] Eight per-vehicle log messages (aircraft/helicopter gate assignment, fire dispatch redirects, thunderstorm refusals, and the single hottest per-segment cost calculation this mod touches) built their full text before checking whether Verbose logging was even on. All now check first, matching the rest of the project's convention.
+[*] [b]Reduced garbage collection from gate/dock searches.[/b] Aircraft, passenger helicopter, and ship dock assignment each allocated a new internal tracking set on every single search. They now reuse one instead, cutting a steady source of small allocations at busy airports/heliports/harbors.
+[/list]
+
 [h1]2026-08-24 - Six new interface languages[/h1]
 
 [b]New: German, French, Russian, Spanish, Japanese, and Korean[/b] join English, 繁體中文, and 简体中文 in the language dropdown (Settings → Advanced), each listed in its own script. Interface language still follows the game automatically unless you override it here.

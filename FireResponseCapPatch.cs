@@ -122,9 +122,17 @@ namespace AIImprove
                 ushort nearby = FireResponseTracker.TryFindAlternateBurningBuilding(isCopter, 0, data.GetLastFramePosition());
                 if (nearby != 0 && FireResponseTracker.TryAssign(isCopter, vehicleID, nearby))
                 {
-                    Log.Verbose(
-                        "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " was going idle - " +
-                        "retargeted to nearby still-burning building " + nearby + " instead.");
+                    // PERF (2026-08-24): these four Log.Verbose calls in this file concatenated
+                    // unconditionally on the fire-dispatch hot path - see Log.cs's own guidance,
+                    // callers must guard message-building with VerboseEnabled or pay the
+                    // concatenation cost on every dispatch decision even with Verbose logging off.
+                    if (Log.VerboseEnabled)
+                    {
+                        Log.Verbose(
+                            "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " was going idle - " +
+                            "retargeted to nearby still-burning building " + nearby + " instead.");
+                    }
+
                     targetBuilding = nearby;
                 }
 
@@ -156,11 +164,15 @@ namespace AIImprove
                     // Still enforce the cap (this building has enough responders already), but
                     // leave picking the replacement target to TMCE's own next dispatch pass
                     // instead of searching ourselves.
-                    Log.Verbose(
-                        "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " redirected away " +
-                        "from building " + original + " - already at " +
-                        FireResponseTracker.MaxRespondersPerBuilding + " responders. Leaving target " +
-                        "selection to Transfer Manager CE instead of picking one ourselves.");
+                    if (Log.VerboseEnabled)
+                    {
+                        Log.Verbose(
+                            "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " redirected away " +
+                            "from building " + original + " - already at " +
+                            FireResponseTracker.MaxRespondersPerBuilding + " responders. Leaving target " +
+                            "selection to Transfer Manager CE instead of picking one ourselves.");
+                    }
+
                     targetBuilding = 0;
                     return;
                 }
@@ -184,18 +196,26 @@ namespace AIImprove
                     // fire at the same building ID.
                     ResetPuntStreak(alternate);
 
-                    Log.Verbose(
-                        "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " redirected from " +
-                        "building " + original + " (at " + FireResponseTracker.MaxRespondersPerBuilding +
-                        " responders) to still-burning building " + alternate + ".");
+                    if (Log.VerboseEnabled)
+                    {
+                        Log.Verbose(
+                            "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " redirected from " +
+                            "building " + original + " (at " + FireResponseTracker.MaxRespondersPerBuilding +
+                            " responders) to still-burning building " + alternate + ".");
+                    }
+
                     targetBuilding = alternate;
                 }
                 else
                 {
-                    Log.Verbose(
-                        "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " redirected away " +
-                        "from building " + original + " - already at " +
-                        FireResponseTracker.MaxRespondersPerBuilding + " responders, no alternate fire found.");
+                    if (Log.VerboseEnabled)
+                    {
+                        Log.Verbose(
+                            "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " redirected away " +
+                            "from building " + original + " - already at " +
+                            FireResponseTracker.MaxRespondersPerBuilding + " responders, no alternate fire found.");
+                    }
+
                     targetBuilding = 0;
                 }
             }

@@ -29,6 +29,10 @@ namespace AIImprove
 
         private static bool loggedFirstCall;
 
+        // PERF (2026-08-24): reused scratch set instead of allocating a fresh HashSet<ushort>
+        // every call - see AircraftGateAssignmentPatch.SeenSegmentsScratch for the full rationale.
+        private static readonly HashSet<ushort> SeenSegmentsScratch = new HashSet<ushort>();
+
         public static bool Prefix(ushort vehicleID, PassengerHelicopterAI __instance, ref Vector3 endPos)
         {
             if (!ModSettings.PassengerHelicopterGateAssignmentEnabled.value)
@@ -49,7 +53,8 @@ namespace AIImprove
             ushort bestSegment = 0;
             int bestOccupancy = int.MaxValue;
             bool found = false;
-            var seenSegments = new HashSet<ushort>();
+            HashSet<ushort> seenSegments = SeenSegmentsScratch;
+            seenSegments.Clear();
 
             foreach (float searchRadius in SearchRadii)
             {
@@ -110,7 +115,14 @@ namespace AIImprove
 
             // Same unconditional-Debug.Log-on-a-hot-path bug as HelicopterWeatherHaltPatch, found
             // in the same 2026-08-16 audit - one line per landing, ignoring the Verbose gate.
-            Log.Verbose("[AIImprove] Passenger helicopter " + vehicleID + " assigned landing segment " + bestSegment + " (occupancy was " + bestOccupancy + ").");
+            // PERF (2026-08-24): was concatenating unconditionally - see Log.cs's own guidance,
+            // callers must guard message-building with VerboseEnabled or pay the concatenation
+            // cost even with Verbose logging off.
+            if (Log.VerboseEnabled)
+            {
+                Log.Verbose("[AIImprove] Passenger helicopter " + vehicleID + " assigned landing segment " + bestSegment + " (occupancy was " + bestOccupancy + ").");
+            }
+
             return true;
         }
     }

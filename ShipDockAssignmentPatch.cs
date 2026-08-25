@@ -32,6 +32,10 @@ namespace AIImprove
 
         private static bool loggedFirstCall;
 
+        // PERF (2026-08-24): reused scratch set instead of allocating a fresh HashSet<ushort>
+        // every call - see AircraftGateAssignmentPatch.SeenSegmentsScratch for the full rationale.
+        private static readonly HashSet<ushort> SeenSegmentsScratch = new HashSet<ushort>();
+
         private static bool IsHarborBuilding(ushort buildingId)
         {
             if (buildingId == 0)
@@ -93,7 +97,8 @@ namespace AIImprove
             ushort bestSegment = 0;
             int bestOccupancy = int.MaxValue;
             bool found = false;
-            var seenSegments = new HashSet<ushort>();
+            HashSet<ushort> seenSegments = SeenSegmentsScratch;
+            seenSegments.Clear();
 
             foreach (float searchRadius in SearchRadii)
             {
