@@ -107,6 +107,11 @@ namespace AIImprove
 
             if (Log.VerboseEnabled)
             {
+                // Aggregate first: the per-event line below says what happened to one vehicle,
+                // this says what is happening overall. See RerouteFailureDiagnostics for why the
+                // failure rate needed measuring rather than another round of reasoning about it.
+                RerouteFailureDiagnostics.Record(ownerTypeName, ref vehicleData, success);
+
                 Log.Verbose(
                     "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " ahead segment density " +
                     aheadDensity.ToString("F0") + " too high, requested reroute from current position: " +
