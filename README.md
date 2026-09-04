@@ -69,6 +69,12 @@ verbose-logging switch used when collecting a bug report.
 - [Harmony (Mod Dependency)](https://steamcommunity.com/workshop/filedetails/?id=2040656402) by boformer, subscribed via Steam Workshop
 - Optional: [UnifiedUI](https://steamcommunity.com/sharedfiles/filedetails/?id=2966990700) - for the in-game settings button
 
+Supported alongside, with nothing to configure on either side: [Real Time](https://steamcommunity.com/sharedfiles/filedetails/?id=3059406297)
+decides *when* citizens set off, AI_Improve decides *what they travel in* - the two never touch the
+same code. Not required; nothing needs turning off if you run it. See the
+[Compatibility wiki page](https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/wiki/Compatibility)
+for TM:PE, Transfer Manager CE, Lifecycle Rebalance and the rest.
+
 ## Reporting a problem
 
 Open an [issue](https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/issues/new/choose) -

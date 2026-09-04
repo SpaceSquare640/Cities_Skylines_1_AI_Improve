@@ -1,3 +1,11 @@
+[h1]2026-09-04 - Real Time supported, and a clearer answer on citizen transport odds[/h1]
+
+[b]Real Time is supported alongside AI_Improve[/b] - optional, not required, and nothing needs turning off on either side. Decompiling it confirmed the two mods never touch the same code: Real Time decides [i]when[/i] a citizen sets off (scheduling, health, state), AI_Improve's citizen features decide [i]what they travel in[/i]. Both work exactly as they would alone.
+
+[b]New: the log now records which companion mods were detected[/b] - Real Time, Transfer Manager CE, SingleTrainTrackAI, Reversible Tram AI and Advanced Vehicle Options - as a single line at startup. Nothing in a bug report's log used to say which of these were installed, which is often the first thing worth knowing.
+
+[b]Documented: how AI_Improve interacts with mods that customize citizen transport probabilities[/b] (such as Lifecycle Rebalance Revisited). It depends on which Citizens settings you have on, and that was never written down anywhere: [b]Citizen car probability[/b] and [b]Citizen taxi probability[/b] (both on by default) read whatever value the other mod produced and adjust it from there, so the two stack. [b]Custom transport mode weights[/b] (off by default) replaces vanilla's whole vehicle-choice step instead, so the probability methods those mods customize are never called - turning it on overrides them completely, and no citizen cycles while it is on. The setting's own description now says so in all nine languages, and the wiki's Compatibility page covers it.
+
 [h1]2026-08-25 - Performance pass[/h1]
 
 [list]

@@ -130,6 +130,9 @@ namespace AIImprove
             TryPatchTrainSingleTrackConflictDetector(harmony);
 
             Debug.Log("[AIImprove] Harmony patches applied.");
+            // Recorded once per session so a player's output_log.txt says which of the mods this
+            // one is designed to coexist with were actually present - see CompanionModCompat.
+            CompanionModCompat.LogDetectedCompanions();
         }
 
         // Boosts intercity bus capacity - see IntercityBusCapacityPatch.cs.

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 
 namespace AIImprove
@@ -32,6 +33,44 @@ namespace AIImprove
         // stacking on top - same "detect and stay passive" philosophy as SingleTrainTrackAI/
         // Reversible Tram AI above.
         private const string AdvancedVehicleOptionsTypeName = "AdvancedVehicleOptionsUID.AdvancedVehicleOptionsLoader";
+
+        // "改為可支援 Real Time 模組" (2026-09-04). Unlike every other entry in this file, this one
+        // deliberately changes no behavior - there is nothing to defer to, because the two mods do
+        // not overlap at all. Verified by decompiling the installed RealTime.dll: its
+        // RealTime.Patches.ResidentAIPatch patches UpdateLocation, UpdateAge, Spawn, CanMakeBabies,
+        // FinishSchoolOrWork, SimulationStep, StartTransfer, FindHospital, GetColor and
+        // UpdateHealth - scheduling, health and state - and the assembly contains no reference at
+        // all to GetVehicleInfo, GetCarProbability, GetTaxiProbability, GetBikeProbability or
+        // GetElectricCarProbability. Real Time decides *when* a citizen leaves; it never touches
+        // *what they travel in*, which is the only part of ResidentAI this mod's citizen features
+        // patch. Real Time reaches vanilla HumanAI.StartMoving through its own delegate, so
+        // GetVehicleInfo still runs underneath it and all three citizen patches apply normally.
+        //
+        // Adding a compatibility workaround here would therefore be inventing a problem. What is
+        // genuinely useful is recording, in the log, whether the player has it - bug reports
+        // arrive as an output_log.txt and until now nothing in it said which companion mods were
+        // present. Supported means detected, logged and documented; it is not a requirement.
+        private const string RealTimeTypeName = "RealTime.Core.RealTimeMod";
+
+        public static bool IsRealTimeLoaded() => FindType(RealTimeTypeName) != null;
+
+        // One Info line at startup listing which companion mods were detected. Info rather than
+        // Verbose because it fires exactly once per session and is the first thing worth knowing
+        // when reading somebody else's log - see Log.cs for why everything per-vehicle is not.
+        public static void LogDetectedCompanions()
+        {
+            string detected = string.Join(", ", new[]
+            {
+                IsRealTimeLoaded() ? "Real Time" : null,
+                IsSingleTrainTrackAiLoaded() ? "SingleTrainTrackAI" : null,
+                IsReversibleTramAiLoaded() ? "Reversible Tram AI" : null,
+                IsAdvancedVehicleOptionsLoaded() ? "Advanced Vehicle Options" : null,
+                FindType(TmceModSettingsTypeName) != null ? "Transfer Manager CE" : null,
+            }.Where(name => name != null).ToArray());
+
+            Log.Info("[AIImprove] Companion mods detected: " +
+                     (detected.Length == 0 ? "none" : detected));
+        }
 
         public static bool IsSingleTrainTrackAiLoaded() => FindType(SingleTrainTrackAiTypeName) != null;
 
