@@ -19,7 +19,7 @@ Most existing "improved AI" mods for Cities: Skylines change one narrow slice of
 [*] [b]Race cars[/b]: racetrack building attractiveness boost. (Racer speed itself is left fully vanilla - an earlier top-speed override caused racers to lose control and has been removed.)
 [/list]
 
-[b]See the [url=https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/wiki]GitHub Wiki[/url] for the full, detailed feature list and compatibility notes[/b] (soft dependencies/integrations with TM:PE, Transfer Manager CE, Smarter Firefighters, SingleTrainTrackAI, Reversible Tram AI, Advanced Vehicle Options).
+[b]See the [url=https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/wiki]GitHub Wiki[/url] for the full, detailed feature list and compatibility notes[/b] (soft dependencies/integrations with TM:PE, Transfer Manager CE, Smarter Firefighters, SingleTrainTrackAI, Reversible Tram AI, Advanced Vehicle Options, Real Time).
 
 [h2]Settings[/h2]
 
@@ -42,6 +42,8 @@ Turning a feature off makes it behave exactly as if it had never been written - 
 [*] Harmony (Mod Dependency) by boformer, subscribed via Steam Workshop
 [*] Optional: UnifiedUI - for the in-game settings button
 [/list]
+
+[b]Real Time[/b] is supported alongside this mod - optional, not required, and nothing needs turning off on either side. Real Time decides [i]when[/i] citizens set off; AI_Improve decides [i]what they travel in[/i]. The two never touch the same code.
 
 [h2]Reporting a problem[/h2]
 
