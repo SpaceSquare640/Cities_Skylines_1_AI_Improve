@@ -329,6 +329,12 @@ namespace AIImprove
                         "vehicle will unspawn.");
                 }
 
+                // The caller turns this false into Unspawn, which never reaches
+                // VehicleAI.ReleaseVehicle - so nothing else will ever free what we recorded for
+                // this plane. Without this the airport's occupancy only ever grows and it closes
+                // permanently; see VehicleStateCleanup for the full story.
+                VehicleStateCleanup.ReleaseAll(vehicleID);
+
                 return false;
             }
 
@@ -357,22 +363,10 @@ namespace AIImprove
     {
         public static void Postfix(ushort vehicleID)
         {
-            AirTrafficControlManager.ReleaseVehicle(vehicleID);
-            HoldingPatternManager.EndHolding(vehicleID);
-            FireResponseTracker.ReleaseVehicle(vehicleID);
-
-            // BUG FOUND VIA AUDIT (2026-08-15): these two per-vehicle trackers were missing from
-            // this cleanup list, so their entries survived the vehicle that created them. Vehicle
-            // IDs are recycled from a fixed pool, so a brand-new vehicle could inherit a dead
-            // one's state: a stale StuckRerouteTracker cooldown silently blocked the new vehicle
-            // from rerouting for up to 40s, and a stale EmergencyDispatchTracker timestamp
-            // produced bogus response-time figures in the log.
-            StuckRerouteTracker.Clear(vehicleID);
-            EmergencyDispatchTracker.ReleaseVehicle(vehicleID);
-
-            // ShipQueueDetector keys its stuck-since timestamp by vehicle ID, so it has to be on
-            // this list for the same recycled-ID reason as the two above (2026-09-05).
-            ShipQueueDetector.ReleaseVehicle(vehicleID);
+            // The list this used to hold inline now lives in VehicleStateCleanup, because
+            // ReleaseVehicle turned out not to be the only way a vehicle goes away - see that
+            // file for the Unspawn path that made a second caller necessary (2026-09-05).
+            VehicleStateCleanup.ReleaseAll(vehicleID);
         }
     }
 }

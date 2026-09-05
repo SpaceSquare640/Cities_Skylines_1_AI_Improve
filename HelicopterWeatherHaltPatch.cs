@@ -58,6 +58,14 @@ namespace AIImprove
                 Log.Verbose("[AIImprove] Helicopter " + vehicleID + " dispatch refused - grounded for thunderstorm.");
             }
 
+            // Same Unspawn-without-ReleaseVehicle path as the aircraft saturation refusal -
+            // AmbulanceCopterAI/FireCopterAI/PoliceCopterAI all answer a false StartPathFind with
+            // `data.Unspawn(vehicleID)` (dnSpy-confirmed, 2026-09-05). A grounded fire helicopter
+            // that had already been counted against its target building by FireResponseCapPatch
+            // would otherwise hold that responder slot forever, which is its own route to
+            // "burning building gets no response". See VehicleStateCleanup.
+            VehicleStateCleanup.ReleaseAll(vehicleID);
+
             __result = false;
             return false;
         }

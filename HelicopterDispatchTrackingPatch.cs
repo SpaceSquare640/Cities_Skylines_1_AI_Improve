@@ -23,8 +23,22 @@ namespace AIImprove
     {
         private static bool loggedFirstCall;
 
-        public static void Postfix(ushort vehicleID, HelicopterAI __instance, ref Vehicle vehicleData)
+        public static void Postfix(ushort vehicleID, HelicopterAI __instance, ref Vehicle vehicleData, bool __result)
         {
+            // A false result means no dispatch actually started, so there is no dispatch time to
+            // record - stamping one here would pair a start with an arrival that never comes, and
+            // report nonsense response times.
+            //
+            // This also matters for ordering (2026-09-05): Harmony still runs Postfixes when a
+            // Prefix has skipped the original, so on the thunderstorm-grounding path
+            // HelicopterWeatherHaltPatch's refusal would land here immediately afterwards and
+            // re-record state for a helicopter that is about to unspawn - undoing the cleanup
+            // that refusal just did. See VehicleStateCleanup.
+            if (!__result)
+            {
+                return;
+            }
+
             if (!(__instance is AmbulanceCopterAI) && !(__instance is FireCopterAI) && !(__instance is PoliceCopterAI))
             {
                 return;
