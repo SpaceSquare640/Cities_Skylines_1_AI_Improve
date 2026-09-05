@@ -9,9 +9,12 @@ namespace AIImprove
     // for the nearest building that still genuinely needs the material and send it there directly
     // instead of leaving it to TransferManager's own priority/distance-weighted matching.
     //
-    // No per-building responder cap here, unlike fire - garbage/dead collection doesn't have fire's
-    // "many vehicles pile onto the same target" problem; TransferManager's own Amount-based offer
-    // matching already prevents over-collection at one building.
+    // WRONG, CORRECTED 2026-09-05: the note that used to sit here said no per-building cap was
+    // needed "unlike fire", because "TransferManager's own Amount-based offer matching already
+    // prevents over-collection at one building". That matching is exactly what this patch bypasses
+    // when it sets targetBuilding directly, so nothing was limiting how many idle vehicles piled
+    // onto the same building - the player-reported swarm. The cap now lives in
+    // SanitationIdleSeekTracker (MaxVehiclesPerBuilding), applied via Assign/Observe here.
     internal static class SanitationIdleSeekPatch
     {
         private static bool loggedFirstCall;
@@ -42,7 +45,7 @@ namespace AIImprove
             {
                 // Vanilla itself just proved this building has the need - record it as a future
                 // idle-seek candidate.
-                SanitationIdleSeekTracker.Observe(material, targetBuilding);
+                SanitationIdleSeekTracker.Observe(material, vehicleID, targetBuilding);
                 return;
             }
 
@@ -74,6 +77,10 @@ namespace AIImprove
             ushort nearby = SanitationIdleSeekTracker.TryFindNearby(material, data.m_sourceBuilding, data.GetLastFramePosition());
             if (nearby == 0)
             {
+                // Nothing to send it to - make sure it isn't still counted against whatever it was
+                // previously assigned to, or the cap would drift upward over the session.
+                SanitationIdleSeekTracker.Assign(material, vehicleID, 0);
+
                 // Nothing found - fall through to vanilla's own AddIncomingOffer-and-wait path
                 // unchanged.
                 return;
@@ -86,6 +93,7 @@ namespace AIImprove
                     "retargeted to nearby building " + nearby + " still needing collection instead.");
             }
 
+            SanitationIdleSeekTracker.Assign(material, vehicleID, nearby);
             targetBuilding = nearby;
         }
 
