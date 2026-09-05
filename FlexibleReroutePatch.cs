@@ -217,6 +217,16 @@ namespace AIImprove
 
             if (Log.VerboseEnabled)
             {
+                // ADDED (2026-09-05) after the first live capture: this project has two reroute
+                // paths and the diagnostics only covered the other one. That session logged zero
+                // TrainAI/AircraftAI reroutes and 89 through here (cargo trucks, one post van), so
+                // the instrumented path never fired once while the uninstrumented one carried
+                // every sample. Worth noting what those 89 already showed: 26 accepted of 89, a
+                // 29% acceptance rate - nothing like the 9% recorded for trains in
+                // Cities_Skylines_1_AI_Improve_Document/01, which supports that figure being about
+                // rail specifically rather than rerouting in general.
+                RerouteFailureDiagnostics.Record(ownerTypeName, ref vehicleData, success);
+
                 Log.Verbose(
                     "[AIImprove] " + ownerTypeName + " vehicle " + vehicleID + " ahead segment density " +
                     aheadDensity.ToString("F0") + " too high, requested reroute (via self StartPathFind): " +
