@@ -1,3 +1,7 @@
+[h1]2026-09-05 - Airports and emergency helicopters no longer stay shut after a storm[/h1]
+
+[b]Fixed thunderstorm shutdowns outlasting the thunderstorm.[/b] A storm that has stopped moves into a cleanup state that lasts a long time, and the check for "is a thunderstorm happening" was still counting that state as an active storm. Measured in one session: 5,929 refused landings and grounded emergency helicopters across 16 continuous minutes with no storm in progress, ending only because the session did. Because fire helicopters are grounded along with the other emergency helicopters, [b]this could again leave burning buildings with no response at all[/b] - the same symptom as the fix on 2026-08-17, one state further along in the game's own disaster sequence. Airports and emergency helicopters now resume the moment the weather itself stops, rather than waiting for cleanup to finish.
+
 [h1]2026-09-04 - Real Time supported, and a clearer answer on citizen transport odds[/h1]
 
 [b]Real Time is supported alongside AI_Improve[/b] - optional, not required, and nothing needs turning off on either side. Decompiling it confirmed the two mods never touch the same code: Real Time decides [i]when[/i] a citizen sets off (scheduling, health, state), AI_Improve's citizen features decide [i]what they travel in[/i]. Both work exactly as they would alone.
