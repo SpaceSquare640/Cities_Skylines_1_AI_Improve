@@ -369,6 +369,10 @@ namespace AIImprove
             // produced bogus response-time figures in the log.
             StuckRerouteTracker.Clear(vehicleID);
             EmergencyDispatchTracker.ReleaseVehicle(vehicleID);
+
+            // ShipQueueDetector keys its stuck-since timestamp by vehicle ID, so it has to be on
+            // this list for the same recycled-ID reason as the two above (2026-09-05).
+            ShipQueueDetector.ReleaseVehicle(vehicleID);
         }
     }
 }

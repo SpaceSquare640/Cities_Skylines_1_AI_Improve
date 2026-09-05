@@ -128,6 +128,7 @@ namespace AIImprove
             // already delivered the requested behavior (confirmed in logs), just without the
             // "Not Operating" building status.
             TryPatchTrainSingleTrackConflictDetector(harmony);
+            TryPatchShipQueueDetector(harmony);
 
             Debug.Log("[AIImprove] Harmony patches applied.");
             // Recorded once per session so a player's output_log.txt says which of the mods this
@@ -275,6 +276,48 @@ namespace AIImprove
             {
                 Debug.LogWarning(
                     "[AIImprove] Single-track conflict detector patch failed to apply, skipping it. " +
+                    "Rest of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
+        }
+
+        // Detect-and-log-only ship queue observer - see ShipQueueDetector.cs. Phase 1 of the
+        // "canal full of motionless ships" investigation; changes no vehicle behavior.
+        //
+        // ShipAI is the correct declaring type: dnSpy confirms ShipAI declares
+        // SimulationStep(ushort, ref Vehicle, Vector3) and PassengerShipAI overrides only the
+        // 6-arg overload, so one patch here covers passenger ferries and cargo ships alike -
+        // which is precisely what the detector needs, since telling those two apart at runtime is
+        // the open question. The 3-arg overload also has a single ref-struct parameter, the shape
+        // this project has repeatedly verified as safe under Mono's JIT.
+        private static bool TryPatchShipQueueDetector(Harmony harmony)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    typeof(ShipAI),
+                    "SimulationStep",
+                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType(), typeof(Vector3) });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] ShipAI.SimulationStep(ushort, ref Vehicle, Vector3) not found - " +
+                        "game version may have changed. Skipping ship queue detector patch.");
+                    return false;
+                }
+
+                MethodInfo postfix = typeof(ShipQueueDetector).GetMethod(
+                    nameof(ShipQueueDetector.Postfix), BindingFlags.Public | BindingFlags.Static);
+                harmony.Patch(original, postfix: new HarmonyMethod(postfix));
+
+                Debug.Log("[AIImprove] Ship queue detector patch applied.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Ship queue detector patch failed to apply, skipping it. " +
                     "Rest of the mod is unaffected. Reason: " + ex.Message);
                 return false;
             }
