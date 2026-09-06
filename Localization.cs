@@ -6,9 +6,14 @@ namespace AIImprove
     // "我想我們的介面，支援多國語言" (2026-08-15): both UI surfaces (AIImproveMod.OnSettingsUI's
     // Content Manager page and IngameUI's UnifiedUI panel) pull every label through here instead
     // of hardcoding text, so both stay in sync automatically. Picks a translation table based on
-    // ColossalFramework.Globalization.LocaleManager.instance.language (the same locale code the
-    // game's own UI uses, e.g. "en", "zh-tw", "zh-cn") and falls back to English for any language
-    // or key this project hasn't translated yet - never throws, never shows a blank label.
+    // ColossalFramework.Globalization.LocaleManager.instance.language, falling back to English for
+    // any language or key this project hasn't translated yet - never throws, never shows a blank
+    // label.
+    //
+    // CORRECTION (2026-09-06): this comment used to claim the game's own locale codes look like
+    // "en", "zh-tw", "zh-cn". They do not. The game's codes are the filenames under Files/Locale,
+    // and that folder ships exactly: de, en, es, fr, ko, pl, pt, ru, zh. There is no zh-tw, no
+    // zh-cn and no ja. See ResolveLanguage for what that mistaken assumption broke.
     internal static class Localization
     {
         private const string DefaultLanguage = "en";
@@ -1533,6 +1538,20 @@ namespace AIImprove
                 },
             };
 
+        // Maps a game locale code onto one of this project's tables where the game spells a
+        // language less specifically than we do.
+        //
+        // "zh" -> "zh-cn": the game ships a single Chinese locale and it is Simplified. Confirmed
+        // from text the game itself wrote into a player's output_log - "asset browser" and
+        // "suburban school" both came through in Simplified forms, in every character where the
+        // two scripts differ. Traditional is still reachable by picking it in the dropdown; it is
+        // just not what "follow the game" should resolve to.
+        private static readonly Dictionary<string, string> LanguageAliases =
+            new Dictionary<string, string>
+            {
+                ["zh"] = "zh-cn",
+            };
+
         public static string Get(string key)
         {
             string language = ResolveLanguage();
@@ -1548,9 +1567,18 @@ namespace AIImprove
 
         public static string Get(string key, params object[] args) => string.Format(Get(key), args);
 
-        // Every language code Localization actually has a translation table for - drives both
-        // ResolveLanguage's override check and the language-cycle button in SettingsPageUI.cs, so
-        // the two can't drift out of sync with each other.
+        // Every language code Localization has a translation table for.
+        //
+        // CORRECTION (2026-09-06): the comment here claimed this "drives both ResolveLanguage's
+        // override check and the language-cycle button in SettingsPageUI.cs, so the two can't
+        // drift out of sync". Neither half is true any more. ResolveLanguage checks the Strings
+        // dictionary directly, and the language-cycle button was replaced by a dropdown in the
+        // 2026-08-17 settings rebuild - that dropdown carries its own LanguageCodes array, which
+        // has since drifted (it also carries "auto"). Nothing reads this field.
+        //
+        // Left in place rather than deleted because removing public API is a separate decision;
+        // the point of this note is that the guarantee it advertised does not exist, so nobody
+        // should rely on it while it is here.
         public static readonly string[] SupportedLanguages =
             { "en", "zh-tw", "zh-cn", "de", "fr", "ru", "es", "ja", "ko" };
 
@@ -1568,7 +1596,52 @@ namespace AIImprove
             }
 
             string language = LocaleManager.instance.language;
-            return string.IsNullOrEmpty(language) ? DefaultLanguage : language.ToLowerInvariant();
+            if (string.IsNullOrEmpty(language))
+            {
+                return DefaultLanguage;
+            }
+
+            language = language.ToLowerInvariant();
+
+            // BUG (2026-09-06): this used to return the game's code as-is, which silently gave
+            // every Chinese player an English settings page. The game reports "zh"; our tables are
+            // keyed "zh-tw" and "zh-cn", so the lookup in Get missed and fell through to English.
+            // Anyone playing in Chinese with the language dropdown left on Auto - its default -
+            // never saw either of the two Chinese translations this project ships.
+            //
+            // Resolution order, most specific first:
+            //   1. Exact match. Keeps manual overrides working, and keeps working if the game ever
+            //      does start reporting a region-qualified code.
+            //   2. Alias table, for codes the game spells less specifically than we do.
+            //   3. Base code with any region suffix dropped, so a hypothetical "pt-br" would find
+            //      a "pt" table rather than falling to English.
+            if (Strings.ContainsKey(language))
+            {
+                return language;
+            }
+
+            string alias;
+            if (LanguageAliases.TryGetValue(language, out alias) && Strings.ContainsKey(alias))
+            {
+                return alias;
+            }
+
+            int dash = language.IndexOf('-');
+            if (dash > 0)
+            {
+                string baseCode = language.Substring(0, dash);
+                if (Strings.ContainsKey(baseCode))
+                {
+                    return baseCode;
+                }
+
+                if (LanguageAliases.TryGetValue(baseCode, out alias) && Strings.ContainsKey(alias))
+                {
+                    return alias;
+                }
+            }
+
+            return DefaultLanguage;
         }
     }
 }

@@ -1,3 +1,10 @@
+[h1]2026-09-06 - Chinese players finally get the Chinese settings page[/h1]
+
+[list]
+[*] [b]Fixed the interface staying English for anyone playing the game in Chinese.[/b] Language detection was matching against codes the game does not actually use: it ships one Chinese locale called "zh", while this mod's tables were named "zh-tw" and "zh-cn", so the lookup missed every time and quietly fell back to English. With the language dropdown on Auto - the default - the two Chinese translations this mod ships were unreachable. "zh" now resolves to Simplified Chinese, and picking Traditional explicitly in the dropdown still works as before. Language matching is also more forgiving in general now, so a region-specific code the game might report in future finds the right table instead of dropping to English.
+[*] [b]Performance work on the busiest code in the mod.[/b] A companion-mod lookup that scanned every loaded assembly was running twice per train per tick with no caching, ahead of the very check meant to make that path cheap; it is cached now and runs after that check. The same reordering was applied to the settings reads in the road-vehicle reroute path, the busiest hook here. And cargo trucks were having their reroute check run twice each tick because of a duplicate registration added on a mistaken assumption.
+[/list]
+
 [h1]2026-09-05 - Two player-reported fixes: vanishing planes, and sanitation vehicles bunching up[/h1]
 
 Both reported by Fey Warrior, who had turned off stand selection and the sanitation features to work around them. Both are safe to turn back on.
