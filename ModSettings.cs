@@ -155,7 +155,7 @@ namespace AIImprove
 
         /// Percent chance of skipping a spawn while ridership is below the threshold.
         public static readonly SavedInt IntercityLowRidershipSkipPercent =
-            new SavedInt("IntercityLowRidershipSkipPercent", FileName, 50, true);
+            new SavedInt("IntercityLowRidershipSkipPercent", FileName, 0, true);
 
         /// Detect-and-log only; never changes train behaviour.
         public static readonly SavedBool SingleTrackConflictDetectorEnabled =
@@ -421,7 +421,7 @@ namespace AIImprove
             IntercityTrainRerouteDensityThreshold.value = 80;
             IntercityTrainSpawnThrottleEnabled.value = true;
             IntercityLowRidershipThreshold.value = 50;
-            IntercityLowRidershipSkipPercent.value = 50;
+            IntercityLowRidershipSkipPercent.value = 0;
             SingleTrackConflictDetectorEnabled.value = true;
 
             AircraftGateAssignmentEnabled.value = true;

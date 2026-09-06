@@ -37,6 +37,32 @@ namespace AIImprove
         private static bool loggedFirstCall;
         private static bool loggedRidership;
 
+        // Every DummyTrain offer this patch sees, and what it did with it. Info rather than
+        // verbose, and one line per 25 offers: intercity train spawns are rare enough that a
+        // whole session produces a handful of lines, and the player-visible symptom this exists
+        // to explain is "almost none are spawning" - which is exactly the case where a
+        // verbose-gated counter would be missing from the log that mattered.
+        private static int offersSeen;
+        private static int lowRidershipSkips;
+        private static int saturationSkips;
+
+        private static void ReportIfDue(uint ridership)
+        {
+            if (offersSeen % 25 != 0)
+            {
+                return;
+            }
+
+            Log.Info(
+                "[AIImprove] Intercity train spawn throttle: " + offersSeen + " offer(s) seen, " +
+                lowRidershipSkips + " refused for low ridership, " + saturationSkips +
+                " refused for a saturated station, " +
+                (offersSeen - saturationSkips) + " allowed (the low-ridership rule is currently " +
+                "disabled in code, so its count is what it WOULD have refused). Current ridership " +
+                "reading " + ridership + " against a threshold of " +
+                ModSettings.IntercityLowRidershipThreshold.value + ".");
+        }
+
         // Prefix on OutsideConnectionAI.StartTransfer(ushort, ref Building, TransferReason,
         // TransferOffer) - single `ref Building` param, safe shape. Only intervenes for
         // DummyTrain (incoming intercity train spawns); every other transfer reason (goods,
@@ -70,9 +96,46 @@ namespace AIImprove
                 Debug.Log("[AIImprove] Current average train ridership reading: " + ridership + ".");
             }
 
-            if (ridership < (uint)ModSettings.IntercityLowRidershipThreshold.value &&
-                Singleton<SimulationManager>.instance.m_randomizer.Int32(100U) < (uint)(LowRidershipSkipChance * 100f))
+            offersSeen++;
+
+            // BUG REPORT (user, 2026-09-07): "現在的城際巴士及城際火車生成率可見是低到接近於零".
+            //
+            // The low-ridership rule is the same self-reinforcing shape as the airport occupancy
+            // leak and the saturated-station deadlock, and this is the third instance:
+            //
+            //   low measured ridership -> refuse spawns -> fewer intercity trains -> fewer
+            //   passengers riding them -> lower measured ridership -> refuse more
+            //
+            // The reading is city-wide train ridership. It cannot tell "nobody wants to ride" from
+            // "there is nothing to ride", and this rule then acts on the second as if it were the
+            // first. Same class of mistake as reading CemeteryAI.GetMaterialAmount as "needs
+            // collection" - the number is real, it just answers a different question than the one
+            // being asked of it (see 12 - 開發準則, 準則 2).
+            //
+            // The rule is switched off IN CODE, not by changing the default - a player who has
+            // ever opened the panel has 50 saved in AIImprove.cgs, so a new default would not
+            // reach them. Same lesson as the helicopter capacity patch on 2026-09-06.
+            //
+            // The counters below still report what it WOULD have refused, which is the
+            // calibration data the threshold of 50 never had: it was an interim value picked in
+            // 2026-08-14 without anyone ever having seen a real ridership reading. Turn this back
+            // on only once a log shows the reading's actual range AND the feedback loop above is
+            // broken - e.g. by requiring evidence that intercity trains exist before concluding
+            // that nobody is riding them.
+            const bool LowRidershipRuleEnabled = false;
+
+            bool wouldSkipForLowRidership =
+                ridership < (uint)ModSettings.IntercityLowRidershipThreshold.value &&
+                Singleton<SimulationManager>.instance.m_randomizer.Int32(100U) < (uint)(LowRidershipSkipChance * 100f);
+
+            if (wouldSkipForLowRidership)
             {
+                lowRidershipSkips++;
+            }
+
+            if (LowRidershipRuleEnabled && wouldSkipForLowRidership)
+            {
+                ReportIfDue(ridership);
                 // Verbose-gated for the same reason as the helicopter logs (2026-08-16 audit):
                 // this fires per spawn attempt, not once.
                 Log.Verbose(
@@ -85,8 +148,12 @@ namespace AIImprove
             ushort destinationStation = offer.Building;
             if (destinationStation == 0 || !TrainPlatformAssignmentPatch.IsStationLikelySaturated(destinationStation))
             {
+                ReportIfDue(ridership);
                 return true;
             }
+
+            saturationSkips++;
+            ReportIfDue(ridership);
 
             Log.Verbose(
                 "[AIImprove] Skipped spawning an incoming intercity train toward building " +
