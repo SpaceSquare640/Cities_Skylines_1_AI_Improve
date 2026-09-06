@@ -1,4 +1,4 @@
-using ColossalFramework;
+﻿using ColossalFramework;
 using UnityEngine;
 
 namespace AIImprove
@@ -34,6 +34,15 @@ namespace AIImprove
     //    holding-pattern equivalent is needed - just not making the jam worse by picking for it.
     internal static class TrainPlatformAssignmentPatch
     {
+        // Called by TrackerReset when a save is unloaded. Building, vehicle and node IDs are
+        // recycled from fixed pools, so anything left here from the previous city would be read
+        // back as if it described the new one. Registered centrally rather than relied on being
+        // remembered per class - see 12 - 開發準則, 準則 3.
+        public static void ResetForNewLevel()
+        {
+            StationSaturated.Clear();
+        }
+
         private static int CandidateCount => ModSettings.TrainPlatformCandidateCount.value;
         private static readonly float[] SearchRadii = { 30f, 60f };
         private const float ProbeMaxDistance = 32f; // matches TrainAI's own FindPathPosition call
@@ -61,13 +70,59 @@ namespace AIImprove
         // the very call this would need to run before). Absence of an entry (a station nothing has
         // recently pathed to) defaults to "not saturated" in the reader - fails open, same
         // philosophy as every occupancy estimate elsewhere in this project.
-        private static readonly System.Collections.Generic.Dictionary<ushort, bool> StationSaturated =
-            new System.Collections.Generic.Dictionary<ushort, bool>();
+        //
+        // BUG FOUND VIA AUDIT (2026-09-06), and it is a self-reinforcing one of exactly the same
+        // shape as the airport occupancy leak: this reading was only ever REWRITTEN by a train
+        // pathfinding toward that station. TrainSpawnThrottlePatch reads it to refuse spawning
+        // incoming intercity trains toward a saturated station - so once a station was flagged,
+        // the very mechanism that would have refreshed the flag was the one being suppressed. For
+        // a station served only by outside-connection spawns, "saturated" was permanent, and the
+        // player's station simply never received another intercity train for the rest of the
+        // session. Clearing on level unload (TrackerReset) does not help: the deadlock happens
+        // inside one city.
+        //
+        // The fix is structural rather than another cleanup call site (12 - 開發準則, 準則 3):
+        // the reading now carries the frame it was taken on and EXPIRES. A stale reading is not
+        // "still saturated", it is "no longer known", which falls back to the same fail-open
+        // default as a station nothing has ever pathed to. Saturation that is real gets refreshed
+        // by the trains already in the city; saturation that has passed stops being enforced on
+        // its own, with nothing needing to remember to clear it.
+        private struct SaturationReading
+        {
+            public bool Saturated;
+            public uint Frame;
+        }
+
+        // ~4096 simulation frames. If no train has pathed to a station in that long, whatever we
+        // last saw there is too old to refuse a spawn on.
+        private const uint SaturationReadingLifetimeFrames = 4096U;
+
+        private static readonly System.Collections.Generic.Dictionary<ushort, SaturationReading> StationSaturated =
+            new System.Collections.Generic.Dictionary<ushort, SaturationReading>();
 
         public static bool IsStationLikelySaturated(ushort stationBuildingId)
         {
-            bool saturated;
-            return StationSaturated.TryGetValue(stationBuildingId, out saturated) && saturated;
+            SaturationReading reading;
+            if (!StationSaturated.TryGetValue(stationBuildingId, out reading) || !reading.Saturated)
+            {
+                return false;
+            }
+
+            uint now = ColossalFramework.Singleton<SimulationManager>.instance.m_currentFrameIndex;
+            if (now - reading.Frame <= SaturationReadingLifetimeFrames)
+            {
+                return true;
+            }
+
+            // Expired. Drop it rather than leaving a permanently-false entry behind, and say so:
+            // if this line appears repeatedly for one station, the station is being refused
+            // spawns purely on readings that keep going stale, which is itself the bug returning.
+            StationSaturated.Remove(stationBuildingId);
+            Log.Verbose(
+                "[AIImprove] Saturation reading for station " + stationBuildingId + " expired (" +
+                (now - reading.Frame) + " frames old) - treating it as unknown rather than " +
+                "saturated, so incoming intercity trains are no longer refused on a stale reading.");
+            return false;
         }
 
         private static bool IsRealStation(ushort buildingId)
@@ -220,7 +275,11 @@ namespace AIImprove
             }
 
             bool saturated = bestOccupancy >= SaturationThreshold;
-            StationSaturated[targetBuilding] = saturated;
+            StationSaturated[targetBuilding] = new SaturationReading
+            {
+                Saturated = saturated,
+                Frame = ColossalFramework.Singleton<SimulationManager>.instance.m_currentFrameIndex,
+            };
 
             if (saturated)
             {

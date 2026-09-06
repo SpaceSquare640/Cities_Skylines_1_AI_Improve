@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using ColossalFramework;
 using UnityEngine;
 
@@ -98,7 +98,12 @@ namespace AIImprove
             List<ushort> leadVehicleIds = new List<ushort>();
             int totalVehicleCount = 0;
 
-            for (ushort i = 0; i < buffer.Length; i++)
+            // BUG FOUND VIA AUDIT (2026-09-06): this counter used to be a ushort. The vanilla
+            // vehicle buffer is 16384 entries so it fitted, but More Vehicles raises the buffer to
+            // 65536 - at which point `i < buffer.Length` is never false, i wraps 65535 -> 0, and
+            // pressing the audit button freezes the game outright. int costs nothing and cannot
+            // wrap; the ID itself is still a ushort where it is used as one.
+            for (int i = 0; i < buffer.Length; i++)
             {
                 ref Vehicle data = ref buffer[i];
 
@@ -120,7 +125,7 @@ namespace AIImprove
                 // up.
                 if (data.m_leadingVehicle == 0)
                 {
-                    leadVehicleIds.Add(i);
+                    leadVehicleIds.Add((ushort)i);
                 }
             }
 
