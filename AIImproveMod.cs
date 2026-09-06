@@ -22,6 +22,11 @@ namespace AIImprove
             // created per-city on level load and torn down on unload, since UIView itself gets
             // destroyed/recreated between scenes (main menu <-> city <-> another city).
             ColossalFramework.Singleton<LoadingManager>.instance.m_levelLoaded += IngameUI.OnLevelLoaded;
+
+            // One-shot inventory of stations and outside connections, to establish whether the
+            // city can produce intercity traffic at all before blaming anything for how little of
+            // it there is. See IntercityServiceInventory.cs.
+            ColossalFramework.Singleton<LoadingManager>.instance.m_levelLoaded += IntercityServiceInventory.OnLevelLoaded;
             ColossalFramework.Singleton<LoadingManager>.instance.m_levelUnloaded += IngameUI.OnLevelUnloading;
 
             // Every ID-keyed tracker in this mod describes one specific city. IDs are recycled
@@ -39,6 +44,7 @@ namespace AIImprove
             }
 
             ColossalFramework.Singleton<LoadingManager>.instance.m_levelLoaded -= IngameUI.OnLevelLoaded;
+            ColossalFramework.Singleton<LoadingManager>.instance.m_levelLoaded -= IntercityServiceInventory.OnLevelLoaded;
             ColossalFramework.Singleton<LoadingManager>.instance.m_levelUnloaded -= IngameUI.OnLevelUnloading;
             ColossalFramework.Singleton<LoadingManager>.instance.m_levelUnloaded -= TrackerReset.ResetAll;
             IngameUI.OnLevelUnloading();
