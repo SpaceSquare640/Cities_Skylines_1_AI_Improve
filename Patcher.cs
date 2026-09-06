@@ -46,13 +46,22 @@ namespace AIImprove
             // (private cars, taxis, in-city and intercity buses) and excludes emergency vehicles,
             // which are handled separately.
             TryPatchFlexibleReroute(harmony, typeof(CarAI), typeof(FlexibleReroutePatch.Car));
-            // CargoTruckAI is a CarAI subtype but overrides this exact SimulationStep(ushort, ref
-            // Vehicle, Vector3) overload with its own implementation - the CarAI patch above never
-            // actually runs for cargo trucks (this is the "must patch the declaring/overriding
-            // type" rule from earlier in this project, not a new lesson) - so it needs its own
-            // registration, reusing the same Car wrapper (it already resolves each vehicle's own
-            // StartPathFind by its actual runtime type).
-            TryPatchFlexibleReroute(harmony, typeof(CargoTruckAI), typeof(FlexibleReroutePatch.Car));
+            // REMOVED (2026-09-05): CargoTruckAI used to get its own registration here, on the
+            // stated grounds that it overrides this overload and so the CarAI patch above "never
+            // actually runs for cargo trucks". That reasoning was wrong, and the comment saying so
+            // was actively misleading maintenance. Decompiling CargoTruckAI.SimulationStep shows
+            // its override ends with `base.SimulationStep(vehicleID, ref data, physicsLodRefPos)`
+            // in the non-Congestion branch - a direct call into the patched CarAI method - so the
+            // CarAI Postfix has always fired for cargo trucks. The extra registration only made it
+            // fire twice per truck per tick.
+            //
+            // Live logs agree: TaxiAI, PostVanAI, GarbageTruckAI, HearseAI, MaintenanceTruckAI and
+            // BusAI all report "is executing" through the CarAI registration despite overriding
+            // the same overload, because they all call base too.
+            //
+            // The corrected rule: "subclass overrides it, so the base patch will not run" depends
+            // entirely on whether the override calls base. Check the override's body in dnSpy
+            // before adding a registration for a subtype.
             TryPatchFireResponseCap(harmony, typeof(FireTruckAI), typeof(FireResponseCapPatch.Truck));
             TryPatchFireResponseCap(harmony, typeof(FireCopterAI), typeof(FireResponseCapPatch.Copter));
             TryPatchSanitationIdleSeek(harmony, typeof(GarbageTruckAI), typeof(SanitationIdleSeekPatch.Garbage));

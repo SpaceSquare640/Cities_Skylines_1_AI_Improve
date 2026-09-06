@@ -1,4 +1,5 @@
 using ColossalFramework;
+using UnityEngine;
 
 namespace AIImprove
 {
@@ -22,10 +23,22 @@ namespace AIImprove
         // loss of responsiveness.
         // "每個功能中的調整設定及數據可以拆開以及詳細調整" (2026-08-15): now a slider
         // (ModSettings.RerouteCheckIntervalFrames), default still 32.
+        // The clamp is not defensive dressing - without it this is a DivideByZeroException on the
+        // simulation thread, thrown for every vehicle in the city on the very next tick, which
+        // stops the simulation dead the moment a city loads. The slider's own minimum is 1, but
+        // the value is read back from a plain text settings file under the player's local app
+        // data: hand-edited, or truncated by a crash mid-write, it can arrive as 0.
+        //
+        // This became more urgent on 2026-09-05: FlexibleReroutePatch.Car.Postfix now calls this
+        // ahead of its own enabled check (so the settings reads behind it can be skipped), which
+        // means a corrupt value would take down players who have every reroute feature switched
+        // OFF - people who were previously never running this line at all. Clamping here fixes it
+        // for all five call sites at once rather than reordering one of them back.
         public static bool ShouldRunThisFrame(ushort vehicleId)
         {
             uint frame = Singleton<SimulationManager>.instance.m_currentFrameIndex;
-            return (frame + vehicleId) % (uint)ModSettings.RerouteCheckIntervalFrames.value == 0U;
+            uint interval = (uint)Mathf.Max(1, ModSettings.RerouteCheckIntervalFrames.value);
+            return (frame + vehicleId) % interval == 0U;
         }
     }
 }

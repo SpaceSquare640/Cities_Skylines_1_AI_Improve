@@ -322,6 +322,32 @@ namespace AIImprove
                     return;
                 }
 
+                // PERF (2026-09-05): the stagger test moved ahead of the settings reads below.
+                // This is the hottest Postfix in the project - every road vehicle in the city, on
+                // every tick - and each ModSettings read is a lock plus a string-keyed dictionary
+                // lookup inside ColossalFramework's SettingsFile (dnSpy-confirmed: SavedInt.value
+                // with autoUpdate re-syncs through SettingsFile.GetValue, which is in-memory but
+                // takes a lock). Two of those were being paid for every vehicle every tick, ahead
+                // of the very check meant to skip 31 ticks out of 32.
+                //
+                // Third time this exact shape has appeared: LoggedFirstCall's string hashing ahead
+                // of the stagger (2026-08-15), CompanionModCompat.FindType's assembly scan ahead
+                // of it (fixed alongside this), and now these. The optimization keeps being right
+                // and placed behind the thing it was meant to make cheap.
+                //
+                // TryRerouteViaSelf still runs its own stagger check - same formula, same answer,
+                // and it is one integer modulo. Leaving it there keeps the other callers (trains,
+                // aircraft, passenger helicopters) correct without threading a flag through.
+                //
+                // The one behavioural nuance: TryRerouteViaSelf clears StuckRerouteTracker state
+                // for vehicles flagged Stopped, and that clear is now staggered too. A stopped
+                // vehicle stays stopped for far longer than the stagger interval, so it still gets
+                // cleared - just up to 31 ticks later.
+                if (!SimulationStagger.ShouldRunThisFrame(vehicleID))
+                {
+                    return;
+                }
+
                 // This wrapper covers "一般市內交通" (private cars, taxis, cargo trucks), local
                 // buses, and intercity buses (BusAI is a CarAI subtype) - each is its own toggle
                 // and density threshold now (2026-08-15, per user request to split every feature

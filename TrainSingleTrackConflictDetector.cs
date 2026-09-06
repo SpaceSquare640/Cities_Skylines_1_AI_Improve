@@ -89,12 +89,16 @@ namespace AIImprove
                 }
             }
 
-            if (CompanionModCompat.IsSingleTrainTrackAiLoaded())
+            // ORDERING (2026-09-05): the stagger and the cheap field test now come first. This
+            // companion check used to run ahead of them, so every train paid it every tick - see
+            // CompanionModCompat.FindType for why that was the single most expensive thing on this
+            // path. It is cached now, but the cheap checks still belong first.
+            if (vehicleData.m_path == 0U || !SimulationStagger.ShouldRunThisFrame(vehicleID))
             {
                 return;
             }
 
-            if (vehicleData.m_path == 0U || !SimulationStagger.ShouldRunThisFrame(vehicleID))
+            if (CompanionModCompat.IsSingleTrainTrackAiLoaded())
             {
                 return;
             }

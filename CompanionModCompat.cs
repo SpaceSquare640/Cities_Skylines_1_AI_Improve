@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
@@ -122,18 +123,58 @@ namespace AIImprove
             }
         }
 
+        // PERF (2026-09-05): this used to walk AppDomain.CurrentDomain.GetAssemblies() on every
+        // single call, with no caching at all - and GetAssemblies() allocates a fresh array each
+        // time, over 100 entries deep for a heavily modded player. Two of the three callers sit on
+        // hot paths: FireResponseCapPatch runs it per FireTruckAI/FireCopterAI.SetTarget, and
+        // TrainSingleTrackConflictDetector ran it TWICE per train per tick - ahead of the
+        // SimulationStagger check that exists precisely to make that path cheap. Same shape as the
+        // 2026-08-15 audit finding where LoggedFirstCall's string hashing sat in front of the same
+        // stagger: the optimization was there, the expensive work was just placed before it.
+        //
+        // DlcDetector already caches its own answer this way; this brings companion detection in
+        // line with it.
+        //
+        // KNOWN LIMIT: results are cached for the session, negatives included. Cities: Skylines
+        // can load assemblies at runtime (Content Manager enabling a mod mid-session), so a
+        // companion mod enabled after this first ran will not be picked up until the next restart.
+        // Accepted deliberately: every caller only asks about mods that must be present from
+        // startup to matter, and the alternative is paying a full assembly scan forever.
+        // Locked because the writers are on different threads: LogDetectedCompanions runs from
+        // Patcher.PatchAll during load, while IsSingleTrainTrackAiLoaded / IsTmceFireDispatchActive
+        // / IsAdvancedVehicleOptionsLoaded run from patches on the simulation thread. Load does
+        // finish before simulation starts, so an actual overlap is unlikely - but a concurrently
+        // written Dictionary can loop forever inside a resize rather than throwing, and the
+        // symptom of that is a frozen game with nothing in the log. The lock is taken a handful of
+        // times per session (once per distinct type name, then never again), so it costs nothing.
+        // AirTrafficControlManager and EmergencyDispatchTracker guard their own state the same way.
+        private static readonly object CacheLock = new object();
+        private static readonly Dictionary<string, Type> TypeCache = new Dictionary<string, Type>();
+
         private static Type FindType(string typeName)
         {
-            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+            lock (CacheLock)
             {
-                Type type = assembly.GetType(typeName, throwOnError: false);
-                if (type != null)
+                Type cached;
+                if (TypeCache.TryGetValue(typeName, out cached))
                 {
-                    return type;
+                    return cached;
                 }
-            }
 
-            return null;
+                Type found = null;
+                foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    Type type = assembly.GetType(typeName, throwOnError: false);
+                    if (type != null)
+                    {
+                        found = type;
+                        break;
+                    }
+                }
+
+                TypeCache[typeName] = found;
+                return found;
+            }
         }
     }
 }
