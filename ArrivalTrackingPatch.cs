@@ -24,6 +24,7 @@ namespace AIImprove
         // only fires when someone remembered to turn on a setting is a diagnostic that will be
         // missing from the log you actually need. Remove them once A0 is closed.
         private static bool loggedFirstCall;
+        private static int loggedMisses;
         private static int callCount;
         private static int notArrivedCount;
         private static int goingBackCount;
@@ -59,6 +60,22 @@ namespace AIImprove
             if (!elapsed.HasValue)
             {
                 noStartTimeCount++;
+
+                // A0: say WHY the lookup missed, for the first few misses only. If the ID was
+                // never recorded by the dispatch side at all, the two sides are not agreeing on
+                // what a vehicle ID is - which points at the injected IL that supplies it, not at
+                // anything here. If it WAS recorded, something removed the entry too early.
+                if (loggedMisses < 10)
+                {
+                    loggedMisses++;
+                    Log.Info(
+                        "[AIImprove] ArrivalTracking miss: " + ownerTypeName + " vehicle " +
+                        vehicleId + " arrived with no dispatch start. Ever recorded by the " +
+                        "dispatch side: " + EmergencyDispatchTracker.WasEverRecorded(vehicleId) +
+                        ". Dispatch side currently holds " + EmergencyDispatchTracker.LiveCount +
+                        " entries, e.g. [" + EmergencyDispatchTracker.SampleLiveIds(8) + "].");
+                }
+
                 ReportIfDue();
                 return;
             }

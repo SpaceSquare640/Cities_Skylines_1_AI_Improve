@@ -240,15 +240,15 @@ namespace AIImprove
                 Features =
                 {
                     Toggle("feature.trafficReroute", ModSettings.OrdinaryTrafficRerouteEnabled)
-                        .With("tune.rerouteDensity", 30f, 50f, 5f,
+                        .With("tune.rerouteDensity", 30f, 70f, 5f,
                             () => ModSettings.OrdinaryTrafficRerouteDensityThreshold.value,
                             v => ModSettings.OrdinaryTrafficRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
                     Toggle("feature.localBusReroute", ModSettings.LocalBusRerouteEnabled)
-                        .With("tune.rerouteDensity", 30f, 50f, 5f,
+                        .With("tune.rerouteDensity", 30f, 70f, 5f,
                             () => ModSettings.LocalBusRerouteDensityThreshold.value,
                             v => ModSettings.LocalBusRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
                     Toggle("feature.intercityBusReroute", ModSettings.IntercityBusRerouteEnabled)
-                        .With("tune.rerouteDensity", 30f, 50f, 5f,
+                        .With("tune.rerouteDensity", 30f, 70f, 5f,
                             () => ModSettings.IntercityBusRerouteDensityThreshold.value,
                             v => ModSettings.IntercityBusRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
                     Toggle("feature.intercityBusPreload", ModSettings.IntercityBusPreloadEnabled)
@@ -265,7 +265,7 @@ namespace AIImprove
                 {
                     Toggle("feature.metroPlatform", ModSettings.MetroPlatformAssignmentEnabled),
                     Toggle("feature.metroReroute", ModSettings.MetroRerouteEnabled)
-                        .With("tune.rerouteDensity", 30f, 50f, 5f,
+                        .With("tune.rerouteDensity", 30f, 70f, 5f,
                             () => ModSettings.MetroRerouteDensityThreshold.value,
                             v => ModSettings.MetroRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
                     Toggle("feature.trainPlatform", ModSettings.IntercityTrainPlatformAssignmentEnabled)
@@ -276,7 +276,7 @@ namespace AIImprove
                             () => ModSettings.TrainPlatformCandidateCount.value,
                             v => ModSettings.TrainPlatformCandidateCount.value = Mathf.RoundToInt(v)),
                     Toggle("feature.trainReroute", ModSettings.IntercityTrainRerouteEnabled)
-                        .With("tune.rerouteDensity", 30f, 50f, 5f,
+                        .With("tune.rerouteDensity", 30f, 70f, 5f,
                             () => ModSettings.IntercityTrainRerouteDensityThreshold.value,
                             v => ModSettings.IntercityTrainRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
                     Toggle("feature.trainSpawnThrottle", ModSettings.IntercityTrainSpawnThrottleEnabled)
@@ -303,7 +303,7 @@ namespace AIImprove
                             () => ModSettings.AircraftPerGateCapacity.value,
                             v => ModSettings.AircraftPerGateCapacity.value = Mathf.RoundToInt(v)),
                     Toggle("feature.aircraftReroute", ModSettings.AircraftRerouteEnabled)
-                        .With("tune.rerouteDensity", 30f, 50f, 5f,
+                        .With("tune.rerouteDensity", 30f, 70f, 5f,
                             () => ModSettings.AircraftRerouteDensityThreshold.value,
                             v => ModSettings.AircraftRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
                     Toggle("feature.aircraftThunderstorm", ModSettings.AircraftThunderstormRefusalEnabled),

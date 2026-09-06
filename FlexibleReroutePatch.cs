@@ -331,7 +331,11 @@ namespace AIImprove
             // take a longer route sooner. Uncalibrated starting value, deliberately below the 80
             // the other categories default to; no slider, to avoid another four translated strings
             // before there is any evidence about what the right number is.
-            private const float EmergencyDensityThreshold = 60f;
+            // Calibrated 2026-09-07 alongside the settings thresholds: AmbulanceAI's measured
+        // ahead-density distribution (46000 samples) puts its top 10% at 50. See ModSettings.cs
+        // for the full percentile table. Not a slider, because emergency behaviour should not be
+        // something a player can quietly detune.
+        private const float EmergencyDensityThreshold = 50f;
 
             public static void Postfix(ushort vehicleID, CarAI __instance, ref Vehicle data)
             {

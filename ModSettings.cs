@@ -122,7 +122,7 @@ namespace AIImprove
 
         /// Ahead-congestion density (vanilla 0-100 scale) at or above which a metro train reroutes.
         public static readonly SavedInt MetroRerouteDensityThreshold =
-            new SavedInt("MetroRerouteDensityThreshold", FileName, 40, true);
+            new SavedInt("MetroRerouteDensityThreshold", FileName, 50, true);
 
         // ---------------------------------------------------------------------------------
         // Intercity trains
@@ -143,7 +143,7 @@ namespace AIImprove
             new SavedBool("IntercityTrainRerouteEnabled", FileName, LegacyIntercityTrain.value, true);
 
         public static readonly SavedInt IntercityTrainRerouteDensityThreshold =
-            new SavedInt("IntercityTrainRerouteDensityThreshold", FileName, 40, true);
+            new SavedInt("IntercityTrainRerouteDensityThreshold", FileName, 50, true);
 
         /// Throttles inbound intercity train spawns when the destination is saturated or city-wide
         /// ridership is low.
@@ -179,7 +179,7 @@ namespace AIImprove
             new SavedBool("AircraftRerouteEnabled", FileName, LegacyAircraft.value, true);
 
         public static readonly SavedInt AircraftRerouteDensityThreshold =
-            new SavedInt("AircraftRerouteDensityThreshold", FileName, 40, true);
+            new SavedInt("AircraftRerouteDensityThreshold", FileName, 50, true);
 
         /// Airports refuse landings and departures for the duration of a thunderstorm.
         public static readonly SavedBool AircraftThunderstormRefusalEnabled =
@@ -210,7 +210,7 @@ namespace AIImprove
             new SavedBool("LocalBusRerouteEnabled", FileName, LegacyBusesAndHelicopters.value, true);
 
         public static readonly SavedInt LocalBusRerouteDensityThreshold =
-            new SavedInt("LocalBusRerouteDensityThreshold", FileName, 40, true);
+            new SavedInt("LocalBusRerouteDensityThreshold", FileName, 50, true);
 
         public static readonly SavedBool IntercityBusRerouteEnabled =
             new SavedBool("IntercityBusRerouteEnabled", FileName, LegacyIntercityBus.value, true);
@@ -219,6 +219,26 @@ namespace AIImprove
         // "設定頁不可以讓玩家自行胡亂調整參數" (2026-09-07). The numeric tunables are hidden
         // behind this, default off, and their ranges are clamped to bands that cannot break the
         // feature they belong to. The toggles that turn features on and off stay visible.
+        // CALIBRATED 2026-09-07 from an 83-minute session, not chosen by feel. Percentiles of
+        // the measured ahead-density distribution, per vehicle AI:
+        //
+        //   CargoTruckAI (69500 samples)   top 15% begins at 50
+        //   TaxiAI (28000)                 top 15% begins at 50
+        //   MaintenanceTruckAI (14000)     top 15% begins at 50
+        //   BankVanAI (3500)               top 15% begins at 50
+        //   TrainAI (2500)                 top 15-25% begins at 50
+        //   GarbageTruckAI (8000)          top 20% begins at 50
+        //   AmbulanceAI (46000)            top 10% begins at 50
+        //   PoliceCarAI (28000)            top 15% begins at 60
+        //
+        // 50 lands on the top 10-20% of real congestion for nearly every type at once, which is
+        // what "the road ahead is actually congested" should mean. The previous 80 sat at roughly
+        // the top 5% and 60 at the top 10-13%; an earlier attempt at 40 was picked from a
+        // 3-minute sample that never exceeded 66.7 and was too low.
+        //
+        // AircraftAI is the exception and no threshold can fix it: 5000 samples, maximum ever
+        // observed 10.8. Air "density" is near zero by construction, so aircraft rerouting needs
+        // a different signal entirely rather than a different number.
         public static readonly SavedBool ShowAdvancedTuning =
             new SavedBool("ShowAdvancedTuning", FileName, false, true);
 
@@ -236,7 +256,7 @@ namespace AIImprove
             new SavedInt("SchemaVersion", FileName, 0, true);
 
         public static readonly SavedInt IntercityBusRerouteDensityThreshold =
-            new SavedInt("IntercityBusRerouteDensityThreshold", FileName, 40, true);
+            new SavedInt("IntercityBusRerouteDensityThreshold", FileName, 50, true);
 
         // Re-enabled 2026-09-06 at user request. Default OFF on purpose: this feature was turned
         // off by an explicit user decision on 2026-08-14, and a mod update must never switch a
@@ -260,7 +280,7 @@ namespace AIImprove
             new SavedBool("OrdinaryTrafficRerouteEnabled", FileName, LegacyOrdinaryTraffic.value, true);
 
         public static readonly SavedInt OrdinaryTrafficRerouteDensityThreshold =
-            new SavedInt("OrdinaryTrafficRerouteDensityThreshold", FileName, 40, true);
+            new SavedInt("OrdinaryTrafficRerouteDensityThreshold", FileName, 50, true);
 
         // ---------------------------------------------------------------------------------
         // Citizens
@@ -435,20 +455,20 @@ namespace AIImprove
 
             FireMaxRespondersPerBuilding.value = 20;
             FireUncapAfterMinutes.value = 15;
-            MetroRerouteDensityThreshold.value = 40;
+            MetroRerouteDensityThreshold.value = 50;
             TrainStationSaturationThreshold.value = 25;
             TrainPlatformCandidateCount.value = 24;
-            IntercityTrainRerouteDensityThreshold.value = 40;
+            IntercityTrainRerouteDensityThreshold.value = 50;
             IntercityLowRidershipThreshold.value = 50;
             IntercityLowRidershipSkipPercent.value = 0;
             AircraftPerGateCapacity.value = 6;
             AircraftGateCandidateCount.value = 26;
-            AircraftRerouteDensityThreshold.value = 40;
+            AircraftRerouteDensityThreshold.value = 50;
             PassengerHelicopterCapacityPercent.value = 200;
-            LocalBusRerouteDensityThreshold.value = 40;
-            IntercityBusRerouteDensityThreshold.value = 40;
+            LocalBusRerouteDensityThreshold.value = 50;
+            IntercityBusRerouteDensityThreshold.value = 50;
             IntercityBusPreloadPercent.value = 75;
-            OrdinaryTrafficRerouteDensityThreshold.value = 40;
+            OrdinaryTrafficRerouteDensityThreshold.value = 50;
             CitizenCarDensityThreshold.value = 70;
             CitizenCarMaxReductionPercent.value = 60;
             CitizenTaxiMultiplierPercent.value = 150;
@@ -489,13 +509,13 @@ namespace AIImprove
 
             MetroPlatformAssignmentEnabled.value = true;
             MetroRerouteEnabled.value = true;
-            MetroRerouteDensityThreshold.value = 40;
+            MetroRerouteDensityThreshold.value = 50;
 
             IntercityTrainPlatformAssignmentEnabled.value = true;
             TrainStationSaturationThreshold.value = 25;
             TrainPlatformCandidateCount.value = 24;
             IntercityTrainRerouteEnabled.value = true;
-            IntercityTrainRerouteDensityThreshold.value = 40;
+            IntercityTrainRerouteDensityThreshold.value = 50;
             IntercityTrainSpawnThrottleEnabled.value = true;
             IntercityLowRidershipThreshold.value = 50;
             IntercityLowRidershipSkipPercent.value = 0;
@@ -505,7 +525,7 @@ namespace AIImprove
             AircraftPerGateCapacity.value = 6;
             AircraftGateCandidateCount.value = 26;
             AircraftRerouteEnabled.value = true;
-            AircraftRerouteDensityThreshold.value = 40;
+            AircraftRerouteDensityThreshold.value = 50;
             AircraftThunderstormRefusalEnabled.value = true;
 
             PassengerHelicopterGateAssignmentEnabled.value = true;
@@ -516,14 +536,14 @@ namespace AIImprove
             PassengerHelicopterCapacityPercent.value = 100;
 
             LocalBusRerouteEnabled.value = true;
-            LocalBusRerouteDensityThreshold.value = 40;
+            LocalBusRerouteDensityThreshold.value = 50;
             IntercityBusRerouteEnabled.value = true;
-            IntercityBusRerouteDensityThreshold.value = 40;
+            IntercityBusRerouteDensityThreshold.value = 50;
             IntercityBusPreloadEnabled.value = false;
             IntercityBusPreloadPercent.value = 75;
 
             OrdinaryTrafficRerouteEnabled.value = true;
-            OrdinaryTrafficRerouteDensityThreshold.value = 40;
+            OrdinaryTrafficRerouteDensityThreshold.value = 50;
 
             ShipDockAssignmentEnabled.value = true;
             ShipDockCandidateCount.value = 24;
