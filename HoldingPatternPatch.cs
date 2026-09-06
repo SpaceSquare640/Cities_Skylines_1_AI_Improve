@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using UnityEngine;
 
 namespace AIImprove
@@ -15,6 +15,15 @@ namespace AIImprove
     // congestion-based rerouting, which doesn't apply to them (they aren't on a real path).
     internal static class HoldingPatternPatch
     {
+        // Called by TrackerReset when a save is unloaded. Building, vehicle and node IDs are
+        // recycled from fixed pools, so anything left here from the previous city would be read
+        // back as if it described the new one. Registered centrally rather than relied on being
+        // remembered per class - see 12 - 開發準則, 準則 3.
+        public static void ResetForNewLevel()
+        {
+            LastRecheck.Clear();
+        }
+
         // How often to re-run the gate candidate search while holding. Every tick would call
         // PathManager.FindPathPosition CandidateCount times per holding plane per frame - a real
         // cost - so this is throttled per vehicle, reusing the same realtime-based approach as

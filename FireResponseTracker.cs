@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using ColossalFramework;
 using UnityEngine;
 
@@ -24,6 +24,21 @@ namespace AIImprove
     //    not an artificial ceiling) - see FireStartTime / UnlimitedAfterSeconds.
     internal static class FireResponseTracker
     {
+        // Called by TrackerReset when a save is unloaded. Building, vehicle and node IDs are
+        // recycled from fixed pools, so anything left here from the previous city would be read
+        // back as if it described the new one. Registered centrally rather than relied on being
+        // remembered per class - see 12 - 開發準則, 準則 3.
+        public static void ResetForNewLevel()
+        {
+            TruckResponseCount.Clear();
+            TruckAssignment.Clear();
+            CopterResponseCount.Clear();
+            CopterAssignment.Clear();
+            FireStartTime.Clear();
+            KnownBurningBuildings.Clear();
+            StaleBuildings.Clear();
+        }
+
         // TUNED (2026-08-14, raised per user request): 10 -> 20. Real-world feedback was that
         // severe fires were outpacing the fire-growth-vs-extinguish-rate balance at 10 - see
         // FireResponseCapPatch.cs's notes on the same-day dispatch-conflict fix, which likely

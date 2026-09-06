@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using ColossalFramework;
 using UnityEngine;
 
@@ -23,6 +23,15 @@ namespace AIImprove
     // across more of the pad capacity.
     internal static class PassengerHelicopterGateAssignmentPatch
     {
+        // Called by TrackerReset when a save is unloaded. Building, vehicle and node IDs are
+        // recycled from fixed pools, so anything left here from the previous city would be read
+        // back as if it described the new one. Registered centrally rather than relied on being
+        // remembered per class - see 12 - 開發準則, 準則 3.
+        public static void ResetForNewLevel()
+        {
+            SeenSegmentsScratch.Clear();
+        }
+
         private const int CandidateCount = 16;
         private static readonly float[] SearchRadii = { 40f, 80f };
         private const float ProbeMaxDistance = 32f;

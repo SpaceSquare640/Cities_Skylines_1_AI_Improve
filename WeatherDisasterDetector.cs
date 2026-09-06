@@ -1,4 +1,4 @@
-using ColossalFramework;
+﻿using ColossalFramework;
 using System.Collections.Generic;
 
 namespace AIImprove
@@ -12,6 +12,15 @@ namespace AIImprove
     // the types themselves.
     internal static class WeatherDisasterDetector
     {
+        // Called by TrackerReset when a save is unloaded. Building, vehicle and node IDs are
+        // recycled from fixed pools, so anything left here from the previous city would be read
+        // back as if it described the new one. Registered centrally rather than relied on being
+        // remembered per class - see 12 - 開發準則, 準則 3.
+        public static void ResetForNewLevel()
+        {
+            LastReportedFlags.Clear();
+        }
+
         public static bool IsThunderstormActive()
         {
             // Skip the scan entirely without Natural Disasters (2026-08-14, per user request to

@@ -1,4 +1,4 @@
-using ColossalFramework;
+﻿using ColossalFramework;
 using ColossalFramework.UI;
 using ICities;
 using UnityEngine;
@@ -23,6 +23,11 @@ namespace AIImprove
             // destroyed/recreated between scenes (main menu <-> city <-> another city).
             ColossalFramework.Singleton<LoadingManager>.instance.m_levelLoaded += IngameUI.OnLevelLoaded;
             ColossalFramework.Singleton<LoadingManager>.instance.m_levelUnloaded += IngameUI.OnLevelUnloading;
+
+            // Every ID-keyed tracker in this mod describes one specific city. IDs are recycled
+            // from fixed pools on load, so anything left over would be misread as describing the
+            // next one. See TrackerReset.cs for the full reasoning.
+            ColossalFramework.Singleton<LoadingManager>.instance.m_levelUnloaded += TrackerReset.ResetAll;
         }
 
         public void OnDisabled()
@@ -35,7 +40,9 @@ namespace AIImprove
 
             ColossalFramework.Singleton<LoadingManager>.instance.m_levelLoaded -= IngameUI.OnLevelLoaded;
             ColossalFramework.Singleton<LoadingManager>.instance.m_levelUnloaded -= IngameUI.OnLevelUnloading;
+            ColossalFramework.Singleton<LoadingManager>.instance.m_levelUnloaded -= TrackerReset.ResetAll;
             IngameUI.OnLevelUnloading();
+            TrackerReset.ResetAll();
         }
 
         // Content Manager's per-mod options page - the "detailed settings" half of the TM:PE-style

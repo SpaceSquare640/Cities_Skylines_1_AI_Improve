@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace AIImprove
 {
@@ -28,6 +28,21 @@ namespace AIImprove
     // per-building saturation decision.
     internal static class AirTrafficControlManager
     {
+        // Called by TrackerReset when a save is unloaded. Building, vehicle and node IDs are
+        // recycled from fixed pools, so anything left here from the previous city would be read
+        // back as if it described the new one. Registered centrally rather than relied on being
+        // remembered per class - see 12 - 開發準則, 準則 3.
+        public static void ResetForNewLevel()
+        {
+            lock (Lock)
+            {
+                GateOccupancy.Clear();
+                VehicleGateAssignment.Clear();
+                BuildingOccupancy.Clear();
+                VehicleBuildingAssignment.Clear();
+            }
+        }
+
         private static readonly Dictionary<ushort, int> GateOccupancy = new Dictionary<ushort, int>();
         private static readonly Dictionary<ushort, ushort> VehicleGateAssignment = new Dictionary<ushort, ushort>();
         private static readonly Dictionary<ushort, int> BuildingOccupancy = new Dictionary<ushort, int>();

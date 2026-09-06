@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -32,6 +32,16 @@ namespace AIImprove
     // vanilla ProcessItemCosts transpiler that was confirmed working in-game.
     internal static class EmergencyIgnoreCostsPatch
     {
+        // Called by TrackerReset when a save is unloaded. Building, vehicle and node IDs are
+        // recycled from fixed pools, so anything left here from the previous city would be read
+        // back as if it described the new one. Registered centrally rather than relied on being
+        // remembered per class - see 12 - 開發準則, 準則 3.
+        public static void ResetForNewLevel()
+        {
+            HitCounts.Clear();
+            LoggedFirstCall.Clear();
+        }
+
         public static IEnumerable<CodeInstruction> TranspileFor(IEnumerable<CodeInstruction> instructions, Type ownerType)
         {
             var code = new List<CodeInstruction>(instructions);

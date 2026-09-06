@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text;
 using ColossalFramework;
 using UnityEngine;
@@ -30,6 +30,22 @@ namespace AIImprove
     //   (2) Does m_blockCounter really plateau below 255? The max seen per dock is reported.
     internal static class ShipQueueDetector
     {
+        // Called by TrackerReset when a save is unloaded. Building, vehicle and node IDs are
+        // recycled from fixed pools, so anything left here from the previous city would be read
+        // back as if it described the new one. Registered centrally rather than relied on being
+        // remembered per class - see 12 - 開發準則, 準則 3.
+        public static void ResetForNewLevel()
+        {
+            StuckShips.Clear();
+            LastReportedLength.Clear();
+            GroupCount.Clear();
+            GroupTransportLineCount.Clear();
+            GroupMaxBlockCounter.Clear();
+            GroupOldestFrame.Clear();
+            GroupAiTypes.Clear();
+            RemovalScratch.Clear();
+        }
+
         // UNCALIBRATED starting value. Vanilla only despawns at 255; 32 is simply "blocked long
         // enough that this is not ordinary traffic braking". Expect to tune it once real logs come
         // back - it is deliberately a const rather than a setting, because adding a ModSettings

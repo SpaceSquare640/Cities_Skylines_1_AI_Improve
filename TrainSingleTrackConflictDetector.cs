@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using ColossalFramework;
 using UnityEngine;
 
@@ -27,6 +27,15 @@ namespace AIImprove
     // is a follow-up decision once this data comes back from a real play session's log.
     internal static class TrainSingleTrackConflictDetector
     {
+        // Called by TrackerReset when a save is unloaded. Building, vehicle and node IDs are
+        // recycled from fixed pools, so anything left here from the previous city would be read
+        // back as if it described the new one. Registered centrally rather than relied on being
+        // remembered per class - see 12 - 開發準則, 準則 3.
+        public static void ResetForNewLevel()
+        {
+            ApproachingVehicle.Clear();
+        }
+
         // How far ahead (in path positions) to look for a shared single-track segment - mirrors
         // SegmentCongestionQuery's lookahead approach.
         private const int LookaheadPositions = 6;

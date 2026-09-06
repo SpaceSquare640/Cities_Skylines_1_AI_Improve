@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace AIImprove
@@ -13,6 +13,15 @@ namespace AIImprove
     // the name it now gates purely on density, not "stuck" in the speed sense.
     internal static class StuckRerouteTracker
     {
+        // Called by TrackerReset when a save is unloaded. Building, vehicle and node IDs are
+        // recycled from fixed pools, so anything left here from the previous city would be read
+        // back as if it described the new one. Registered centrally rather than relied on being
+        // remembered per class - see 12 - 開發準則, 準則 3.
+        public static void ResetForNewLevel()
+        {
+            States.Clear();
+        }
+
         // NetSegment.m_trafficDensity is on a vanilla 0-100 scale.
         //
         // TUNED (2026-08-12) from live test data at threshold=60/cooldown=20: 2431 reroute

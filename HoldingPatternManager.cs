@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace AIImprove
@@ -25,6 +25,15 @@ namespace AIImprove
     // of a single destination.
     internal static class HoldingPatternManager
     {
+        // Called by TrackerReset when a save is unloaded. Building, vehicle and node IDs are
+        // recycled from fixed pools, so anything left here from the previous city would be read
+        // back as if it described the new one. Registered centrally rather than relied on being
+        // remembered per class - see 12 - 開發準則, 準則 3.
+        public static void ResetForNewLevel()
+        {
+            Holding.Clear();
+        }
+
         private const float HoldRadius = 300f;
 
         // Comfortably above the game's own `m_targetPos0.w < 40f` "close enough to land" check

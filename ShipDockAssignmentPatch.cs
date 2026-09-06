@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using ColossalFramework;
 using UnityEngine;
 
@@ -24,6 +24,15 @@ namespace AIImprove
     // trains, since ships have no aircraft-style despawn risk on a merely-suboptimal path.
     internal static class ShipDockAssignmentPatch
     {
+        // Called by TrackerReset when a save is unloaded. Building, vehicle and node IDs are
+        // recycled from fixed pools, so anything left here from the previous city would be read
+        // back as if it described the new one. Registered centrally rather than relied on being
+        // remembered per class - see 12 - 開發準則, 準則 3.
+        public static void ResetForNewLevel()
+        {
+            SeenSegmentsScratch.Clear();
+        }
+
         private static int CandidateCount => ModSettings.ShipDockCandidateCount.value;
         private static readonly float[] SearchRadii = { 60f, 120f };
         private const float ProbeMaxDistance = 64f; // matches ShipAI's own FindPathPosition call

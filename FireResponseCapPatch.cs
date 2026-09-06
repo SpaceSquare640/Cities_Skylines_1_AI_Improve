@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace AIImprove
@@ -39,6 +39,15 @@ namespace AIImprove
     // FireTruckAISimulationStepPostfix) picks the vehicle back up on its own next pass.
     internal static class FireResponseCapPatch
     {
+        // Called by TrackerReset when a save is unloaded. Building, vehicle and node IDs are
+        // recycled from fixed pools, so anything left here from the previous city would be read
+        // back as if it described the new one. Registered centrally rather than relied on being
+        // remembered per class - see 12 - 開發準則, 準則 3.
+        public static void ResetForNewLevel()
+        {
+            TmcePuntStreak.Clear();
+        }
+
         private static bool loggedFirstCall;
 
         // BUG FOUND VIA PLAYER REPORT (2026-08-16): "建築物火災，但沒有派遣任何消防車輛或直升機".

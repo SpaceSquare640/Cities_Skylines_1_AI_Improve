@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using ColossalFramework;
 using UnityEngine;
 
@@ -16,6 +16,16 @@ namespace AIImprove
     // method (and its own FindPathPosition call) runs.
     internal static class AircraftGateAssignmentPatch
     {
+        // Called by TrackerReset when a save is unloaded. Building, vehicle and node IDs are
+        // recycled from fixed pools, so anything left here from the previous city would be read
+        // back as if it described the new one. Registered centrally rather than relied on being
+        // remembered per class - see 12 - 開發準則, 準則 3.
+        public static void ResetForNewLevel()
+        {
+            ForceAssign.Clear();
+            SeenSegmentsScratch.Clear();
+        }
+
         // INTERIM VALUES (2026-08-12, revised): live screenshot showed dozens of aircraft
         // piled up nose-to-tail at a single taxiway junction instead of spreading across the
         // airport's actual gate/stand capacity. With only 8 candidate points on a tight 40m

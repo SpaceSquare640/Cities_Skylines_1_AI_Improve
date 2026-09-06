@@ -1,4 +1,4 @@
-using ColossalFramework;
+﻿using ColossalFramework;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -37,6 +37,15 @@ namespace AIImprove
     // nothing. See Log.cs for why that convention exists.
     internal static class RerouteFailureDiagnostics
     {
+        // Called by TrackerReset when a save is unloaded. Building, vehicle and node IDs are
+        // recycled from fixed pools, so anything left here from the previous city would be read
+        // back as if it described the new one. Registered centrally rather than relied on being
+        // remembered per class - see 12 - 開發準則, 準則 3.
+        public static void ResetForNewLevel()
+        {
+            ByOwnerType.Clear();
+        }
+
         // One line per this many failures, per vehicle AI type. Large enough that a long session
         // produces a readable handful of lines rather than a wall of them.
         private const int ReportEveryFailures = 50;
