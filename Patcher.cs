@@ -96,7 +96,24 @@ namespace AIImprove
             }
             TryPatchPassengerHelicopterGateAssignment(harmony);
             TryPatchFlexibleReroute(harmony, typeof(PassengerHelicopterAI), typeof(FlexibleReroutePatch.PassengerHelicopter));
-            TryPatchPassengerHelicopterCapacity(harmony);
+            // TryPatchPassengerHelicopterCapacity(harmony) - DISABLED 2026-09-06 by standing
+            // user instruction: "盡量不要修改任何載具的總載客量". Multiplying m_passengerCapacity
+            // produced absurd figures in early development - a minibus at 5000 seats, a taxi at
+            // 500 - because the multiplier lands on whatever value is already there, and that
+            // value can already be someone else's (Advanced Vehicle Options set a train to 15984,
+            // which our x2 turned into 31968 - see CompanionModCompat.cs). Deferring to AVO only
+            // covered the case where we knew who the other party was.
+            //
+            // This was the last registered patch that wrote m_passengerCapacity, so as of now
+            // this mod does not change any vehicle's total capacity at all. If fuller vehicles
+            // are wanted, the supported way is the occupancy approach used by
+            // IntercityBusPreloadPatch: set how many passengers are already aboard, as a
+            // percentage of the vehicle's own real capacity, and leave the capacity alone.
+            //
+            // The setting now defaults off, but a player who previously turned it on still has
+            // true saved in AIImprove.cgs - which is exactly why this is unregistered rather than
+            // merely defaulted off, and why its settings entry is gone: a toggle that cannot do
+            // anything is worse than no toggle.
             // RE-ENABLED 2026-09-06 at user request. It is registered, but its own setting
             // (IntercityBusPreloadEnabled) defaults to OFF, so nothing changes for an existing
             // player until they turn it on - the 2026-08-14 decision to disable it stands until

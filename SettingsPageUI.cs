@@ -309,10 +309,8 @@ namespace AIImprove
                     Toggle("feature.aircraftThunderstorm", ModSettings.AircraftThunderstormRefusalEnabled),
                     Toggle("feature.helicopterGate", ModSettings.PassengerHelicopterGateAssignmentEnabled),
                     Toggle("feature.helicopterReroute", ModSettings.PassengerHelicopterRerouteEnabled),
-                    Toggle("feature.helicopterCapacity", ModSettings.PassengerHelicopterCapacityEnabled)
-                        .With("tune.helicopterCapacity", 100f, 400f, 10f,
-                            () => ModSettings.PassengerHelicopterCapacityPercent.value,
-                            v => ModSettings.PassengerHelicopterCapacityPercent.value = Mathf.RoundToInt(v), "%"),
+                    // feature.helicopterCapacity removed 2026-09-06 - see Patcher.cs. The patch
+                    // is unregistered, so this toggle could only have lied.
                 },
             });
 

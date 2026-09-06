@@ -433,8 +433,10 @@ namespace AIImprove
 
             PassengerHelicopterGateAssignmentEnabled.value = true;
             PassengerHelicopterRerouteEnabled.value = true;
-            PassengerHelicopterCapacityEnabled.value = true;
-            PassengerHelicopterCapacityPercent.value = 200;
+            // Total-capacity changes are off by standing user instruction (2026-09-06); the
+            // patch is unregistered, so these two only still exist to be reset cleanly.
+            PassengerHelicopterCapacityEnabled.value = false;
+            PassengerHelicopterCapacityPercent.value = 100;
 
             LocalBusRerouteEnabled.value = true;
             LocalBusRerouteDensityThreshold.value = 80;
