@@ -7,7 +7,7 @@ namespace AIImprove
 {
     // "全局型調整全部大眾運輸交通 AI" (2026-08-14): applies to ordinary (non-intercity) bus,
     // passenger helicopter, and metro. Intercity bus and intercity/regional train are explicitly
-    // excluded per request - those already have their own separate tuning (IntercityBusCapacityPatch,
+    // excluded per request - those already have their own separate tuning (IntercityBusPreloadPatch,
     // TrainPlatformAssignmentPatch/TrainPassengerCapacityPatch/TrainSpawnThrottlePatch) and stay
     // untouched here. "客運飛艇" was also requested, but the only airship-like AI in this game
     // (BlimpAI) is a decorative advertising blimp with no transport line/stop system at all - no

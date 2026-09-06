@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -24,7 +24,7 @@ namespace AIImprove
         // BUG FOUND VIA SCREENSHOT (2026-08-14): a user with Advanced Vehicle Options installed
         // had a train showing 31968 passenger capacity. AVO lets players set an explicit custom
         // capacity per vehicle asset; our own capacity-boost patches (TrainPassengerCapacityPatch,
-        // IntercityBusCapacityPatch, PassengerHelicopterCapacityPatch) unconditionally multiply
+        // PassengerHelicopterCapacityPatch) unconditionally multiply
         // whatever m_passengerCapacity they find by a fixed factor, with no awareness that the
         // "original" value they captured might already be an intentional custom number from AVO
         // rather than the vanilla default - the two stack multiplicatively (e.g. AVO's own 15984

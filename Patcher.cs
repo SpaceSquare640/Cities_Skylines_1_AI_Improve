@@ -98,12 +98,12 @@ namespace AIImprove
             TryPatchFlexibleReroute(harmony, typeof(PassengerHelicopterAI), typeof(FlexibleReroutePatch.PassengerHelicopter));
             TryPatchPassengerHelicopterCapacity(harmony);
             // RE-ENABLED 2026-09-06 at user request. It is registered, but its own setting
-            // (IntercityBusCapacityEnabled) defaults to OFF, so nothing changes for an existing
+            // (IntercityBusPreloadEnabled) defaults to OFF, so nothing changes for an existing
             // player until they turn it on - the 2026-08-14 decision to disable it stands until
-            // the player themselves reverses it. The reason it was unsafe to leave running has
-            // also been fixed since: m_passengerCapacity now has a restore path (see
-            // IntercityBusCapacityPatch.RestoreAll).
-            TryPatchIntercityBusCapacity(harmony);
+            // the player themselves reverses it. The reason it was unsafe to leave running is
+            // gone rather than mitigated: it no longer writes m_passengerCapacity at all (see
+            // IntercityBusPreloadPatch.cs).
+            TryPatchIntercityBusPreload(harmony);
             // TryPatchTransitStationSkip(...) x3 - DISABLED (2026-08-14) after a player bug report
             // ("地鐵無法移動 / 有些巴士無法移動 / 直升機無法移動 / 部份電車無法移動 /
             // 公共交通工具客量大幅減少"), confirmed against their output_log: 3676 skip events
@@ -150,8 +150,8 @@ namespace AIImprove
             CompanionModCompat.LogDetectedCompanions();
         }
 
-        // Boosts intercity bus capacity - see IntercityBusCapacityPatch.cs.
-        private static bool TryPatchIntercityBusCapacity(Harmony harmony)
+        // Boosts intercity bus capacity - see IntercityBusPreloadPatch.cs.
+        private static bool TryPatchIntercityBusPreload(Harmony harmony)
         {
             try
             {
@@ -164,21 +164,21 @@ namespace AIImprove
                 {
                     Debug.LogWarning(
                         "[AIImprove] BusAI.CreateVehicle not found - game version may have changed. " +
-                        "Skipping intercity bus capacity patch.");
+                        "Skipping intercity bus preload patch.");
                     return false;
                 }
 
-                MethodInfo prefix = typeof(IntercityBusCapacityPatch).GetMethod(
-                    nameof(IntercityBusCapacityPatch.Prefix), BindingFlags.Public | BindingFlags.Static);
+                MethodInfo prefix = typeof(IntercityBusPreloadPatch).GetMethod(
+                    nameof(IntercityBusPreloadPatch.Prefix), BindingFlags.Public | BindingFlags.Static);
                 harmony.Patch(original, prefix: new HarmonyMethod(prefix));
 
-                Debug.Log("[AIImprove] Intercity bus capacity patch applied.");
+                Debug.Log("[AIImprove] Intercity bus preload patch applied.");
                 return true;
             }
             catch (Exception ex)
             {
                 Debug.LogWarning(
-                    "[AIImprove] Intercity bus capacity patch failed to apply, skipping it. Rest " +
+                    "[AIImprove] Intercity bus preload patch failed to apply, skipping it. Rest " +
                     "of the mod is unaffected. Reason: " + ex.Message);
                 return false;
             }

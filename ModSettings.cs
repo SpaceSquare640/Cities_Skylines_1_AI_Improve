@@ -222,11 +222,16 @@ namespace AIImprove
         // Re-enabled 2026-09-06 at user request. Default OFF on purpose: this feature was turned
         // off by an explicit user decision on 2026-08-14, and a mod update must never switch a
         // deliberately-disabled feature back on behind the player's back.
-        public static readonly SavedBool IntercityBusCapacityEnabled =
-            new SavedBool("IntercityBusCapacityEnabled", FileName, false, true);
+        //
+        // This is 已載客量 (how full a bus arrives), not 總載客量 (its seat capacity) - see
+        // IntercityBusPreloadPatch.cs for why the distinction matters and what went wrong when
+        // the two were conflated.
+        public static readonly SavedBool IntercityBusPreloadEnabled =
+            new SavedBool("IntercityBusPreloadEnabled", FileName, false, true);
 
-        public static readonly SavedInt IntercityBusCapacityPercent =
-            new SavedInt("IntercityBusCapacityPercent", FileName, 200, true);
+        // Upper bound as a percentage of the vehicle's real seat capacity.
+        public static readonly SavedInt IntercityBusPreloadPercent =
+            new SavedInt("IntercityBusPreloadPercent", FileName, 75, true);
 
         // ---------------------------------------------------------------------------------
         // Ordinary city traffic
@@ -435,8 +440,8 @@ namespace AIImprove
             LocalBusRerouteDensityThreshold.value = 80;
             IntercityBusRerouteEnabled.value = true;
             IntercityBusRerouteDensityThreshold.value = 60;
-            IntercityBusCapacityEnabled.value = false;
-            IntercityBusCapacityPercent.value = 200;
+            IntercityBusPreloadEnabled.value = false;
+            IntercityBusPreloadPercent.value = 75;
 
             OrdinaryTrafficRerouteEnabled.value = true;
             OrdinaryTrafficRerouteDensityThreshold.value = 80;

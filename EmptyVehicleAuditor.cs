@@ -12,7 +12,7 @@ namespace AIImprove
     // on.
     //
     // "No passengers" = Vehicle.m_transferSize == 0, the same field TrainPassengerCapacityPatch/
-    // IntercityBusCapacityPatch read for the current-boarded count shown in the game's own info
+    // IntercityBusPreloadPatch write for the current-boarded count shown in the game's own info
     // panel (see those files' notes on why this field is safe to trust: it's recomputed from
     // scratch at each real stop, not an approximate counter).
     internal static class EmptyVehicleAuditor

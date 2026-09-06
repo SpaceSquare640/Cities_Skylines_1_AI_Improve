@@ -251,10 +251,10 @@ namespace AIImprove
                         .With("tune.rerouteDensity", 20f, 100f, 5f,
                             () => ModSettings.IntercityBusRerouteDensityThreshold.value,
                             v => ModSettings.IntercityBusRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
-                    Toggle("feature.intercityBusCapacity", ModSettings.IntercityBusCapacityEnabled)
-                        .With("tune.intercityBusCapacity", 100f, 400f, 25f,
-                            () => ModSettings.IntercityBusCapacityPercent.value,
-                            v => ModSettings.IntercityBusCapacityPercent.value = Mathf.RoundToInt(v)),
+                    Toggle("feature.intercityBusPreload", ModSettings.IntercityBusPreloadEnabled)
+                        .With("tune.intercityBusPreload", 0f, 100f, 5f,
+                            () => ModSettings.IntercityBusPreloadPercent.value,
+                            v => ModSettings.IntercityBusPreloadPercent.value = Mathf.RoundToInt(v)),
                 },
             });
 
