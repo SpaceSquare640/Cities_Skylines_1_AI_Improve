@@ -21,6 +21,8 @@ namespace AIImprove
             // "地圖中也可以啟用" (2026-08-15): the in-game toggle button/panel (IngameUI.cs) is
             // created per-city on level load and torn down on unload, since UIView itself gets
             // destroyed/recreated between scenes (main menu <-> city <-> another city).
+            ModSettings.ApplySchemaMigrations();
+
             ColossalFramework.Singleton<LoadingManager>.instance.m_levelLoaded += IngameUI.OnLevelLoaded;
 
             // One-shot inventory of stations and outside connections, to establish whether the

@@ -240,15 +240,15 @@ namespace AIImprove
                 Features =
                 {
                     Toggle("feature.trafficReroute", ModSettings.OrdinaryTrafficRerouteEnabled)
-                        .With("tune.rerouteDensity", 20f, 100f, 5f,
+                        .With("tune.rerouteDensity", 30f, 50f, 5f,
                             () => ModSettings.OrdinaryTrafficRerouteDensityThreshold.value,
                             v => ModSettings.OrdinaryTrafficRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
                     Toggle("feature.localBusReroute", ModSettings.LocalBusRerouteEnabled)
-                        .With("tune.rerouteDensity", 20f, 100f, 5f,
+                        .With("tune.rerouteDensity", 30f, 50f, 5f,
                             () => ModSettings.LocalBusRerouteDensityThreshold.value,
                             v => ModSettings.LocalBusRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
                     Toggle("feature.intercityBusReroute", ModSettings.IntercityBusRerouteEnabled)
-                        .With("tune.rerouteDensity", 20f, 100f, 5f,
+                        .With("tune.rerouteDensity", 30f, 50f, 5f,
                             () => ModSettings.IntercityBusRerouteDensityThreshold.value,
                             v => ModSettings.IntercityBusRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
                     Toggle("feature.intercityBusPreload", ModSettings.IntercityBusPreloadEnabled)
@@ -265,7 +265,7 @@ namespace AIImprove
                 {
                     Toggle("feature.metroPlatform", ModSettings.MetroPlatformAssignmentEnabled),
                     Toggle("feature.metroReroute", ModSettings.MetroRerouteEnabled)
-                        .With("tune.rerouteDensity", 20f, 100f, 5f,
+                        .With("tune.rerouteDensity", 30f, 50f, 5f,
                             () => ModSettings.MetroRerouteDensityThreshold.value,
                             v => ModSettings.MetroRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
                     Toggle("feature.trainPlatform", ModSettings.IntercityTrainPlatformAssignmentEnabled)
@@ -276,7 +276,7 @@ namespace AIImprove
                             () => ModSettings.TrainPlatformCandidateCount.value,
                             v => ModSettings.TrainPlatformCandidateCount.value = Mathf.RoundToInt(v)),
                     Toggle("feature.trainReroute", ModSettings.IntercityTrainRerouteEnabled)
-                        .With("tune.rerouteDensity", 20f, 100f, 5f,
+                        .With("tune.rerouteDensity", 30f, 50f, 5f,
                             () => ModSettings.IntercityTrainRerouteDensityThreshold.value,
                             v => ModSettings.IntercityTrainRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
                     Toggle("feature.trainSpawnThrottle", ModSettings.IntercityTrainSpawnThrottleEnabled)
@@ -303,7 +303,7 @@ namespace AIImprove
                             () => ModSettings.AircraftPerGateCapacity.value,
                             v => ModSettings.AircraftPerGateCapacity.value = Mathf.RoundToInt(v)),
                     Toggle("feature.aircraftReroute", ModSettings.AircraftRerouteEnabled)
-                        .With("tune.rerouteDensity", 20f, 100f, 5f,
+                        .With("tune.rerouteDensity", 30f, 50f, 5f,
                             () => ModSettings.AircraftRerouteDensityThreshold.value,
                             v => ModSettings.AircraftRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
                     Toggle("feature.aircraftThunderstorm", ModSettings.AircraftThunderstormRefusalEnabled),
@@ -345,8 +345,12 @@ namespace AIImprove
                 },
             });
 
-            model.Add(new Section
+            // The Advanced tab holds nothing but tunables, so with them hidden it would be an
+            // empty page. Omit the tab rather than show one.
+            if (ModSettings.ShowAdvancedTuning.value)
             {
+                model.Add(new Section
+                {
                 NavKey = "nav.advanced",
                 Features =
                 {
@@ -358,7 +362,8 @@ namespace AIImprove
                             () => ModSettings.RerouteCheckIntervalFrames.value,
                             v => ModSettings.RerouteCheckIntervalFrames.value = Mathf.RoundToInt(v)),
                 },
-            });
+                });
+            }
 
             model.Add(new Section { NavKey = "tab.about", CustomBuilder = BuildAboutPage });
 
@@ -833,9 +838,16 @@ namespace AIImprove
                 y += Mathf.Max(desc.height, 16f) + 6f;
             }
 
-            for (int i = 0; i < feature.Tunables.Count; i++)
+            // Numeric tunables are hidden unless the player has deliberately asked to see them
+            // (2026-09-07, "設定頁不可以讓玩家自行胡亂調整參數"). The feature toggles above stay
+            // visible: those are decisions about what the mod should do. The numbers are this
+            // project's to get right.
+            if (ModSettings.ShowAdvancedTuning.value)
             {
-                y += AddTunableRow(card, feature.Tunables[i], CardPadding, y, innerWidth);
+                for (int i = 0; i < feature.Tunables.Count; i++)
+                {
+                    y += AddTunableRow(card, feature.Tunables[i], CardPadding, y, innerWidth);
+                }
             }
 
             if (feature.ExtraBuilder != null)
@@ -1033,7 +1045,8 @@ namespace AIImprove
         // Shared controls
         // ------------------------------------------------------------------------------------
 
-        private static void AddPillToggle(UIComponent parent, float x, float y, SavedBool setting)
+        private static void AddPillToggle(UIComponent parent, float x, float y, SavedBool setting,
+            System.Action onChanged = null)
         {
             const float width = 40f;
             const float height = 20f;
@@ -1066,11 +1079,16 @@ namespace AIImprove
             background.eventClick += (component, param) =>
             {
                 setting.value = !setting.value;
+                if (onChanged != null)
+                {
+                    onChanged();
+                }
                 Refresh();
             };
         }
 
-        private static void AddPlainToggleRow(UIComponent parent, string label, SavedBool setting, string tooltip = null)
+        private static void AddPlainToggleRow(UIComponent parent, string label, SavedBool setting, string tooltip = null,
+            System.Action onChanged = null)
         {
             UIPanel row = parent.AddUIComponent<UIPanel>();
             row.width = parent.width - 20f;
@@ -1085,7 +1103,7 @@ namespace AIImprove
             rowLabel.textScale = 0.85f;
             rowLabel.relativePosition = new Vector3(4f, 7f);
 
-            AddPillToggle(row, row.width - 50f, 4f, setting);
+            AddPillToggle(row, row.width - 50f, 4f, setting, onChanged);
         }
 
         private static void StyleAccentButton(UIButton button)
@@ -1107,6 +1125,17 @@ namespace AIImprove
             AddLanguageDropdown(page, root, helper);
             AddPlainToggleRow(page, Localization.Get("tune.verboseLogging"), ModSettings.VerboseLogging,
                 Localization.Get("tune.verboseLogging.desc"));
+            AddPlainToggleRow(page, Localization.Get("tune.showAdvanced"), ModSettings.ShowAdvancedTuning,
+                Localization.Get("tune.showAdvanced.desc"),
+                () =>
+                {
+                    // Every feature card changes shape, and the Advanced tab appears or vanishes,
+                    // so the page has to be rebuilt rather than just repainted.
+                    if (currentRoot != null && currentHelper != null)
+                    {
+                        RebuildInPlace(currentRoot, currentHelper);
+                    }
+                });
         }
 
         private static readonly string[] LanguageCodes =
