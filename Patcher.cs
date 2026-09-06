@@ -392,76 +392,12 @@ namespace AIImprove
             }
         }
 
-        // Boosts passenger helicopter capacity - see PassengerHelicopterCapacityPatch.cs.
-        private static bool TryPatchPassengerHelicopterCapacity(Harmony harmony)
-        {
-            try
-            {
-                MethodInfo original = AccessTools.Method(
-                    typeof(PassengerHelicopterAI),
-                    "CreateVehicle",
-                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType() });
+        // TryPatchPassengerHelicopterCapacity removed 2026-09-06 along with the patch
+        // body it registered - see PassengerHelicopterCapacityPatch.cs and 準則 11. Kept as
+        // a note so nobody re-adds a registration for a patch that no longer exists.
 
-                if (original == null)
-                {
-                    Debug.LogWarning(
-                        "[AIImprove] PassengerHelicopterAI.CreateVehicle not found - game version " +
-                        "may have changed. Skipping passenger helicopter capacity patch.");
-                    return false;
-                }
-
-                MethodInfo prefix = typeof(PassengerHelicopterCapacityPatch).GetMethod(
-                    nameof(PassengerHelicopterCapacityPatch.Prefix), BindingFlags.Public | BindingFlags.Static);
-                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
-
-                Debug.Log("[AIImprove] Passenger helicopter capacity patch applied.");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning(
-                    "[AIImprove] Passenger helicopter capacity patch failed to apply, skipping it. " +
-                    "Rest of the mod is unaffected. Reason: " + ex.Message);
-                return false;
-            }
-        }
-
-        // Boosts intercity/regional train passenger capacity - see
-        // TrainPassengerCapacityPatch.cs. CreateVehicle is public, but PassengerTrainAI is the
-        // declaring/overriding type (MetroTrainAI has its own separate override), so this must
-        // patch PassengerTrainAI specifically to naturally exclude metro.
-        private static bool TryPatchTrainPassengerCapacity(Harmony harmony)
-        {
-            try
-            {
-                MethodInfo original = AccessTools.Method(
-                    typeof(PassengerTrainAI),
-                    "CreateVehicle",
-                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType() });
-
-                if (original == null)
-                {
-                    Debug.LogWarning(
-                        "[AIImprove] PassengerTrainAI.CreateVehicle not found - game version may " +
-                        "have changed. Skipping train passenger capacity patch.");
-                    return false;
-                }
-
-                MethodInfo prefix = typeof(TrainPassengerCapacityPatch).GetMethod(
-                    nameof(TrainPassengerCapacityPatch.Prefix), BindingFlags.Public | BindingFlags.Static);
-                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
-
-                Debug.Log("[AIImprove] Train passenger capacity patch applied.");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning(
-                    "[AIImprove] Train passenger capacity patch failed to apply, skipping it. Rest " +
-                    "of the mod is unaffected. Reason: " + ex.Message);
-                return false;
-            }
-        }
+        // TryPatchTrainPassengerCapacity removed 2026-09-06 - see
+        // TrainPassengerCapacityPatch.cs and 準則 11.
 
         // Boosts the motorsport race complex's tourism attractiveness - see
         // RaceBuildingAttractivenessPatch.cs.

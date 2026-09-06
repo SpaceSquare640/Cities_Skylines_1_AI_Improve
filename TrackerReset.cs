@@ -43,10 +43,6 @@
             TransitStopOccupancyTracker.ResetForNewLevel();
             WeatherDisasterDetector.ResetForNewLevel();
 
-            // Not tracker state but the same lifetime problem: this writes to a shared prefab
-            // field, which outlives the city and even the mod being disabled.
-            PassengerHelicopterCapacityPatch.RestoreAll();
-
             UnityEngine.Debug.Log("[AIImprove] Per-city tracker state cleared for level unload.");
         }
     }
