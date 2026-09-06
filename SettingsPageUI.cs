@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using ColossalFramework;
@@ -219,6 +219,7 @@ namespace AIImprove
                             () => ModSettings.FireUncapAfterMinutes.value,
                             v => ModSettings.FireUncapAfterMinutes.value = Mathf.RoundToInt(v)),
                     Toggle("feature.fireIdleSeek", ModSettings.FireIdleSeekEnabled),
+                    Toggle("feature.emergencyReroute", ModSettings.EmergencyRerouteEnabled),
                     Toggle("feature.helicopterWeatherHalt", ModSettings.HelicopterWeatherHaltEnabled),
                 },
             });
@@ -250,6 +251,10 @@ namespace AIImprove
                         .With("tune.rerouteDensity", 20f, 100f, 5f,
                             () => ModSettings.IntercityBusRerouteDensityThreshold.value,
                             v => ModSettings.IntercityBusRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
+                    Toggle("feature.intercityBusCapacity", ModSettings.IntercityBusCapacityEnabled)
+                        .With("tune.intercityBusCapacity", 100f, 400f, 25f,
+                            () => ModSettings.IntercityBusCapacityPercent.value,
+                            v => ModSettings.IntercityBusCapacityPercent.value = Mathf.RoundToInt(v)),
                 },
             });
 

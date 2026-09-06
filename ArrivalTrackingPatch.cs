@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace AIImprove
 {
@@ -12,26 +12,79 @@ namespace AIImprove
     // parameters and a normal bool return, no need to touch the method body itself.
     internal static class ArrivalTrackingPatch
     {
+        // OPEN BUG A0 (2026-09-05): a 14.7-minute session logged 558 dispatch starts and exactly
+        // ZERO arrival records. Something between "the Postfix runs" and "an elapsed time comes
+        // back" drops every single trip, and until now this file had no sanity log at all, so a
+        // whole play session could not tell us which of the four possible stages it fails at.
+        //
+        // These counters exist to answer that in ONE session rather than four: they separate
+        // "never called" from "called but __result false" from "filtered as the return leg" from
+        // "no matching dispatch start". They are cheap (a few increments per arrival, an Info
+        // line every 50) and deliberately NOT gated behind verbose logging - a diagnostic that
+        // only fires when someone remembered to turn on a setting is a diagnostic that will be
+        // missing from the log you actually need. Remove them once A0 is closed.
+        private static bool loggedFirstCall;
+        private static int callCount;
+        private static int notArrivedCount;
+        private static int goingBackCount;
+        private static int noStartTimeCount;
+        private static int recordedCount;
+
         private static void RecordArrival(string ownerTypeName, bool arrived, ushort vehicleId, ref Vehicle vehicleData)
         {
+            if (!loggedFirstCall)
+            {
+                loggedFirstCall = true;
+                Log.Info("[AIImprove] ArrivalTrackingPatch is executing.");
+            }
+
+            callCount++;
+
             if (!arrived)
             {
+                notArrivedCount++;
+                ReportIfDue();
                 return;
             }
 
             // Only log the outbound leg (arriving at the emergency), not the return-to-depot leg.
             if ((vehicleData.m_flags & Vehicle.Flags.GoingBack) != 0)
             {
+                goingBackCount++;
+                ReportIfDue();
                 return;
             }
 
             float? elapsed = EmergencyDispatchTracker.TakeElapsedSeconds(vehicleId);
-            if (elapsed.HasValue && Log.VerboseEnabled)
+            if (!elapsed.HasValue)
+            {
+                noStartTimeCount++;
+                ReportIfDue();
+                return;
+            }
+
+            recordedCount++;
+            ReportIfDue();
+
+            if (Log.VerboseEnabled)
             {
                 Log.Verbose(
                     "[AIImprove] " + ownerTypeName + " vehicle " + vehicleId + " arrived " +
                     elapsed.Value.ToString("F1") + "s after dispatch.");
             }
+        }
+
+        private static void ReportIfDue()
+        {
+            if (callCount % 50 != 0)
+            {
+                return;
+            }
+
+            Log.Info(
+                "[AIImprove] ArrivalTracking diagnostic: " + callCount + " ArriveAtDestination " +
+                "call(s) - " + recordedCount + " recorded, " + notArrivedCount + " result=false, " +
+                goingBackCount + " return leg, " + noStartTimeCount + " no dispatch start on record.");
         }
 
         internal static class Ambulance

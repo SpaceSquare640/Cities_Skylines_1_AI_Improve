@@ -1,4 +1,4 @@
-using ColossalFramework;
+﻿using ColossalFramework;
 using HarmonyLib;
 using System;
 using System.Reflection;
@@ -27,6 +27,15 @@ namespace AIImprove
     // patch's hot path (the speed check on every tick) never touches reflection at all.
     internal static class FlexibleReroutePatch
     {
+        // Called by TrackerReset when a save is unloaded. Building, vehicle and node IDs are
+        // recycled from fixed pools, so anything left here from the previous city would be read
+        // back as if it described the new one. Registered centrally rather than relied on being
+        // remembered per class - see 12 - 開發準則, 準則 3.
+        public static void ResetForNewLevel()
+        {
+            LoggedFirstCall.Clear();
+        }
+
         private static readonly System.Collections.Generic.HashSet<string> LoggedFirstCall =
             new System.Collections.Generic.HashSet<string>();
 
@@ -92,6 +101,7 @@ namespace AIImprove
             }
 
             float aheadDensity = SegmentCongestionQuery.GetAverageAheadDensity(ref vehicleData);
+            DensityDistributionDiagnostics.Record(ownerTypeName, aheadDensity, densityThreshold);
             if (aheadDensity < 0f || !RerouteRateLimiter.TryConsumeBudget() ||
                 !StuckRerouteTracker.ShouldReroute(vehicleID, aheadDensity, densityThreshold))
             {
@@ -206,6 +216,7 @@ namespace AIImprove
             }
 
             float aheadDensity = SegmentCongestionQuery.GetAverageAheadDensity(ref vehicleData);
+            DensityDistributionDiagnostics.Record(ownerTypeName, aheadDensity, densityThreshold);
             if (aheadDensity < 0f || !RerouteRateLimiter.TryConsumeBudget() || !StuckRerouteTracker.ShouldReroute(vehicleID, aheadDensity, densityThreshold))
             {
                 return;
@@ -315,12 +326,25 @@ namespace AIImprove
                 return method;
             }
 
+            // Emergency vehicles reroute more eagerly than ordinary traffic: an ambulance sitting
+            // in a jam costs more than a delivery van doing the same, so it should be willing to
+            // take a longer route sooner. Uncalibrated starting value, deliberately below the 80
+            // the other categories default to; no slider, to avoid another four translated strings
+            // before there is any evidence about what the right number is.
+            private const float EmergencyDensityThreshold = 60f;
+
             public static void Postfix(ushort vehicleID, CarAI __instance, ref Vehicle data)
             {
-                if (__instance is AmbulanceAI || __instance is FireTruckAI || __instance is PoliceCarAI)
-                {
-                    return;
-                }
+                // WAS AN UNCONDITIONAL RETURN until 2026-09-06. The comment in Patcher.cs said
+                // emergency vehicles were "handled separately"; what handled them was
+                // EmergencyIgnoreCostsPatch, and that turned out to skip only NetLane.m_ticketCost
+                // - the toll on toll roads (dnSpy: PathFind.m_ignoreCost has three read sites and
+                // all three guard nothing else). So the vehicles with the strongest reason to
+                // route around a jam were the only ones excluded from the feature that does it,
+                // and a player's screenshots of dozens of ambulances queued bumper to bumper are
+                // what made that visible.
+                bool isEmergency = __instance is AmbulanceAI || __instance is FireTruckAI ||
+                                   __instance is PoliceCarAI;
 
                 // PERF (2026-09-05): the stagger test moved ahead of the settings reads below.
                 // This is the hottest Postfix in the project - every road vehicle in the city, on
@@ -357,7 +381,12 @@ namespace AIImprove
 
                 bool enabled;
                 float densityThreshold;
-                if (busAi == null)
+                if (isEmergency)
+                {
+                    enabled = ModSettings.EmergencyRerouteEnabled.value;
+                    densityThreshold = EmergencyDensityThreshold;
+                }
+                else if (busAi == null)
                 {
                     enabled = ModSettings.OrdinaryTrafficRerouteEnabled.value;
                     densityThreshold = ModSettings.OrdinaryTrafficRerouteDensityThreshold.value;
@@ -381,7 +410,17 @@ namespace AIImprove
                 Type actualType = __instance.GetType();
                 MethodInfo startPathFind = GetSelfStartPathFind(actualType);
 
-                TryRerouteViaSelf(actualType.Name, startPathFind, __instance, vehicleID, ref data, densityThreshold);
+                // Local and intercity buses are the SAME class (BusAI), so reporting them under
+                // actualType.Name merged them in every log line and every diagnostic bucket -
+                // which is exactly the question we could not answer about intercity buses
+                // (2026-09-06): whether they were being covered at all, or whether every sample
+                // attributed to "BusAI" was a city route. They have separate toggles and separate
+                // thresholds, so they need separate labels. See 12 - 開發準則, 準則 10.
+                string reportedType = busAi == null
+                    ? actualType.Name
+                    : (isIntercityBus ? "BusAI(Intercity)" : "BusAI(Local)");
+
+                TryRerouteViaSelf(reportedType, startPathFind, __instance, vehicleID, ref data, densityThreshold);
             }
         }
 

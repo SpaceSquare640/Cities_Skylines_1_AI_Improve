@@ -1,4 +1,4 @@
-using ColossalFramework;
+﻿using ColossalFramework;
 using UnityEngine;
 
 namespace AIImprove
@@ -47,6 +47,11 @@ namespace AIImprove
             // per this project's own terminology are always "intercity trains" - metro never uses
             // this transfer reason - so this is gated on its own toggle, not any train/metro
             // reroute switch (2026-08-15, split per user request).
+            // Before any filter, so this doubles as the reachability check the DummyTrain-gated
+            // health log below could never be (open question A4), and as the measurement that
+            // will tell us how intercity BUSES get spawned - see OutsideConnectionSpawnDiagnostics.
+            OutsideConnectionSpawnDiagnostics.Record(material, offer.Building);
+
             if (material != TransferManager.TransferReason.DummyTrain || !ModSettings.IntercityTrainSpawnThrottleEnabled.value)
             {
                 return true;

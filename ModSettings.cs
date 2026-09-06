@@ -1,4 +1,4 @@
-using ColossalFramework;
+﻿using ColossalFramework;
 
 namespace AIImprove
 {
@@ -86,6 +86,23 @@ namespace AIImprove
             new SavedInt("FireUncapAfterMinutes", FileName, 15, true);
 
         /// Idle/returning fire vehicles look for a nearby still-burning building first.
+        /// Lets ambulances, fire trucks and police cars reroute around congestion mid-journey,
+        /// the same way every other road vehicle already does.
+        ///
+        /// WHY THIS EXISTS (2026-09-06, player screenshots): FlexibleReroutePatch.Car.Postfix
+        /// opened by returning immediately for AmbulanceAI/FireTruckAI/PoliceCarAI, on the stated
+        /// grounds that emergency vehicles are "handled separately". What handles them separately
+        /// is EmergencyIgnoreCostsPatch - and decompiling PathFind showed that only skips
+        /// NetLane.m_ticketCost, the toll on toll roads. So the vehicles with the strongest claim
+        /// to routing around a jam were the only ones excluded from the feature that does it.
+        /// Screenshots of dozens of ambulances queued nose-to-tail are what prompted looking.
+        ///
+        /// Default OFF per 12 - 開發準則 準則 1: this changes emergency vehicle behavior, and new
+        /// behavior ships off until it has been verified in a real city. Flip the default once
+        /// there is evidence it helps.
+        public static readonly SavedBool EmergencyRerouteEnabled =
+            new SavedBool("EmergencyRerouteEnabled", FileName, false, true);
+
         public static readonly SavedBool FireIdleSeekEnabled =
             new SavedBool("FireIdleSeekEnabled", FileName, LegacyEmergency.value, true);
 
@@ -201,6 +218,15 @@ namespace AIImprove
         /// Intercity buses reroute more readily than local ones - they have further to go.
         public static readonly SavedInt IntercityBusRerouteDensityThreshold =
             new SavedInt("IntercityBusRerouteDensityThreshold", FileName, 60, true);
+
+        // Re-enabled 2026-09-06 at user request. Default OFF on purpose: this feature was turned
+        // off by an explicit user decision on 2026-08-14, and a mod update must never switch a
+        // deliberately-disabled feature back on behind the player's back.
+        public static readonly SavedBool IntercityBusCapacityEnabled =
+            new SavedBool("IntercityBusCapacityEnabled", FileName, false, true);
+
+        public static readonly SavedInt IntercityBusCapacityPercent =
+            new SavedInt("IntercityBusCapacityPercent", FileName, 200, true);
 
         // ---------------------------------------------------------------------------------
         // Ordinary city traffic
@@ -369,6 +395,11 @@ namespace AIImprove
             FireMaxRespondersPerBuilding.value = 20;
             FireUncapAfterMinutes.value = 15;
             FireIdleSeekEnabled.value = true;
+            // Added 2026-09-06. Defaults to false, unlike its neighbours - see the field's own
+            // note. Wired in here at the same time as the field itself, because the two sanitation
+            // toggles added on 2026-08-20 were not, and "Reset to defaults" silently skipped them
+            // until 2026-08-23.
+            EmergencyRerouteEnabled.value = false;
             HelicopterWeatherHaltEnabled.value = true;
 
             GarbageIdleSeekEnabled.value = true;
@@ -404,6 +435,8 @@ namespace AIImprove
             LocalBusRerouteDensityThreshold.value = 80;
             IntercityBusRerouteEnabled.value = true;
             IntercityBusRerouteDensityThreshold.value = 60;
+            IntercityBusCapacityEnabled.value = false;
+            IntercityBusCapacityPercent.value = 200;
 
             OrdinaryTrafficRerouteEnabled.value = true;
             OrdinaryTrafficRerouteDensityThreshold.value = 80;
