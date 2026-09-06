@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
@@ -97,8 +97,13 @@ namespace AIImprove
             TryPatchPassengerHelicopterGateAssignment(harmony);
             TryPatchFlexibleReroute(harmony, typeof(PassengerHelicopterAI), typeof(FlexibleReroutePatch.PassengerHelicopter));
             TryPatchPassengerHelicopterCapacity(harmony);
-            // TryPatchIntercityBusCapacity(harmony) - DISABLED (2026-08-14), same reason as
-            // TryPatchTrainPassengerCapacity above.
+            // RE-ENABLED 2026-09-06 at user request. It is registered, but its own setting
+            // (IntercityBusCapacityEnabled) defaults to OFF, so nothing changes for an existing
+            // player until they turn it on - the 2026-08-14 decision to disable it stands until
+            // the player themselves reverses it. The reason it was unsafe to leave running has
+            // also been fixed since: m_passengerCapacity now has a restore path (see
+            // IntercityBusCapacityPatch.RestoreAll).
+            TryPatchIntercityBusCapacity(harmony);
             // TryPatchTransitStationSkip(...) x3 - DISABLED (2026-08-14) after a player bug report
             // ("地鐵無法移動 / 有些巴士無法移動 / 直升機無法移動 / 部份電車無法移動 /
             // 公共交通工具客量大幅減少"), confirmed against their output_log: 3676 skip events
