@@ -1,4 +1,4 @@
-using ColossalFramework;
+﻿using ColossalFramework;
 using ColossalFramework.Math;
 using UnityEngine;
 
@@ -79,7 +79,25 @@ namespace AIImprove
                 Debug.Log("[AIImprove] CitizenTransportModePatch is executing.");
             }
 
-            Randomizer randomizer = new Randomizer(citizenData.m_citizen);
+            // BUG FOUND VIA AUDIT (2026-09-07): the seed used to be citizenData.m_citizen alone.
+            // A citizen's ID never changes, so the roll never changed either - the same citizen
+            // got the same answer for every trip of their entire life. That turns "each citizen
+            // picks a mode per journey" into "each citizen is permanently assigned one mode",
+            // which is the opposite of what this feature is for: build a metro line and the
+            // citizens labelled "drive" will never once try it.
+            //
+            // The seed now also mixes in the CitizenInstance (a fresh one per journey) and the
+            // trip's destination, so the roll varies between trips while staying stable WITHIN a
+            // trip - this Prefix can run more than once for the same journey, and a mode that
+            // flip-flops mid-journey would be worse than one that never changes.
+            //
+            // Multiplied by odd constants before mixing: instance IDs and building IDs are small,
+            // dense and often sequential, so XOR-ing them raw would leave neighbouring citizens
+            // correlated instead of independent.
+            uint seed = citizenData.m_citizen
+                        ^ ((uint)instanceID * 2654435761u)
+                        ^ ((uint)citizenData.m_targetBuilding * 40503u);
+            Randomizer randomizer = new Randomizer(seed);
             int roll = randomizer.Int32((uint)total);
 
             if (roll < walk)

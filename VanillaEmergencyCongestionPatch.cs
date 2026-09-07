@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -52,6 +52,10 @@ namespace AIImprove
                 typeof(Func<PathFind, VehicleInfo.VehicleCategory>), getter);
         }
 
+        // 1/255. Vanilla scales a segment's byte-sized length field back into world units with
+        // this before multiplying by the average lane length.
+        private const float BaseDistanceCostFactor = 0.003921569f;
+
         public static IEnumerable<CodeInstruction> Transpiler(
             IEnumerable<CodeInstruction> instructions,
             ILGenerator generator)
@@ -61,11 +65,20 @@ namespace AIImprove
             var matcher = new CodeMatcher(code);
 
             // Base distance cost: "... * 0.003921569f * averageLength", stored to a local.
-            // That store is our "pre-congestion" snapshot point. Matched by opcode shape only
-            // (not the float literal itself) since float constants can round-trip with
-            // different bit patterns than a C# source literal would compile to.
+            // That store is our "pre-congestion" snapshot point.
+            //
+            // BUG FOUND VIA AUDIT (2026-09-07): this used to match `Ldc_R4` with no operand check
+            // at all, i.e. ANY float constant. The comment justified that by saying float
+            // constants can round-trip with different bit patterns than a source literal - true,
+            // but the answer to that is a tolerance, not giving up on checking. As written, a
+            // game update that shifted the IL slightly would have let this attach to a completely
+            // different constant and silently rewrite the wrong cost: no exception, no log, just
+            // wrong pathfinding numbers in a published mod. Comparing with a tolerance keeps the
+            // round-trip safety and still fails loudly (LogSkipped below) if the anchor moves.
             matcher.MatchEndForward(
-                new CodeMatch(OpCodes.Ldc_R4),
+                new CodeMatch(i => i.opcode == OpCodes.Ldc_R4 &&
+                                   i.operand is float &&
+                                   Mathf.Abs((float)i.operand - BaseDistanceCostFactor) < 1e-7f),
                 new CodeMatch(OpCodes.Mul),
                 new CodeMatch(i => i.opcode == OpCodes.Ldloc_S || i.opcode == OpCodes.Ldloc),
                 new CodeMatch(OpCodes.Mul),
