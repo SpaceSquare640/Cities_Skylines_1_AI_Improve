@@ -1066,9 +1066,21 @@ namespace AIImprove
             caption.textColor = LabelTextColor;
             caption.relativePosition = new Vector3(x, y);
 
+            // BUG FOUND VIA THE HTML MOCK-UP (2026-09-07): all four buttons used to sit in one
+            // row, which gave each of them about 122px. Measured against the real strings, four
+            // languages need more than that - Russian and French 158px, Spanish 147px, German
+            // 130px - so the labels were clipped in every one of them. The audit had recorded
+            // this as German and Russian only; the mock-up showed it was twice as widespread,
+            // and cost nothing to check because it did not need the game.
+            //
+            // Two columns instead of four roughly doubles the width available per button, which
+            // clears the longest measured string with room to spare in every language.
+            const int columns = 2;
+            const float gap = 6f;
+            const float buttonHeight = 26f;
+
             float buttonY = y + 20f;
-            float gap = 6f;
-            float buttonWidth = (width - (gap * (CitizenTransportPresets.Length - 1))) / CitizenTransportPresets.Length;
+            float buttonWidth = (width - (gap * (columns - 1))) / columns;
 
             for (int i = 0; i < CitizenTransportPresets.Length; i++)
             {
@@ -1077,10 +1089,12 @@ namespace AIImprove
                 UIButton button = card.AddUIComponent<UIButton>();
                 button.text = Localization.Get(preset.LabelKey);
                 button.width = buttonWidth;
-                button.height = 26f;
+                button.height = buttonHeight;
                 button.textScale = 0.68f;
                 StyleAccentButton(button);
-                button.relativePosition = new Vector3(x + (buttonWidth + gap) * i, buttonY);
+                button.relativePosition = new Vector3(
+                    x + ((buttonWidth + gap) * (i % columns)),
+                    buttonY + ((buttonHeight + gap) * (i / columns)));
                 button.eventClick += (component, param) =>
                 {
                     ModSettings.CitizenWalkWeight.value = preset.Walk;
@@ -1096,7 +1110,9 @@ namespace AIImprove
                 };
             }
 
-            return 52f;
+            // Caption + as many button rows as the presets need, plus the trailing gap.
+            int rows = (CitizenTransportPresets.Length + columns - 1) / columns;
+            return 20f + (rows * (buttonHeight + gap));
         }
 
         // ------------------------------------------------------------------------------------
