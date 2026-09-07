@@ -175,8 +175,13 @@ namespace AIImprove
         public static readonly SavedInt AircraftGateCandidateCount =
             new SavedInt("AircraftGateCandidateCount", FileName, 26, true);
 
+        // EXPERIMENTAL as of 2026-09-07, default off. 5000 measured samples of aircraft
+        // ahead-density never exceeded 10.8 against a threshold of 50 - air density is near zero
+        // by construction, so this cannot fire and no threshold value changes that. Kept visible
+        // under Experimental rather than deleted, because it needs a different signal (landing
+        // queue length, airport occupancy) and that is a redesign, not a tuning change.
         public static readonly SavedBool AircraftRerouteEnabled =
-            new SavedBool("AircraftRerouteEnabled", FileName, LegacyAircraft.value, true);
+            new SavedBool("AircraftRerouteEnabled", FileName, false, true);
 
         public static readonly SavedInt AircraftRerouteDensityThreshold =
             new SavedInt("AircraftRerouteDensityThreshold", FileName, 50, true);
@@ -250,7 +255,7 @@ namespace AIImprove
         // multiplier, the intercity train ridership skip, and the reroute density thresholds that
         // turned out to sit above the highest density the game ever produces. A default is not a
         // fix for anyone who has already played.
-        public const int CurrentSchemaVersion = 1;
+        public const int CurrentSchemaVersion = 2;
 
         public static readonly SavedInt SchemaVersion =
             new SavedInt("SchemaVersion", FileName, 0, true);
@@ -483,6 +488,15 @@ namespace AIImprove
             RerouteCooldownSeconds.value = 40;
             RerouteCheckIntervalFrames.value = 32;
 
+            // Schema 2: aircraft rerouting moved to Experimental and switched off. This is the
+            // one place a feature TOGGLE is written by a migration, and it is defensible only
+            // because the feature demonstrably cannot do anything - leaving it on would not
+            // preserve a player's choice, it would preserve the appearance of one.
+            if (previous < 2)
+            {
+                AircraftRerouteEnabled.value = false;
+            }
+
             SchemaVersion.value = CurrentSchemaVersion;
 
             UnityEngine.Debug.Log(
@@ -524,7 +538,7 @@ namespace AIImprove
             AircraftGateAssignmentEnabled.value = true;
             AircraftPerGateCapacity.value = 6;
             AircraftGateCandidateCount.value = 26;
-            AircraftRerouteEnabled.value = true;
+            AircraftRerouteEnabled.value = false;
             AircraftRerouteDensityThreshold.value = 50;
             AircraftThunderstormRefusalEnabled.value = true;
 

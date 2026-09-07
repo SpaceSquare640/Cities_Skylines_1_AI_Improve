@@ -302,10 +302,6 @@ namespace AIImprove
                         .With("tune.perGateCapacity", 1f, 20f, 1f,
                             () => ModSettings.AircraftPerGateCapacity.value,
                             v => ModSettings.AircraftPerGateCapacity.value = Mathf.RoundToInt(v)),
-                    Toggle("feature.aircraftReroute", ModSettings.AircraftRerouteEnabled)
-                        .With("tune.rerouteDensity", 30f, 70f, 5f,
-                            () => ModSettings.AircraftRerouteDensityThreshold.value,
-                            v => ModSettings.AircraftRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
                     Toggle("feature.aircraftThunderstorm", ModSettings.AircraftThunderstormRefusalEnabled),
                     Toggle("feature.helicopterGate", ModSettings.PassengerHelicopterGateAssignmentEnabled),
                     Toggle("feature.helicopterReroute", ModSettings.PassengerHelicopterRerouteEnabled),
@@ -364,6 +360,24 @@ namespace AIImprove
                 },
                 });
             }
+
+            // Features that are known not to work yet, kept visible and switched off rather than
+            // hidden, so nobody (including us) forgets they are unfinished. Aircraft rerouting
+            // landed here on 2026-09-07: 5000 measured samples of air "density" never exceeded
+            // 10.8 against a threshold of 50, and no threshold can fix that - air density is near
+            // zero by construction, so the feature needs a different signal (landing queue length,
+            // airport occupancy) rather than a different number.
+            model.Add(new Section
+            {
+                NavKey = "nav.experimental",
+                Features =
+                {
+                    Toggle("feature.aircraftReroute", ModSettings.AircraftRerouteEnabled)
+                        .With("tune.rerouteDensity", 30f, 70f, 5f,
+                            () => ModSettings.AircraftRerouteDensityThreshold.value,
+                            v => ModSettings.AircraftRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
+                },
+            });
 
             model.Add(new Section { NavKey = "tab.about", CustomBuilder = BuildAboutPage });
 
