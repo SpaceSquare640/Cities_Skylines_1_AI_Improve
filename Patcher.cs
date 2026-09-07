@@ -965,6 +965,27 @@ namespace AIImprove
                 return;
             }
 
+            // BUG FOUND VIA AUDIT (2026-09-07): the fallback below used to be attempted
+            // unconditionally, and it PATCHES SUCCESSFULLY even with TMPE installed - logging
+            // "Vanilla emergency congestion patch applied." while TMPE's CustomPathFind has
+            // replaced PathFind entirely, so the patched method is never called for real
+            // pathfinding. The feature was inert and the log said it was working, which is worse
+            // than either on its own: every log this project has collected from a TMPE user
+            // contained a line asserting a thing that was not happening.
+            //
+            // Detecting TMPE by the same type the TMPE branch looks for, so the two cannot
+            // disagree about whether TMPE is present.
+            if (TmpeCompat.FindCustomPathFindType() != null)
+            {
+                Debug.Log(
+                    "[AIImprove] TMPE is installed, so its CustomPathFind replaces the vanilla " +
+                    "PathFind this fallback would attach to - not registering it, because doing " +
+                    "so would report success for something that never runs. Emergency priority " +
+                    "still applies through the ignore-costs patch, which does not depend on " +
+                    "which pathfinder is in use.");
+                return;
+            }
+
             TryPatchVanillaEmergencyCongestion(harmony);
         }
 

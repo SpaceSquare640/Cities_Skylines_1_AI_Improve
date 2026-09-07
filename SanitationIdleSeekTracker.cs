@@ -70,6 +70,12 @@ namespace AIImprove
         // responders is reasonable. Revisit once a player log exists.
         private const int MaxVehiclesPerBuilding = 4;
 
+        // How much each vehicle already heading to a building inflates its apparent distance.
+        // 1.0 means "one truck en route doubles the distance", which is enough to make a second
+        // choice win whenever it is not much further away. Squared with the distance below,
+        // because the comparison is done on squared distances.
+        private const float LoadPenaltyPerVehicle = 1f;
+
         private static readonly Dictionary<ushort, int> GarbageAssignedCount = new Dictionary<ushort, int>();
         private static readonly Dictionary<ushort, ushort> GarbageAssignment = new Dictionary<ushort, ushort>();
         private static readonly Dictionary<ushort, int> DeadAssignedCount = new Dictionary<ushort, int>();
@@ -215,7 +221,7 @@ namespace AIImprove
             Building[] buildings = Singleton<BuildingManager>.instance.m_buildings.m_buffer;
 
             ushort best = 0;
-            float bestDistSqr = float.MaxValue;
+            float bestScore = float.MaxValue;
 
             StaleBuildings.Clear();
 
@@ -259,10 +265,27 @@ namespace AIImprove
                     continue;
                 }
 
+                // BUG FOUND VIA LIVE LOG (2026-09-07): a hard cap alone does not stop herding.
+                // An 83-minute session recorded 900 retargets of which 660 (73%) went to a
+                // building that already had half the cap or more, and one building took 273 of
+                // them. The cap bounds how many vehicles are on a building AT ONCE; it does
+                // nothing about the same nearest building winning every comparison, over and
+                // over, as vehicles cycle through it.
+                //
+                // Distance is now penalised by how many vehicles are already heading there, so a
+                // building with one truck en route has to be twice as close to win, two trucks
+                // three times as close, and so on. The cap stays as a hard backstop.
+                //
+                // Deliberately NOT weighted by how much material is waiting: GetMaterialAmount
+                // means different things for different building AIs - that is exactly what caused
+                // the cemetery bug on 2026-09-05 - so it is used only as a yes/no "has anything
+                // to collect" test above, where its meaning is safe.
                 float distSqr = (buildings[candidate].m_position - fromPosition).sqrMagnitude;
-                if (distSqr < bestDistSqr)
+                float loadFactor = 1f + (assigned * LoadPenaltyPerVehicle);
+                float score = distSqr * loadFactor * loadFactor;
+                if (score < bestScore)
                 {
-                    bestDistSqr = distSqr;
+                    bestScore = score;
                     best = candidate;
                 }
             }

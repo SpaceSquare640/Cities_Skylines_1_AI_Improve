@@ -48,6 +48,9 @@ namespace AIImprove
         private const float CardPadding = 14f;
         private const float RowHeight = 30f;
 
+        private static readonly Color32 ScrollTrackColor = new Color32(24, 28, 34, 120);
+        private static readonly Color32 ScrollThumbColor = new Color32(120, 132, 148, 220);
+
         private static readonly Color32 AccentColor = new Color32(58, 121, 187, 255);
         private static readonly Color32 AccentHoverColor = new Color32(78, 141, 207, 255);
         private static readonly Color32 AccentPressedColor = new Color32(45, 98, 154, 255);
@@ -685,10 +688,12 @@ namespace AIImprove
             }
         }
 
+        private const float ScrollbarWidth = 10f;
+
         private static UIScrollablePanel CreateScrollBody(UIComponent parent, float width, float height)
         {
             UIScrollablePanel body = parent.AddUIComponent<UIScrollablePanel>();
-            body.width = width;
+            body.width = width - ScrollbarWidth;
             body.height = height;
             body.relativePosition = Vector3.zero;
             body.autoLayout = true;
@@ -698,7 +703,46 @@ namespace AIImprove
             body.scrollWheelDirection = UIOrientation.Vertical;
             body.scrollWheelAmount = 24;
             body.builtinKeyNavigation = true;
+
+            // BUG FOUND VIA AUDIT: the section body scrolled with the wheel but had no scrollbar
+            // at all, so there was no indication that content continued below the fold and no way
+            // to scroll for anyone whose pointer was over a control that swallows the wheel. On a
+            // short window that made the lower half of a page unreachable rather than merely
+            // undiscoverable.
+            AttachScrollbar(parent, body, width, height);
             return body;
+        }
+
+        private static void AttachScrollbar(UIComponent parent, UIScrollablePanel body, float width, float height)
+        {
+            UIScrollbar scrollbar = parent.AddUIComponent<UIScrollbar>();
+            scrollbar.width = ScrollbarWidth;
+            scrollbar.height = height;
+            scrollbar.orientation = UIOrientation.Vertical;
+            scrollbar.pivot = UIPivotPoint.TopLeft;
+            scrollbar.relativePosition = new Vector3(width - ScrollbarWidth, 0f);
+            scrollbar.minValue = 0f;
+            scrollbar.value = 0f;
+            scrollbar.incrementAmount = 24f;
+            scrollbar.autoHide = true;
+
+            UIPanel track = scrollbar.AddUIComponent<UIPanel>();
+            track.atlas = SolidColorSprite.Atlas;
+            track.backgroundSprite = SolidColorSprite.SpriteName;
+            track.color = ScrollTrackColor;
+            track.relativePosition = Vector3.zero;
+            track.width = ScrollbarWidth;
+            track.height = height;
+            scrollbar.trackObject = track;
+
+            UIPanel thumb = track.AddUIComponent<UIPanel>();
+            thumb.atlas = SolidColorSprite.Atlas;
+            thumb.backgroundSprite = SolidColorSprite.SpriteName;
+            thumb.color = ScrollThumbColor;
+            thumb.width = ScrollbarWidth;
+            scrollbar.thumbObject = thumb;
+
+            body.verticalScrollbar = scrollbar;
         }
 
         private static void SelectSection(int index)
