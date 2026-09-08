@@ -202,6 +202,14 @@ namespace AIImprove
                 return;
             }
 
+            // Deliberately ahead of the cooldown check below: a vehicle that has just been
+            // rerouted is ON cooldown, so anything placed after that gate would never see the
+            // answer to the request it is waiting for. Staggered like everything else here.
+            if (SimulationStagger.ShouldRunThisFrame(vehicleID))
+            {
+                RerouteEffectDiagnostics.CheckAfter(ownerTypeName, vehicleID, ref vehicleData);
+            }
+
             // Same ordering rationale as TryReroute (2026-08-15 audit): cheap modulo before the
             // dictionary probe, first-call logging bookkeeping after both.
             if ((vehicleData.m_targetBuilding == 0 && vehicleData.m_sourceBuilding == 0) ||
@@ -221,6 +229,11 @@ namespace AIImprove
             {
                 return;
             }
+
+            // Fingerprint the route we are about to replace, so a later tick can tell whether the
+            // pathfinder actually returned a different one - see RerouteEffectDiagnostics for why
+            // "the request was accepted" has never been an answer to that.
+            RerouteEffectDiagnostics.RecordBefore(vehicleID, ref vehicleData);
 
             object[] args = { vehicleID, vehicleData };
             bool success = (bool)selfStartPathFind.Invoke(aiInstance, args);

@@ -1,4 +1,4 @@
-namespace AIImprove
+﻿namespace AIImprove
 {
     // One place that knows every per-vehicle tracker this mod keeps, so releasing a vehicle's
     // state is a single call rather than a list that each new call site has to remember to keep
@@ -48,6 +48,7 @@ namespace AIImprove
             HoldingPatternManager.EndHolding(vehicleID);
             FireResponseTracker.ReleaseVehicle(vehicleID);
             StuckRerouteTracker.Clear(vehicleID);
+            RerouteEffectDiagnostics.ReleaseVehicle(vehicleID);
             EmergencyDispatchTracker.ReleaseVehicle(vehicleID);
             ShipQueueDetector.ReleaseVehicle(vehicleID);
             SanitationIdleSeekTracker.ReleaseVehicle(vehicleID);

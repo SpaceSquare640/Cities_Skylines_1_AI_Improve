@@ -32,6 +32,7 @@
             OutsideConnectionSpawnDiagnostics.ResetForNewLevel();
             VehicleSpawnPathDiagnostics.ResetForNewLevel();
             PassengerHelicopterGateAssignmentPatch.ResetForNewLevel();
+            RerouteEffectDiagnostics.ResetForNewLevel();
             RerouteFailureDiagnostics.ResetForNewLevel();
             SanitationIdleSeekTracker.ResetForNewLevel();
             ShipDockAssignmentPatch.ResetForNewLevel();
