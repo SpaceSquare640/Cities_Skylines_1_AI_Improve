@@ -48,6 +48,17 @@ namespace AIImprove
 
         private static void ReportIfDue(uint ridership)
         {
+            // RELEASE GATE (2026-09-09): investigation diagnostics run at Info so they cannot be
+            // missing from the log that matters (12 - 開發準則, 準則 10.3) - but that rule was
+            // written for OUR test sessions, where we control the setting. Shipping it to players
+            // meant roughly 16,000 lines a session of numbers only we can act on. The periodic
+            // reports are behind verbose from here on; the one-off "is executing" and inventory
+            // lines stay at Info, because those are what makes a player's bug report usable.
+            if (!Log.VerboseEnabled)
+            {
+                return;
+            }
+
             if (offersSeen % 25 != 0)
             {
                 return;
