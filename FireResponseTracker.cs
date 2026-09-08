@@ -218,6 +218,18 @@ namespace AIImprove
             for (int i = 0; i < StaleBuildings.Count; i++)
             {
                 KnownBurningBuildings.Remove(StaleBuildings[i]);
+
+                // BUG FOUND VIA AUDIT: FireStartTime was only cleaned inside IsCapped, i.e. only
+                // for a building something was still being dispatched to. A fire that goes out
+                // with no further dispatch left its start time behind for good - and building IDs
+                // are reused, so the next fire at that ID (or at a new building given it) was
+                // compared against a timestamp from minutes or hours earlier. The 15-minute
+                // "this fire has burned long enough, lift the cap" rule then fired on its first
+                // second, which is the opposite of what the cap is for.
+                //
+                // This sweep already knows which buildings have stopped burning. Clearing both
+                // here means the two cannot drift apart again.
+                FireStartTime.Remove(StaleBuildings[i]);
             }
 
             StaleBuildings.Clear();

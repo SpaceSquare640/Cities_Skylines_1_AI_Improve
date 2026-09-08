@@ -1036,6 +1036,13 @@ namespace AIImprove
                 return (cursor - y) + 24f;
             }
 
+            // BUG FOUND VIA AUDIT: a UISlider consumes the mouse wheel and changes its value with
+            // it. Scrolling the settings page with the pointer anywhere over a slider therefore
+            // silently retuned that setting instead of scrolling - no click, no drag, no feedback
+            // beyond a number the player was not looking at. Zero stops the wheel from moving the
+            // handle; dragging it still works normally.
+            slider.scrollWheelAmount = 0f;
+
             slider.minValue = tunable.Min;
             slider.maxValue = tunable.Max;
             slider.stepSize = tunable.Step;

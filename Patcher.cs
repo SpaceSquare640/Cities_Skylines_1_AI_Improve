@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
@@ -163,6 +164,7 @@ namespace AIImprove
             TryPatchVehicleSpawnPathDiagnostics(harmony);
 
             Debug.Log("[AIImprove] Harmony patches applied.");
+            ReportSharedMethods(harmony);
             // Recorded once per session so a player's output_log.txt says which of the mods this
             // one is designed to coexist with were actually present - see CompanionModCompat.
             CompanionModCompat.LogDetectedCompanions();
@@ -1010,6 +1012,57 @@ namespace AIImprove
                     "[AIImprove] Arrival tracking patch failed to apply for " + vehicleAiType.Name +
                     ", skipping it. Rest of the mod is unaffected. Reason: " + ex.Message);
                 return false;
+            }
+        }
+
+
+        // OPEN QUESTION CLOSED (2026-09-09): a live log showed three of this mod's transpilers
+        // being re-applied 515 seconds into a session, long after startup, which means something
+        // else patched the same methods and Harmony rebuilt them. The audit recorded it as
+        // "cannot determine who" - but Harmony knows exactly who, and never had to be asked.
+        //
+        // Anything that patches a method this mod also patches is worth naming in the log: it is
+        // the first thing to check when a feature behaves differently for one player than for
+        // another, and until now a bug report gave no way to see it. One line per shared method,
+        // once per session, and nothing at all in the common case where nobody else is involved.
+        private static void ReportSharedMethods(Harmony harmony)
+        {
+            try
+            {
+                foreach (MethodBase method in harmony.GetPatchedMethods())
+                {
+                    Patches info = Harmony.GetPatchInfo(method);
+                    if (info == null)
+                    {
+                        continue;
+                    }
+
+                    var others = new List<string>();
+                    foreach (string owner in info.Owners)
+                    {
+                        if (owner != HarmonyId && !others.Contains(owner))
+                        {
+                            others.Add(owner);
+                        }
+                    }
+
+                    if (others.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    Debug.Log(
+                        "[AIImprove] Shared patch target: " + method.DeclaringType.Name + "." +
+                        method.Name + " is also patched by " + string.Join(", ", others.ToArray()) +
+                        ". Not an error - noted because it is the first thing worth knowing when " +
+                        "this mod behaves differently for one player than another.");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Purely informational; never let it affect startup.
+                Debug.LogWarning(
+                    "[AIImprove] Could not enumerate shared patch targets: " + ex.Message);
             }
         }
 
