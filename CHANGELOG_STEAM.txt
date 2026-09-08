@@ -1,3 +1,39 @@
+[h1]2026-09-09 - Rerouting actually happens now, and a week of audit fixes[/h1]
+
+Most of this came from measuring the mod against real sessions instead of reasoning about it. Several things it claimed to do turned out not to be happening at all.
+
+[h2]The big one[/h2]
+
+[b]Congestion rerouting was almost never triggering.[/b] The threshold for "the road ahead is congested enough to look for another way" was set to 80. Measured across 187,000 samples of real play, road congestion reaches that level about 4.6% of the time - so the feature this mod is built around was firing on a twentieth of the occasions it should have. The threshold is now 50, which is the top 10-20% of congestion for nearly every vehicle type, chosen from the measured distribution rather than from a guess. One session went from a handful of reroutes to 17,377, of which 99% found a new path.
+
+If you have ever watched a queue of vehicles sit in a jam with a clear road one block over and wondered why nothing in this mod reacted, that is why.
+
+[h2]Fixed[/h2]
+
+[list]
+[*] [b]Loading a second city without restarting the game inherited the first city's state.[/b] Everything this mod remembers is keyed by building or vehicle ID, and the game hands those IDs out again from scratch when a save loads. Nothing was clearing them between saves, so city B could begin with city A's airport occupancy, burning buildings, saturated stations and in-progress reroutes attached to IDs that now meant something completely different - an airport "full" with no planes in it, fire trucks capped against a fire in a city you had left. All of it is cleared on unload now.
+[*] [b]A train station could permanently stop receiving intercity trains.[/b] Its "this station is saturated" reading was only ever refreshed by a train pathing toward it, and that same reading was used to refuse spawning trains toward it. Once a station was flagged, the only thing that could clear the flag was the thing being suppressed. Readings now expire on their own.
+[*] [b]Passenger capacity is no longer changed at all - by anything in this mod.[/b] Multiplying a vehicle's capacity applies to whatever number is already in that field, which is not necessarily the game's: with Advanced Vehicle Options installed the two multiplied together, and early testing produced a minibus seating 5,000. Every line of capacity-changing code has been removed, not merely switched off. The passenger helicopter capacity boost is gone with it.
+[*] [b]Intercity buses can arrive already carrying passengers[/b] (off by default), expressed as a percentage of the vehicle's own real capacity. This replaces the old capacity boost and is the safe way to get the same "buses arrive full" effect: it cannot produce an absurd number, because its ceiling is the vehicle's own capacity, and it works with Advanced Vehicle Options rather than overriding it.
+[*] [b]Citizens were effectively assigned one travel mode for life.[/b] The roll that picks walking, driving, taxi or transit was seeded on the citizen's ID, which never changes - so the same citizen got the same answer for every trip they ever took. Build a metro line and the citizens who came up "drive" would never once try it. Only affects Custom transport mode weights, which is off by default.
+[*] [b]With TM:PE installed, the emergency vehicle path priority silently did nothing[/b] while the log reported that it had applied successfully. TM:PE replaces the pathfinder this fallback attaches to, so the patched code was never reached. It is no longer registered when TM:PE is present, and says so. Emergency priority still works there through the other, pathfinder-independent patch.
+[*] [b]The "scan for empty vehicles" button froze the game[/b] for anyone using More Vehicles, and read the vehicle list from the wrong thread while the simulation was writing to it.
+[*] [b]The settings page could become unreachable.[/b] Searching, then reopening the page at a window too narrow to draw the search box, left it in search mode with the navigation hidden and no box to clear the search - every setting out of reach for the rest of the session. Search results now carry a "clear search" button, the page can no longer be left in that state, search matches section names as well as setting names, and the sections have a scrollbar.
+[*] [b]Preset buttons no longer clip their own labels[/b] in German, French, Spanish and Russian.
+[*] [b]Garbage trucks and hearses bunch up considerably less.[/b] The cap added on 2026-09-05 limited how many vehicles could be on one building at once, but not how often the same nearest building won the next one - 73% of redirects still went to a building already at half the cap. Distance is now weighted by how many vehicles are already heading there, and that figure dropped to 26%.
+[/list]
+
+[h2]Changed[/h2]
+
+[list]
+[*] [b]The numeric sliders are hidden by default.[/b] These values are calibrated against measurements from real play, and changing them can stop a feature working with no visible sign that anything is wrong - the reroute threshold above is exactly that failure. Every feature's on/off switch is unchanged and still where it was; the numbers now sit behind [i]Show advanced tuning values[/i] on the General page. Existing settings files have their numeric values reset once to this version's calibrated defaults, because a wrong number that lives in a slider cannot be corrected by changing a default - anyone who had opened the panel already had the old number saved.
+[*] [b]Aircraft rerouting has moved to a new Experimental section and is switched off.[/b] Measured across 5,000 samples, taxiway congestion never exceeded 10.8 against a threshold of 50, so it cannot fire and no threshold value would change that - it needs a different signal altogether. It is left visible and labelled as not working rather than quietly deleted, because a switch that silently does nothing is worse than one that says so.
+[/list]
+
+[h2]Known, and being worked on[/h2]
+
+[b]Intercity train spawn rate.[/b] On a reported city the game attempts to bring an intercity train in 1,760 times over half an hour and succeeds 100 of them - a 5.7% success rate, against 29-70% for every other transport mode on the same map. This is not caused by this mod: the spawn throttle that was supposed to influence it turned out to be attached to a mechanism the game does not use for intercity trains, and had never run once. Diagnostics are in place and the cause is being narrowed down.
+
 [h1]2026-09-06 - Chinese players finally get the Chinese settings page[/h1]
 
 [list]
