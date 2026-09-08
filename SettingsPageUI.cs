@@ -586,6 +586,13 @@ namespace AIImprove
             {
                 // Not enough header width on this resolution to place a search box without
                 // colliding with the buttons - skip it rather than overlap them.
+                //
+                // BUG FOUND VIA AUDIT: searchText is static, so it outlived the panel. Search on a
+                // wide window, reopen on a narrow one, and the page came up in search mode with
+                // the nav hidden AND no search box to clear it - every setting unreachable until
+                // the game was restarted. Dropping the term here means the page can never be left
+                // in a state whose only exit was the control that was not drawn.
+                searchText = string.Empty;
                 return;
             }
 
@@ -776,6 +783,24 @@ namespace AIImprove
 
             UIScrollablePanel body = CreateScrollBody(section, width, BodyHeight);
 
+            // Search hides the nav, so without this the only way back to the normal page is to
+            // empty the search box - which assumes the box is there and that the player works out
+            // that is what to do. An explicit control costs one row.
+            UIButton back = body.AddUIComponent<UIButton>();
+            back.text = Localization.Get("search.clear");
+            back.width = 200f;
+            back.height = 26f;
+            back.textScale = 0.72f;
+            StyleAccentButton(back);
+            back.eventClick += (component, param) =>
+            {
+                searchText = string.Empty;
+                if (currentRoot != null && currentHelper != null)
+                {
+                    RebuildInPlace(currentRoot, currentHelper);
+                }
+            };
+
             string needle = searchText.ToLowerInvariant();
             int matches = 0;
 
@@ -785,7 +810,8 @@ namespace AIImprove
                 for (int f = 0; f < spec.Features.Count; f++)
                 {
                     Feature feature = spec.Features[f];
-                    if (!FeatureMatches(feature, needle))
+                    if (!FeatureMatches(feature, needle) &&
+                        !Contains(Localization.Get(spec.NavKey), needle))
                     {
                         continue;
                     }

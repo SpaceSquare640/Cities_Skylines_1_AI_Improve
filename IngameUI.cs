@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using ColossalFramework.Threading;
 using ColossalFramework.UI;
 using UnityEngine;
 
@@ -149,25 +150,44 @@ namespace AIImprove
 
             button.eventClick += (component, param) =>
             {
-                EmptyVehicleAuditor.ScanResult result = scan();
-
-                if (result.LeadVehicleIds.Count == 0)
+                // BUG FOUND VIA AUDIT: the scan used to run right here, on the UI thread. It walks
+                // the whole vehicle buffer and reads flags the simulation thread rewrites every
+                // tick - the same data race that DeleteVehicles was moved off the UI thread to
+                // avoid on 2026-08-15, left in place for the half that reads. A torn read here
+                // does not corrupt anything, but it can collect an ID whose vehicle was being
+                // created or released mid-walk, and that ID is then what the player is asked to
+                // confirm deleting.
+                //
+                // Scan on the simulation thread, then hop back to the UI thread for the dialog:
+                // ConfirmPanel.ShowModal touches UIView and must not be called from the
+                // simulation thread. DeleteVehicles already re-validates every ID before touching
+                // it, so the round trip is safe even though time passes in between.
+                ColossalFramework.Singleton<SimulationManager>.instance.AddAction(() =>
                 {
-                    ConfirmPanel.ShowModal("AI_Improve", Localization.Get("scan.noneFound", categoryLabel), null);
-                    return;
-                }
-
-                string message = Localization.Get(
-                    "scan.confirm", result.LeadVehicleIds.Count, categoryLabel, result.TotalVehicleCount);
-
-                ConfirmPanel.ShowModal("AI_Improve", message, (comp, ret) =>
-                {
-                    if (ret == 1)
-                    {
-                        EmptyVehicleAuditor.DeleteVehicles(result);
-                    }
+                    EmptyVehicleAuditor.ScanResult result = scan();
+                    ThreadHelper.dispatcher.Dispatch(() => ShowScanResult(result, categoryLabel));
                 });
             };
+        }
+
+        private static void ShowScanResult(EmptyVehicleAuditor.ScanResult result, string categoryLabel)
+        {
+            if (result.LeadVehicleIds.Count == 0)
+            {
+                ConfirmPanel.ShowModal("AI_Improve", Localization.Get("scan.noneFound", categoryLabel), null);
+                return;
+            }
+
+            string message = Localization.Get(
+                "scan.confirm", result.LeadVehicleIds.Count, categoryLabel, result.TotalVehicleCount);
+
+            ConfirmPanel.ShowModal("AI_Improve", message, (comp, ret) =>
+            {
+                if (ret == 1)
+                {
+                    EmptyVehicleAuditor.DeleteVehicles(result);
+                }
+            });
         }
     }
 }
