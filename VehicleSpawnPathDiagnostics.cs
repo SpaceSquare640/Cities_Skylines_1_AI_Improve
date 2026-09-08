@@ -36,10 +36,15 @@ namespace AIImprove
 
         private const int ReportEvery = 10;
 
+        // Which buildings the refusals come from. A handful of stations means the cause is local
+        // to them; an even spread across every station means it is something city-wide.
+        private static readonly Dictionary<ushort, int> FailuresByBuilding = new Dictionary<ushort, int>();
+
         public static void ResetForNewLevel()
         {
             Reported.Clear();
             Counts.Clear();
+            FailuresByBuilding.Clear();
         }
 
         // __result is the method's own return value. If a future game version makes these void,
@@ -76,6 +81,13 @@ namespace AIImprove
 
             string key = ai + "/" + subService + "/" + intercity + "/" + direction;
 
+            if (direction.EndsWith("FAILED"))
+            {
+                int failures;
+                FailuresByBuilding.TryGetValue(buildingID, out failures);
+                FailuresByBuilding[buildingID] = failures + 1;
+            }
+
             int count;
             Counts.TryGetValue(key, out count);
             count++;
@@ -87,10 +99,39 @@ namespace AIImprove
                 return;
             }
 
-            if (count % ReportEvery == 0)
+            if (count % ReportEvery != 0)
             {
-                Log.Info("[AIImprove] Vehicle spawn path " + key + ": " + count + " so far.");
+                return;
             }
+
+            // WHY THE EXTRA DETAIL (2026-09-08): the ok/FAILED split answered the first question
+            // and immediately raised the next one. Intercity trains succeed 5.7% of the time
+            // (100 ok against 1660 failed) while every other mode sits between 29% and 70%. The
+            // game is not failing to try - it tries constantly and is refused. Two candidate
+            // reasons, and these two numbers tell them apart:
+            //
+            //   a global limit - the vehicle buffer being full would refuse everyone, so the
+            //   usage figure says whether that is even plausible;
+            //
+            //   something local to particular stations - if the failures all come from one or two
+            //   buildings, the cause is those stations (no track connection, no reachable
+            //   platform), not a city-wide shortage. Hence the per-building tally.
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            sb.Append("[AIImprove] Vehicle spawn path ").Append(key).Append(": ").Append(count)
+              .Append(" so far. Vehicle buffer ")
+              .Append(Singleton<VehicleManager>.instance.m_vehicles.ItemCount()).Append('/')
+              .Append(Singleton<VehicleManager>.instance.m_vehicles.m_size).Append('.');
+
+            if (key.EndsWith("FAILED"))
+            {
+                sb.Append(" Failures by building:");
+                foreach (KeyValuePair<ushort, int> pair in FailuresByBuilding)
+                {
+                    sb.Append(' ').Append(pair.Key).Append('=').Append(pair.Value);
+                }
+            }
+
+            Log.Info(sb.ToString());
         }
     }
 }
