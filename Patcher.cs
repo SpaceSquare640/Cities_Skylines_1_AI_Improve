@@ -160,6 +160,7 @@ namespace AIImprove
             // "Not Operating" building status.
             TryPatchTrainSingleTrackConflictDetector(harmony);
             TryPatchShipQueueDetector(harmony);
+            TryPatchVehicleSpawnPathDiagnostics(harmony);
 
             Debug.Log("[AIImprove] Harmony patches applied.");
             // Recorded once per session so a player's output_log.txt says which of the mods this
@@ -321,6 +322,69 @@ namespace AIImprove
         // which is precisely what the detector needs, since telling those two apart at runtime is
         // the open question. The 3-arg overload also has a single ref-struct parameter, the shape
         // this project has repeatedly verified as safe under Mono's JIT.
+
+        // Finds out where intercity vehicles are actually created - see
+        // VehicleSpawnPathDiagnostics.cs. Resolved by name only, and the resolved signature is
+        // logged, because the point of this is that we do NOT yet know the shape of the call we
+        // are looking for. A failure here is logged and ignored like every other optional patch.
+        private static bool TryPatchVehicleSpawnPathDiagnostics(Harmony harmony)
+        {
+            bool any = false;
+            any |= TryPatchSpawnPathMethod(harmony, "CreateIncomingVehicle", nameof(VehicleSpawnPathDiagnostics.RecordIncoming));
+            any |= TryPatchSpawnPathMethod(harmony, "CreateOutgoingVehicle", nameof(VehicleSpawnPathDiagnostics.RecordOutgoing));
+            return any;
+        }
+
+        private static bool TryPatchSpawnPathMethod(Harmony harmony, string methodName, string recorderName)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(typeof(TransportStationAI), methodName);
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] TransportStationAI." + methodName + " not found - skipping the " +
+                        "spawn-path diagnostic for it. This is a diagnostic only; no behaviour depends on it.");
+                    return false;
+                }
+
+                MethodInfo recorder = typeof(VehicleSpawnPathDiagnostics).GetMethod(
+                    recorderName, BindingFlags.Public | BindingFlags.Static);
+
+                // Postfix rather than Prefix (2026-09-07): a Prefix counts how often the game
+                // TRIES to create a vehicle, which cannot distinguish "it rarely tries" from "it
+                // tries constantly and fails". The measured call rates made that distinction the
+                // whole question - 380 plane calls a minute against 2.4 for trains - so the
+                // recorder now also takes the return value.
+                harmony.Patch(original, postfix: new HarmonyMethod(recorder));
+
+                Debug.Log(
+                    "[AIImprove] Spawn-path diagnostic attached to " + original.DeclaringType.Name + "." +
+                    original.Name + "(" + DescribeParameters(original) + ") returning " +
+                    original.ReturnType.Name + ".");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Spawn-path diagnostic for " + methodName + " failed to attach, " +
+                    "skipping it. Rest of the mod is unaffected. Reason: " + ex.Message);
+                return false;
+            }
+        }
+
+        private static string DescribeParameters(MethodInfo method)
+        {
+            ParameterInfo[] parameters = method.GetParameters();
+            string[] names = new string[parameters.Length];
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                names[i] = parameters[i].ParameterType.Name + " " + parameters[i].Name;
+            }
+
+            return string.Join(", ", names);
+        }
+
         private static bool TryPatchShipQueueDetector(Harmony harmony)
         {
             try

@@ -30,6 +30,7 @@
             HoldingPatternManager.ResetForNewLevel();
             HoldingPatternPatch.ResetForNewLevel();
             OutsideConnectionSpawnDiagnostics.ResetForNewLevel();
+            VehicleSpawnPathDiagnostics.ResetForNewLevel();
             PassengerHelicopterGateAssignmentPatch.ResetForNewLevel();
             RerouteFailureDiagnostics.ResetForNewLevel();
             SanitationIdleSeekTracker.ResetForNewLevel();

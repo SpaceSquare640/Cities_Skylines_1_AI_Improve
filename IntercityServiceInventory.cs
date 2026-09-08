@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using ColossalFramework;
 
 namespace AIImprove
@@ -56,8 +56,20 @@ namespace AIImprove
                     ? "intercity"
                     : "local";
                 string subService = info.m_class != null ? info.m_class.m_subService.ToString() : "none";
+                string service = info.m_class != null ? info.m_class.m_service.ToString() : "none";
 
-                string key = info.m_buildingAI.GetType().Name + " / " + subService + " / " + intercity;
+                // The first run of this (2026-09-07) reported "8 x OutsideConnectionAI / None /
+                // local" and no rail connection at all, while air and sea connections showed up
+                // with their own sub-services. That is the most likely reason no DummyTrain offer
+                // has ever reached TrainSpawnThrottlePatch - but "None" is not enough to tell a
+                // highway connection from a railway one, and this project has already drawn three
+                // wrong conclusions this week from not-quite-enough evidence. The asset name and
+                // the service settle it outright.
+                string extra = isOutsideConnection
+                    ? " / " + service + " / " + (info.name ?? "unnamed")
+                    : string.Empty;
+
+                string key = info.m_buildingAI.GetType().Name + " / " + subService + " / " + intercity + extra;
 
                 int count;
                 tally.TryGetValue(key, out count);
