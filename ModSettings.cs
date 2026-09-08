@@ -148,7 +148,7 @@ namespace AIImprove
         /// Throttles inbound intercity train spawns when the destination is saturated or city-wide
         /// ridership is low.
         public static readonly SavedBool IntercityTrainSpawnThrottleEnabled =
-            new SavedBool("IntercityTrainSpawnThrottleEnabled", FileName, LegacyIntercityTrain.value, true);
+            new SavedBool("IntercityTrainSpawnThrottleEnabled", FileName, false, true);
 
         public static readonly SavedInt IntercityLowRidershipThreshold =
             new SavedInt("IntercityLowRidershipThreshold", FileName, 50, true);
@@ -159,7 +159,7 @@ namespace AIImprove
 
         /// Detect-and-log only; never changes train behaviour.
         public static readonly SavedBool SingleTrackConflictDetectorEnabled =
-            new SavedBool("SingleTrackConflictDetectorEnabled", FileName, LegacyTrainsAndMetro.value, true);
+            new SavedBool("SingleTrackConflictDetectorEnabled", FileName, false, true);
 
         // ---------------------------------------------------------------------------------
         // Aircraft
@@ -255,7 +255,7 @@ namespace AIImprove
         // multiplier, the intercity train ridership skip, and the reroute density thresholds that
         // turned out to sit above the highest density the game ever produces. A default is not a
         // fix for anyone who has already played.
-        public const int CurrentSchemaVersion = 2;
+        public const int CurrentSchemaVersion = 3;
 
         public static readonly SavedInt SchemaVersion =
             new SavedInt("SchemaVersion", FileName, 0, true);
@@ -497,6 +497,22 @@ namespace AIImprove
                 AircraftRerouteEnabled.value = false;
             }
 
+            // Schema 3: the intercity train spawn throttle is switched off for existing configs
+            // too, on the same reasoning as aircraft rerouting in schema 2 - it is not merely
+            // unverified, it is measured dead. Across three maps and five and a half hours its
+            // Prefix never saw a single DummyTrain offer, because intercity trains are not
+            // spawned through the mechanism it attaches to. Leaving it on preserves the
+            // appearance of a choice, not a choice.
+            //
+            // The single-track conflict detector moved to Experimental in the same pass but is
+            // deliberately NOT forced off: it is uncertain rather than dead - it no-ops only when
+            // SingleTrainTrackAI is installed, and may well work for players without it. New
+            // installs get it off; anyone who already had it on keeps it.
+            if (previous < 3)
+            {
+                IntercityTrainSpawnThrottleEnabled.value = false;
+            }
+
             SchemaVersion.value = CurrentSchemaVersion;
 
             UnityEngine.Debug.Log(
@@ -530,10 +546,10 @@ namespace AIImprove
             TrainPlatformCandidateCount.value = 24;
             IntercityTrainRerouteEnabled.value = true;
             IntercityTrainRerouteDensityThreshold.value = 50;
-            IntercityTrainSpawnThrottleEnabled.value = true;
+            IntercityTrainSpawnThrottleEnabled.value = false;
             IntercityLowRidershipThreshold.value = 50;
             IntercityLowRidershipSkipPercent.value = 0;
-            SingleTrackConflictDetectorEnabled.value = true;
+            SingleTrackConflictDetectorEnabled.value = false;
 
             AircraftGateAssignmentEnabled.value = true;
             AircraftPerGateCapacity.value = 6;

@@ -192,20 +192,6 @@ namespace AIImprove
                         .With("tune.taxiFlatBonus", 0f, 20f, 1f,
                             () => ModSettings.CitizenTaxiFlatBonus.value,
                             v => ModSettings.CitizenTaxiFlatBonus.value = Mathf.RoundToInt(v)),
-                    Toggle("feature.citizenTransportMode", ModSettings.CitizenTransportModeEnabled)
-                        .With("tune.citizenWalkWeight", 0f, 100f, 1f,
-                            () => ModSettings.CitizenWalkWeight.value,
-                            v => ModSettings.CitizenWalkWeight.value = Mathf.RoundToInt(v))
-                        .With("tune.citizenDriveWeight", 0f, 100f, 1f,
-                            () => ModSettings.CitizenDriveWeight.value,
-                            v => ModSettings.CitizenDriveWeight.value = Mathf.RoundToInt(v))
-                        .With("tune.citizenTaxiWeight", 0f, 100f, 1f,
-                            () => ModSettings.CitizenTaxiWeight.value,
-                            v => ModSettings.CitizenTaxiWeight.value = Mathf.RoundToInt(v))
-                        .With("tune.citizenTransitWeight", 0f, 100f, 1f,
-                            () => ModSettings.CitizenTransitWeight.value,
-                            v => ModSettings.CitizenTransitWeight.value = Mathf.RoundToInt(v))
-                        .WithExtra(AddCitizenTransportPresets),
                 },
             });
 
@@ -222,7 +208,6 @@ namespace AIImprove
                             () => ModSettings.FireUncapAfterMinutes.value,
                             v => ModSettings.FireUncapAfterMinutes.value = Mathf.RoundToInt(v)),
                     Toggle("feature.fireIdleSeek", ModSettings.FireIdleSeekEnabled),
-                    Toggle("feature.emergencyReroute", ModSettings.EmergencyRerouteEnabled),
                     Toggle("feature.helicopterWeatherHalt", ModSettings.HelicopterWeatherHaltEnabled),
                 },
             });
@@ -254,10 +239,6 @@ namespace AIImprove
                         .With("tune.rerouteDensity", 30f, 70f, 5f,
                             () => ModSettings.IntercityBusRerouteDensityThreshold.value,
                             v => ModSettings.IntercityBusRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
-                    Toggle("feature.intercityBusPreload", ModSettings.IntercityBusPreloadEnabled)
-                        .With("tune.intercityBusPreload", 0f, 100f, 5f,
-                            () => ModSettings.IntercityBusPreloadPercent.value,
-                            v => ModSettings.IntercityBusPreloadPercent.value = Mathf.RoundToInt(v)),
                 },
             });
 
@@ -282,14 +263,6 @@ namespace AIImprove
                         .With("tune.rerouteDensity", 30f, 70f, 5f,
                             () => ModSettings.IntercityTrainRerouteDensityThreshold.value,
                             v => ModSettings.IntercityTrainRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
-                    Toggle("feature.trainSpawnThrottle", ModSettings.IntercityTrainSpawnThrottleEnabled)
-                        .With("tune.lowRidership", 0f, 200f, 5f,
-                            () => ModSettings.IntercityLowRidershipThreshold.value,
-                            v => ModSettings.IntercityLowRidershipThreshold.value = Mathf.RoundToInt(v))
-                        .With("tune.lowRidershipSkipChance", 0f, 100f, 5f,
-                            () => ModSettings.IntercityLowRidershipSkipPercent.value,
-                            v => ModSettings.IntercityLowRidershipSkipPercent.value = Mathf.RoundToInt(v), "%"),
-                    Toggle("feature.singleTrackDetector", ModSettings.SingleTrackConflictDetectorEnabled),
                 },
             });
 
@@ -364,10 +337,15 @@ namespace AIImprove
                 });
             }
 
-            // Features that are known not to work yet, kept visible and switched off rather than
-            // hidden, so nobody (including us) forgets they are unfinished. Aircraft rerouting
-            // landed here on 2026-09-07: 5000 measured samples of air "density" never exceeded
-            // 10.8 against a threshold of 50, and no threshold can fix that - air density is near
+            // WHAT BELONGS HERE (2026-09-09, user's definition): anything uncertain, untested,
+            // awaiting a fix, or newly added. Not only things proven broken - "we have never
+            // watched this work" is reason enough. A feature graduates out of this section when a
+            // real session shows it doing what it claims.
+            //
+            // Kept visible and switched off rather than hidden, so neither the player nor we
+            // forget it is unfinished. Aircraft rerouting landed here on 2026-09-07: 5000
+            // measured samples of air "density" never exceeded 10.8 against a threshold of 50,
+            // and no threshold can fix that - air density is near
             // zero by construction, so the feature needs a different signal (landing queue length,
             // airport occupancy) rather than a different number.
             model.Add(new Section
@@ -379,6 +357,33 @@ namespace AIImprove
                         .With("tune.rerouteDensity", 30f, 70f, 5f,
                             () => ModSettings.AircraftRerouteDensityThreshold.value,
                             v => ModSettings.AircraftRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
+                    Toggle("feature.trainSpawnThrottle", ModSettings.IntercityTrainSpawnThrottleEnabled)
+                        .With("tune.lowRidership", 0f, 200f, 5f,
+                            () => ModSettings.IntercityLowRidershipThreshold.value,
+                            v => ModSettings.IntercityLowRidershipThreshold.value = Mathf.RoundToInt(v))
+                        .With("tune.lowRidershipSkipChance", 0f, 100f, 5f,
+                            () => ModSettings.IntercityLowRidershipSkipPercent.value,
+                            v => ModSettings.IntercityLowRidershipSkipPercent.value = Mathf.RoundToInt(v), "%"),
+                    Toggle("feature.intercityBusPreload", ModSettings.IntercityBusPreloadEnabled)
+                        .With("tune.intercityBusPreload", 0f, 100f, 5f,
+                            () => ModSettings.IntercityBusPreloadPercent.value,
+                            v => ModSettings.IntercityBusPreloadPercent.value = Mathf.RoundToInt(v)),
+                    Toggle("feature.emergencyReroute", ModSettings.EmergencyRerouteEnabled),
+                    Toggle("feature.singleTrackDetector", ModSettings.SingleTrackConflictDetectorEnabled),
+                    Toggle("feature.citizenTransportMode", ModSettings.CitizenTransportModeEnabled)
+                        .With("tune.citizenWalkWeight", 0f, 100f, 1f,
+                            () => ModSettings.CitizenWalkWeight.value,
+                            v => ModSettings.CitizenWalkWeight.value = Mathf.RoundToInt(v))
+                        .With("tune.citizenDriveWeight", 0f, 100f, 1f,
+                            () => ModSettings.CitizenDriveWeight.value,
+                            v => ModSettings.CitizenDriveWeight.value = Mathf.RoundToInt(v))
+                        .With("tune.citizenTaxiWeight", 0f, 100f, 1f,
+                            () => ModSettings.CitizenTaxiWeight.value,
+                            v => ModSettings.CitizenTaxiWeight.value = Mathf.RoundToInt(v))
+                        .With("tune.citizenTransitWeight", 0f, 100f, 1f,
+                            () => ModSettings.CitizenTransitWeight.value,
+                            v => ModSettings.CitizenTransitWeight.value = Mathf.RoundToInt(v))
+                        .WithExtra(AddCitizenTransportPresets),
                 },
             });
 
