@@ -35,17 +35,30 @@ namespace AIImprove
         // Reversible Tram AI above.
         private const string AdvancedVehicleOptionsTypeName = "AdvancedVehicleOptionsUID.AdvancedVehicleOptionsLoader";
 
-        // "改為可支援 Real Time 模組" (2026-09-04). Unlike every other entry in this file, this one
-        // deliberately changes no behavior - there is nothing to defer to, because the two mods do
-        // not overlap at all. Verified by decompiling the installed RealTime.dll: its
-        // RealTime.Patches.ResidentAIPatch patches UpdateLocation, UpdateAge, Spawn, CanMakeBabies,
-        // FinishSchoolOrWork, SimulationStep, StartTransfer, FindHospital, GetColor and
-        // UpdateHealth - scheduling, health and state - and the assembly contains no reference at
-        // all to GetVehicleInfo, GetCarProbability, GetTaxiProbability, GetBikeProbability or
-        // GetElectricCarProbability. Real Time decides *when* a citizen leaves; it never touches
-        // *what they travel in*, which is the only part of ResidentAI this mod's citizen features
-        // patch. Real Time reaches vanilla HumanAI.StartMoving through its own delegate, so
-        // GetVehicleInfo still runs underneath it and all three citizen patches apply normally.
+        // "改為可支援 Real Time 模組" (2026-09-04). This one deliberately changes no behavior.
+        //
+        // CORRECTED 2026-09-09 - the original claim here was "the two mods do not overlap at all",
+        // and that was too broad. It was reached by decompiling RealTime's ResidentAIPatch and
+        // finding no reference to GetVehicleInfo or the probability methods - a true observation
+        // about ONE class, written up as a conclusion about the whole assembly. The shared-patch
+        // report added the same week found the rest of it on its first run:
+        //
+        //   FireTruckAI.SetTarget  and  FireCopterAI.SetTarget  are patched by Real Time.
+        //
+        // Those are the fire dispatch path, which this mod's fire response cap also works on. So
+        // there IS an overlap, and the earlier text denied it.
+        //
+        // What the overlap actually does, decompiled rather than assumed (RealTime's
+        // VehicleAIPatch): both are void Prefixes that never touch the target, never return
+        // false, and only call RealTime's own RemoveBuildingFire bookkeeping when a truck is
+        // released or the fire is already out. The original method always runs and the dispatch
+        // outcome is unchanged. The conclusion "supported, nothing to defer to" therefore still
+        // holds - but it now rests on knowing what the shared patch does, rather than on a belief
+        // that there was no shared patch.
+        //
+        // The scheduling half of the original note is unchanged and still accurate: Real Time
+        // decides *when* a citizen leaves and reaches vanilla HumanAI.StartMoving through its own
+        // delegate, so GetVehicleInfo still runs underneath it.
         //
         // Adding a compatibility workaround here would therefore be inventing a problem. What is
         // genuinely useful is recording, in the log, whether the player has it - bug reports
@@ -65,6 +78,23 @@ namespace AIImprove
         private const string ExpressBusServicesTypeName = "ExpressBusServices.ExpressBusServices";
 
         public static bool IsExpressBusServicesLoaded() => FindType(ExpressBusServicesTypeName) != null;
+
+
+        // TM:PE ALSO PATCHES ResidentAI.GetVehicleInfo (found 2026-09-09 by the shared-patch
+        // report; previously unknown, and not mentioned anywhere in this project's compatibility
+        // notes). That is the exact method CitizenTransportModePatch replaces.
+        //
+        // TM:PE's is a Prefix returning bool - its TouristAI sibling, which is readable and
+        // written the same way, replaces vanilla's vehicle choice outright. Two Prefixes that
+        // both return false do not compose: whichever Harmony runs first wins and the other never
+        // executes. So with TM:PE installed, "custom citizen transport weights" and TM:PE's own
+        // vehicle choice are in a race, and one of them silently loses.
+        //
+        // Not defended against in code, deliberately. The feature is off by default and now sits
+        // in the Experimental section, so nobody has it on by accident; and picking a winner here
+        // would mean this mod deciding which of two mods the player actually wanted. What was
+        // missing was that nobody knew - the shared-patch line in the log now says so every
+        // session, and this note says so to whoever reads the code.
 
         private const string RealTimeTypeName = "RealTime.Core.RealTimeMod";
 
