@@ -18,9 +18,26 @@ namespace AIImprove
     // Targets <VehicleAI>.StartPathFind(ushort, ref Vehicle, Vector3, Vector3, bool, bool, bool),
     // which calls PathManager.CreatePath(...) with a hardcoded `ignoreCosts: false` argument.
     // This transpiler swaps that literal for a call to <VehicleAI>.IsEmergency(...), so emergency
-    // dispatches ask the pathfinder to ignore path costs entirely - a coarser lever than the
-    // originally planned "reduce congestion weighting", but the only one that survived contact
-    // with Mono/TMPE reality.
+    // dispatches are pathfound with ignoreCosts=true.
+    //
+    // WHAT THAT ACTUALLY BUYS - AND IT IS MUCH LESS THAN THE NAME SUGGESTS (corrected 2026-09-09).
+    // "Ignore path costs" reads like "ignore congestion". It is not. PathFind.m_ignoreCost was
+    // decompiled and has exactly three read sites, and all three guard the same thing:
+    // NetLane.m_ticketCost - the toll charged on toll roads. Nothing else in the pathfinder
+    // consults it. So the real effect of this patch is: EMERGENCY VEHICLES DO NOT AVOID TOLL
+    // ROADS. That is all. It does not make them prefer clear roads, it does not deprioritise
+    // congested lanes, and on a city with no toll roads it changes nothing whatsoever.
+    //
+    // The header here used to claim it made them "ignore path costs entirely", and the
+    // 2026-09-09 Workshop changelog told players "emergency priority still works through the
+    // other, pathfinder-independent patch" - which is this file. Both overstated it. What
+    // actually gives emergency vehicles a route around a jam is EmergencyRerouteEnabled in
+    // FlexibleReroutePatch, added 2026-09-06 after a player's screenshots of queued ambulances
+    // showed that the "handled separately" comment was covering for a patch that only skipped
+    // tolls.
+    //
+    // KEPT rather than removed: skipping tolls on an emergency dispatch is defensible on its own
+    // terms and costs nothing. It just must not be described as priority routing.
     //
     // AmbulanceAI, FireTruckAI and PoliceCarAI all compile to byte-identical IL for this method
     // (confirmed via dnSpy) - same StartPathFind override shape, same IsEmergency signature -

@@ -1,3 +1,30 @@
+﻿[h1]2026-09-09 (later the same day) - Four features removed[/h1]
+
+Nothing is broken. This update takes four features out of the mod because they did not belong in it, and one of them was announced in this morning's notes - so it needs saying plainly rather than being left for someone to notice.
+
+[h2]What this mod is for[/h2]
+
+Cities: Skylines makes a decision once and then lives with it. A vehicle picks a route, a plane picks a stand, a hearse picks a building - and when the situation changes a minute later, nothing goes back and looks again. That is the gap this mod exists to fill: [b]continuous adjustment of decisions the game already made[/b], not a one-off optimisation at the moment of choosing.
+
+Four things had accumulated here that were not doing that. They were added because they were possible, not because they served the point.
+
+[h2]Removed[/h2]
+
+[list]
+[*] [b]Racetrack attractiveness multiplier.[/b] Multiplying a building's attractiveness is a city-balance tweak. It never revisited a decision, and mods that adjust building stats do it better. The whole Races section is gone from the settings page with it.
+[*] [b]Intercity buses arriving already carrying passengers.[/b] [i]This was announced this morning as the safe replacement for the old capacity boost.[/i] It was still the wrong thing for this mod to be doing: manufacturing passengers who were never simulated is not improving anybody's decision-making. It shipped off by default and was never once observed running in a log. The code is gone rather than switched off, so a saved [i]on[/i] in your configuration file now refers to nothing.
+[*] [b]Intercity train spawn throttle.[/b] Already reported in this morning's notes as attached to a mechanism the game does not use for intercity trains. Rather than leave a switch that cannot do anything, it is gone. [b]The intercity train spawn rate problem is still being investigated[/b] - removing this changes nothing about it, because the feature never ran.
+[*] [b]Single-track railway conflict detection.[/b] It stood down whenever Single Train Track AI was loaded, which is where the problem it addressed actually gets solved. Two mods for one job, and the other one is better at it.
+[/list]
+
+[h2]What this means for your save[/h2]
+
+Nothing to do. No feature you were relying on has changed behaviour, because none of these four was doing measurable work. Their old settings entries stay in your configuration file, unread and harmless, so nothing needs resetting and no city needs reloading.
+
+[h2]Why say this much about a removal[/h2]
+
+A switch that disappears overnight looks like a bug, and a mod that only ever announces additions is not telling you how it is being maintained. Removing something that was shipped this morning is a correction, and it reads better as one than as a silent deletion.
+
 [h1]2026-09-09 - Rerouting actually happens now, and a week of audit fixes[/h1]
 
 Most of this came from measuring the mod against real sessions instead of reasoning about it. Several things it claimed to do turned out not to be happening at all.
