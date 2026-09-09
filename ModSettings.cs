@@ -249,6 +249,11 @@ namespace AIImprove
         public static readonly SavedBool TransitDwellShortenEnabled =
             new SavedBool("TransitDwellShortenEnabled", FileName, false, true);
 
+        // The other half: hold a vehicle that has caught up with the one in front, so the gap
+        // reopens. Experimental and off by default.
+        public static readonly SavedBool TransitUnbunchEnabled =
+            new SavedBool("TransitUnbunchEnabled", FileName, false, true);
+
         public static readonly SavedBool ShowAdvancedTuning =
             new SavedBool("ShowAdvancedTuning", FileName, false, true);
 
@@ -576,6 +581,7 @@ namespace AIImprove
             IntercityBusRerouteDensityThreshold.value = 50;
             IntercityBusPreloadEnabled.value = false;
             TransitDwellShortenEnabled.value = false;
+            TransitUnbunchEnabled.value = false;
             IntercityBusPreloadPercent.value = 75;
 
             OrdinaryTrafficRerouteEnabled.value = true;

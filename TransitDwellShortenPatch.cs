@@ -1,4 +1,4 @@
-using ColossalFramework;
+﻿using ColossalFramework;
 using HarmonyLib;
 using UnityEngine;
 
@@ -47,6 +47,30 @@ namespace AIImprove
     // nothing - so calling it as a query has no side effects on citizens. That check was the
     // whole reason to look: the old version's mistake was measuring without knowing what the
     // measurement meant.
+    // UNBUNCHING (added 2026-09-09). The other half of what an "express bus" mod does: when
+    // vehicles on a line catch each other up, the leader takes every passenger and the follower
+    // runs empty right behind it - which is why buses arrive in pairs with a long gap either side.
+    //
+    // The usual answer is to let the follower SKIP stops. This project has already learned what
+    // that costs: the skipped stop's passengers are stranded, and the recursion needed to advance
+    // a stop leaves vehicles holding competing path requests. So the same goal is reached from the
+    // opposite direction - instead of sending the follower ahead, HOLD it back. The gap opens and
+    // nobody is passed by.
+    //
+    //   nobody waiting                       -> leave early   (shortens the dwell)
+    //   caught up with the vehicle in front  -> leave later    (extends the dwell)
+    //
+    // Both are the same one-line intervention on the same counter, in the same patch, and neither
+    // can strand a passenger or issue a path request.
+    //
+    // WHO HOLDS: a vehicle holds only if another vehicle of the same line is stopped at the same
+    // stop AND has been there at least as long. Without that second half both vehicles would hold
+    // for each other and neither would leave; with it, whoever arrived first always leaves first.
+    //
+    // TERMINATION IS GUARANTEED, not hoped for: every hold is counted per vehicle and stops at
+    // MaxHoldSteps regardless of conditions. A rule that can extend a dwell needs a bound that
+    // does not depend on the situation resolving itself - a stuck bus is precisely the failure
+    // this whole feature is being rewritten to avoid.
     internal static class TransitDwellShortenPatch
     {
         // Vanilla's own requirement, from BusAI.CanLeave.
@@ -57,14 +81,31 @@ namespace AIImprove
         // deciding at the first instant.
         private const byte MinimumDwell = 6;
 
+        // Hard ceiling on how long unbunching may extend a stop, in simulation steps - roughly
+        // three times vanilla's own dwell.
+        private const int MaxHoldSteps = 36;
+
         private static bool loggedFirstCall;
         private static int shortened;
         private static int keptWaiting;
+        private static int held;
+
+        // How many steps each vehicle has been held at its current stop. Bounds the hold, and is
+        // dropped as soon as the vehicle is allowed to leave.
+        private static readonly System.Collections.Generic.Dictionary<ushort, int> HoldSteps =
+            new System.Collections.Generic.Dictionary<ushort, int>();
 
         public static void ResetForNewLevel()
         {
             shortened = 0;
             keptWaiting = 0;
+            held = 0;
+            HoldSteps.Clear();
+        }
+
+        public static void ReleaseVehicle(ushort vehicleID)
+        {
+            HoldSteps.Remove(vehicleID);
         }
 
         // Prefix on BusAI.CanLeave(ushort, ref Vehicle) - a single ref struct parameter, the
@@ -72,17 +113,26 @@ namespace AIImprove
         // true: the original method still decides.
         public static bool Prefix(ushort vehicleID, ref Vehicle vehicleData)
         {
-            if (!ModSettings.TransitDwellShortenEnabled.value ||
+            if ((!ModSettings.TransitDwellShortenEnabled.value &&
+                 !ModSettings.TransitUnbunchEnabled.value) ||
                 vehicleData.m_transportLine == 0 ||
                 vehicleData.m_targetBuilding == 0)
             {
+                HoldSteps.Remove(vehicleID);
                 return true;
             }
 
             // Evaluated once per stop visit, at exactly one wait-counter value, rather than every
             // frame of the dwell: CalculatePassengerCount walks a patch of the citizen grid, and
             // running it eight times per stop to reach the same conclusion would be waste.
-            if (vehicleData.m_waitCounter != MinimumDwell)
+            if (ModSettings.TransitUnbunchEnabled.value &&
+                HoldForVehicleInFront(vehicleID, ref vehicleData))
+            {
+                return true;
+            }
+
+            if (!ModSettings.TransitDwellShortenEnabled.value ||
+                vehicleData.m_waitCounter != MinimumDwell)
             {
                 return true;
             }
@@ -113,19 +163,81 @@ namespace AIImprove
             return true;
         }
 
+
+        // True when this vehicle should stay a little longer to open a gap. The hold is done by
+        // pushing the wait counter back down, which the original CanLeave then reads as "not yet".
+        private static bool HoldForVehicleInFront(ushort vehicleID, ref Vehicle vehicleData)
+        {
+            if (vehicleData.m_waitCounter < VanillaDwell)
+            {
+                // Not ready to leave anyway - nothing to hold back.
+                return false;
+            }
+
+            int alreadyHeld;
+            HoldSteps.TryGetValue(vehicleID, out alreadyHeld);
+            if (alreadyHeld >= MaxHoldSteps)
+            {
+                // The bound, applied whether or not the bunching has cleared. See the note on
+                // guaranteed termination above.
+                HoldSteps.Remove(vehicleID);
+                return false;
+            }
+
+            if (!IsBehindAnotherVehicleHere(vehicleID, ref vehicleData))
+            {
+                HoldSteps.Remove(vehicleID);
+                return false;
+            }
+
+            HoldSteps[vehicleID] = alreadyHeld + 1;
+            vehicleData.m_waitCounter = VanillaDwell - 1;
+            held++;
+            Report();
+            return true;
+        }
+
+        // Another vehicle of the same line, stopped at the same stop, that arrived no later than
+        // we did. The "no later" half is what stops two vehicles holding for each other forever.
+        private static bool IsBehindAnotherVehicleHere(ushort vehicleID, ref Vehicle vehicleData)
+        {
+            VehicleManager vehicleManager = Singleton<VehicleManager>.instance;
+            ushort other = Singleton<TransportManager>.instance
+                .m_lines.m_buffer[vehicleData.m_transportLine].m_vehicles;
+
+            int guard = 0;
+            while (other != 0 && ++guard < 16384)
+            {
+                if (other != vehicleID)
+                {
+                    Vehicle otherData = vehicleManager.m_vehicles.m_buffer[other];
+                    if (otherData.m_targetBuilding == vehicleData.m_targetBuilding &&
+                        (otherData.m_flags & Vehicle.Flags.Stopped) != 0 &&
+                        otherData.m_waitCounter >= vehicleData.m_waitCounter)
+                    {
+                        return true;
+                    }
+                }
+
+                other = vehicleManager.m_vehicles.m_buffer[other].m_nextLineVehicle;
+            }
+
+            return false;
+        }
+
         private static void Report()
         {
-            int total = shortened + keptWaiting;
+            int total = shortened + keptWaiting + held;
             if (total % 100 != 0 || !Log.VerboseEnabled)
             {
                 return;
             }
 
             Log.Info(
-                "[AIImprove] Transit dwell: " + total + " stop visit(s) reached the " +
-                MinimumDwell + "-step mark - " + shortened + " had nobody waiting and were " +
-                "released early, " + keptWaiting + " had passengers still to board and dwelt in " +
-                "full.");
+                "[AIImprove] Transit dwell: " + total + " decision(s) - " + shortened +
+                " released early with nobody waiting, " + keptWaiting +
+                " dwelt in full with passengers still to board, " + held +
+                " held back to open a gap behind the vehicle in front.");
         }
     }
 }

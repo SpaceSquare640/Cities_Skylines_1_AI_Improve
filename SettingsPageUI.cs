@@ -354,6 +354,7 @@ namespace AIImprove
                 Features =
                 {
                     Toggle("feature.transitDwell", ModSettings.TransitDwellShortenEnabled),
+                    Toggle("feature.transitUnbunch", ModSettings.TransitUnbunchEnabled),
                     Toggle("feature.aircraftReroute", ModSettings.AircraftRerouteEnabled)
                         .With("tune.rerouteDensity", 30f, 70f, 5f,
                             () => ModSettings.AircraftRerouteDensityThreshold.value,

@@ -49,6 +49,7 @@
             FireResponseTracker.ReleaseVehicle(vehicleID);
             StuckRerouteTracker.Clear(vehicleID);
             RerouteEffectDiagnostics.ReleaseVehicle(vehicleID);
+            TransitDwellShortenPatch.ReleaseVehicle(vehicleID);
             EmergencyDispatchTracker.ReleaseVehicle(vehicleID);
             ShipQueueDetector.ReleaseVehicle(vehicleID);
             SanitationIdleSeekTracker.ReleaseVehicle(vehicleID);
