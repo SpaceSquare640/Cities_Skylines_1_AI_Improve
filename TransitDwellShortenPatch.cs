@@ -133,11 +133,35 @@ namespace AIImprove
             return expressBusServicesPresent.Value;
         }
 
-        // Prefix on BusAI.CanLeave(ushort, ref Vehicle) - a single ref struct parameter, the
-        // shape this project has repeatedly confirmed is safe under Mono's JIT. Always returns
-        // true: the original method still decides.
+        // COVERAGE (2026-09-09, checked with dnSpy rather than assumed - the four transit AIs do
+        // NOT all work the same way):
+        //
+        //   BusAI          waitCounter >= 12, then base.CanLeave and CanLeaveStop.
+        //   TrolleybusAI   character-for-character the same as BusAI.
+        //   PassengerTrainAI (and MetroTrainAI, which inherits it unchanged) the same, EXCEPT
+        //                  that a carriage with a leading vehicle bypasses the timer entirely -
+        //                  only the lead car's counter means anything. Hence the guard below.
+        //   TramAI         DOES NOT OVERRIDE CanLeave AT ALL. It falls through to
+        //                  VehicleAI.CanLeave, which has no timer - only a check that nobody is
+        //                  mid-boarding. Trams already leave as soon as boarding finishes, so
+        //                  there is no dwell to shorten and this mechanism does not apply to them.
+        //                  Holding a tram would mean making a base method return false with no
+        //                  vanilla timer to lean on, which is a different and riskier design;
+        //                  trams are left alone rather than covered badly.
+        //
+        // Prefix on <AI>.CanLeave(ushort, ref Vehicle) - a single ref struct parameter, the shape
+        // this project has repeatedly confirmed is safe under Mono's JIT. Always returns true:
+        // the original method still decides.
         public static bool Prefix(ushort vehicleID, ref Vehicle vehicleData)
         {
+            // A carriage behind a locomotive has no say in when the train leaves - vanilla's own
+            // CanLeave short-circuits the timer for it. Touching its counter would be writing to
+            // a number nothing reads.
+            if (vehicleData.m_leadingVehicle != 0)
+            {
+                return true;
+            }
+
             if (StandDownForExpressBusServices() ||
                 (!ModSettings.TransitDwellShortenEnabled.value &&
                  !ModSettings.TransitUnbunchEnabled.value) ||

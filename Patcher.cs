@@ -1076,24 +1076,17 @@ namespace AIImprove
         {
             try
             {
-                MethodInfo original = AccessTools.Method(
-                    typeof(BusAI), "CanLeave", new[] { typeof(ushort), typeof(Vehicle).MakeByRefType() });
-
-                if (original == null)
-                {
-                    Debug.LogWarning(
-                        "[AIImprove] BusAI.CanLeave not found - game version may have changed. " +
-                        "Skipping the transit dwell patch.");
-                    return false;
-                }
-
                 MethodInfo prefix = typeof(TransitDwellShortenPatch).GetMethod(
                     nameof(TransitDwellShortenPatch.Prefix), BindingFlags.Public | BindingFlags.Static);
 
-                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
-
-                Debug.Log("[AIImprove] Transit dwell patch applied.");
-                return true;
+                // PassengerTrainAI covers MetroTrainAI too, which inherits CanLeave unchanged.
+                // TramAI is deliberately absent: it does not override CanLeave at all and so has
+                // no dwell timer to work with - see TransitDwellShortenPatch's coverage note.
+                bool any = false;
+                any |= PatchOneCanLeave(harmony, typeof(BusAI), prefix);
+                any |= PatchOneCanLeave(harmony, typeof(TrolleybusAI), prefix);
+                any |= PatchOneCanLeave(harmony, typeof(PassengerTrainAI), prefix);
+                return any;
             }
             catch (Exception ex)
             {
@@ -1102,6 +1095,25 @@ namespace AIImprove
                     "mod is unaffected. Reason: " + ex.Message);
                 return false;
             }
+        }
+
+
+        private static bool PatchOneCanLeave(Harmony harmony, Type aiType, MethodInfo prefix)
+        {
+            MethodInfo original = AccessTools.Method(
+                aiType, "CanLeave", new[] { typeof(ushort), typeof(Vehicle).MakeByRefType() });
+
+            if (original == null)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] " + aiType.Name + ".CanLeave not found - game version may have " +
+                    "changed. Skipping the transit dwell patch for it.");
+                return false;
+            }
+
+            harmony.Patch(original, prefix: new HarmonyMethod(prefix));
+            Debug.Log("[AIImprove] Transit dwell patch applied for " + aiType.Name + ".");
+            return true;
         }
 
         // Soft dependency: prefer the TMPE-aware patch when TMPE is present and it actually
