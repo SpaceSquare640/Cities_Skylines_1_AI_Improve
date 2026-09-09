@@ -67,7 +67,6 @@ namespace AIImprove
             TryPatchFireResponseCap(harmony, typeof(FireCopterAI), typeof(FireResponseCapPatch.Copter));
             TryPatchSanitationIdleSeek(harmony, typeof(GarbageTruckAI), typeof(SanitationIdleSeekPatch.Garbage));
             TryPatchSanitationIdleSeek(harmony, typeof(HearseAI), typeof(SanitationIdleSeekPatch.Hearse));
-            TryPatchTrainSpawnThrottle(harmony);
             TryPatchCitizenCarProbability(harmony);
             TryPatchCitizenTaxiProbability(harmony);
             TryPatchCitizenTransportMode(harmony);
@@ -87,7 +86,6 @@ namespace AIImprove
             // speed is fully vanilla again; only the race-building attractiveness patch remains.
             if (DlcDetector.IsRacesAndParadesOwned())
             {
-                TryPatchRaceBuildingAttractiveness(harmony);
             }
             else
             {
@@ -105,23 +103,16 @@ namespace AIImprove
             // which our x2 turned into 31968 - see CompanionModCompat.cs). Deferring to AVO only
             // covered the case where we knew who the other party was.
             //
-            // This was the last registered patch that wrote m_passengerCapacity, so as of now
-            // this mod does not change any vehicle's total capacity at all. If fuller vehicles
-            // are wanted, the supported way is the occupancy approach used by
-            // IntercityBusPreloadPatch: set how many passengers are already aboard, as a
-            // percentage of the vehicle's own real capacity, and leave the capacity alone.
+            // This was the last registered patch that wrote m_passengerCapacity, so this mod
+            // does not change any vehicle's total capacity at all.
             //
             // The setting now defaults off, but a player who previously turned it on still has
             // true saved in AIImprove.cgs - which is exactly why this is unregistered rather than
             // merely defaulted off, and why its settings entry is gone: a toggle that cannot do
             // anything is worse than no toggle.
-            // RE-ENABLED 2026-09-06 at user request. It is registered, but its own setting
-            // (IntercityBusPreloadEnabled) defaults to OFF, so nothing changes for an existing
-            // player until they turn it on - the 2026-08-14 decision to disable it stands until
-            // the player themselves reverses it. The reason it was unsafe to leave running is
-            // gone rather than mitigated: it no longer writes m_passengerCapacity at all (see
-            // IntercityBusPreloadPatch.cs).
-            TryPatchIntercityBusPreload(harmony);
+            // An occupancy-based alternative (write Vehicle.m_transferSize instead) existed
+            // briefly as the intercity bus preload; it was removed on 2026-09-09 as off-purpose,
+            // so there is currently no supported way to make a vehicle carry more. Ask first.
             // TryPatchTransitStationSkip(...) x3 - DISABLED (2026-08-14) after a player bug report
             // ("地鐵無法移動 / 有些巴士無法移動 / 直升機無法移動 / 部份電車無法移動 /
             // 公共交通工具客量大幅減少"), confirmed against their output_log: 3676 skip events
@@ -159,7 +150,6 @@ namespace AIImprove
             // AircraftGateAssignmentPatch and HelicopterWeatherHaltPatch remain registered and
             // already delivered the requested behavior (confirmed in logs), just without the
             // "Not Operating" building status.
-            TryPatchTrainSingleTrackConflictDetector(harmony);
             TryPatchShipQueueDetector(harmony);
             TryPatchVehicleSpawnPathDiagnostics(harmony);
             TryPatchTransitDwellShorten(harmony);
@@ -168,40 +158,6 @@ namespace AIImprove
             // Recorded once per session so a player's output_log.txt says which of the mods this
             // one is designed to coexist with were actually present - see CompanionModCompat.
             CompanionModCompat.LogDetectedCompanions();
-        }
-
-        // Boosts intercity bus capacity - see IntercityBusPreloadPatch.cs.
-        private static bool TryPatchIntercityBusPreload(Harmony harmony)
-        {
-            try
-            {
-                MethodInfo original = AccessTools.Method(
-                    typeof(BusAI),
-                    "CreateVehicle",
-                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType() });
-
-                if (original == null)
-                {
-                    Debug.LogWarning(
-                        "[AIImprove] BusAI.CreateVehicle not found - game version may have changed. " +
-                        "Skipping intercity bus preload patch.");
-                    return false;
-                }
-
-                MethodInfo prefix = typeof(IntercityBusPreloadPatch).GetMethod(
-                    nameof(IntercityBusPreloadPatch.Prefix), BindingFlags.Public | BindingFlags.Static);
-                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
-
-                Debug.Log("[AIImprove] Intercity bus preload patch applied.");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning(
-                    "[AIImprove] Intercity bus preload patch failed to apply, skipping it. Rest " +
-                    "of the mod is unaffected. Reason: " + ex.Message);
-                return false;
-            }
         }
 
         // "Fly past a congested/empty stop" - see TransitStationSkipPatch.cs. ArriveAtTarget is
@@ -273,44 +229,6 @@ namespace AIImprove
                 Debug.LogWarning(
                     "[AIImprove] Thunderstorm facility shutdown patch failed to apply for " +
                     buildingAiType.Name + ", skipping it. Rest of the mod is unaffected. Reason: " + ex.Message);
-                return false;
-            }
-        }
-
-        // Detect-and-log-only single-shared-track conflict detector - see
-        // TrainSingleTrackConflictDetector.cs. Adds its own independent Postfix onto the same
-        // TrainAI.SimulationStep(ushort, ref Vehicle, Vector3) overload FlexibleReroutePatch
-        // already Postfixes for trains - Harmony supports multiple independent registrations on
-        // the same method, same pattern as HelicopterWeatherHaltPatch/HelicopterDispatchTrackingPatch.
-        private static bool TryPatchTrainSingleTrackConflictDetector(Harmony harmony)
-        {
-            try
-            {
-                MethodInfo original = AccessTools.Method(
-                    typeof(TrainAI),
-                    "SimulationStep",
-                    new[] { typeof(ushort), typeof(Vehicle).MakeByRefType(), typeof(Vector3) });
-
-                if (original == null)
-                {
-                    Debug.LogWarning(
-                        "[AIImprove] TrainAI.SimulationStep(ushort, ref Vehicle, Vector3) not found - " +
-                        "game version may have changed. Skipping single-track conflict detector patch.");
-                    return false;
-                }
-
-                MethodInfo postfix = typeof(TrainSingleTrackConflictDetector.Train).GetMethod(
-                    "Postfix", BindingFlags.Public | BindingFlags.Static);
-                harmony.Patch(original, postfix: new HarmonyMethod(postfix));
-
-                Debug.Log("[AIImprove] Single-track conflict detector patch applied.");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning(
-                    "[AIImprove] Single-track conflict detector patch failed to apply, skipping it. " +
-                    "Rest of the mod is unaffected. Reason: " + ex.Message);
                 return false;
             }
         }
@@ -465,41 +383,6 @@ namespace AIImprove
         // TryPatchTrainPassengerCapacity removed 2026-09-06 - see
         // TrainPassengerCapacityPatch.cs and 準則 11.
 
-        // Boosts the motorsport race complex's tourism attractiveness - see
-        // RaceBuildingAttractivenessPatch.cs.
-        private static bool TryPatchRaceBuildingAttractiveness(Harmony harmony)
-        {
-            try
-            {
-                MethodInfo original = AccessTools.Method(
-                    typeof(RaceBuildingAI),
-                    "GetAttractivenessAccumulation",
-                    new[] { typeof(ushort), typeof(Building).MakeByRefType() });
-
-                if (original == null)
-                {
-                    Debug.LogWarning(
-                        "[AIImprove] RaceBuildingAI.GetAttractivenessAccumulation not found - game " +
-                        "version may have changed. Skipping race building attractiveness patch.");
-                    return false;
-                }
-
-                MethodInfo postfix = typeof(RaceBuildingAttractivenessPatch).GetMethod(
-                    nameof(RaceBuildingAttractivenessPatch.Postfix), BindingFlags.Public | BindingFlags.Static);
-                harmony.Patch(original, postfix: new HarmonyMethod(postfix));
-
-                Debug.Log("[AIImprove] Race building attractiveness patch applied.");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning(
-                    "[AIImprove] Race building attractiveness patch failed to apply, skipping it. " +
-                    "Rest of the mod is unaffected. Reason: " + ex.Message);
-                return false;
-            }
-        }
-
         // Grounds new emergency-helicopter dispatches during an active thunderstorm - see
         // WeatherDisasterDetector.cs / HelicopterWeatherHaltPatch.cs. Prefix on the same
         // HelicopterAI.StartPathFind(5-arg) method HelicopterDispatchTrackingPatch already
@@ -642,41 +525,6 @@ namespace AIImprove
                 Debug.LogWarning(
                     "[AIImprove] Citizen transport mode patch failed to apply, skipping it. Rest " +
                     "of the mod is unaffected. Reason: " + ex.Message);
-                return false;
-            }
-        }
-
-        // Skips spawning a new incoming intercity train when its destination station is already
-        // saturated - see TrainSpawnThrottlePatch.cs. Single `ref Building` param, safe shape.
-        private static bool TryPatchTrainSpawnThrottle(Harmony harmony)
-        {
-            try
-            {
-                MethodInfo original = AccessTools.Method(
-                    typeof(OutsideConnectionAI),
-                    "StartTransfer",
-                    new[] { typeof(ushort), typeof(Building).MakeByRefType(), typeof(TransferManager.TransferReason), typeof(TransferManager.TransferOffer) });
-
-                if (original == null)
-                {
-                    Debug.LogWarning(
-                        "[AIImprove] OutsideConnectionAI.StartTransfer not found - game version may " +
-                        "have changed. Skipping train spawn throttle patch.");
-                    return false;
-                }
-
-                MethodInfo prefix = typeof(TrainSpawnThrottlePatch).GetMethod(
-                    nameof(TrainSpawnThrottlePatch.Prefix), BindingFlags.Public | BindingFlags.Static);
-                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
-
-                Debug.Log("[AIImprove] Train spawn throttle patch applied.");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning(
-                    "[AIImprove] Train spawn throttle patch failed to apply, skipping it. Rest of " +
-                    "the mod is unaffected. Reason: " + ex.Message);
                 return false;
             }
         }

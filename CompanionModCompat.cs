@@ -196,7 +196,8 @@ namespace AIImprove
         // single call, with no caching at all - and GetAssemblies() allocates a fresh array each
         // time, over 100 entries deep for a heavily modded player. Two of the three callers sit on
         // hot paths: FireResponseCapPatch runs it per FireTruckAI/FireCopterAI.SetTarget, and
-        // TrainSingleTrackConflictDetector ran it TWICE per train per tick - ahead of the
+        // the since-removed TrainSingleTrackConflictDetector ran it TWICE per train per tick -
+        // ahead of the
         // SimulationStagger check that exists precisely to make that path cheap. Same shape as the
         // 2026-08-15 audit finding where LoggedFirstCall's string hashing sat in front of the same
         // stagger: the optimization was there, the expensive work was just placed before it.

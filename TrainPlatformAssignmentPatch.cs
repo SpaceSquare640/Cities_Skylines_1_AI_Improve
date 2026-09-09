@@ -34,25 +34,19 @@ namespace AIImprove
     //    holding-pattern equivalent is needed - just not making the jam worse by picking for it.
     internal static class TrainPlatformAssignmentPatch
     {
-        // Called by TrackerReset when a save is unloaded. Building, vehicle and node IDs are
-        // recycled from fixed pools, so anything left here from the previous city would be read
-        // back as if it described the new one. Registered centrally rather than relied on being
-        // remembered per class - see 12 - 開發準則, 準則 3.
-        public static void ResetForNewLevel()
-        {
-            StationSaturated.Clear();
-        }
-
         private static int CandidateCount => ModSettings.TrainPlatformCandidateCount.value;
         private static readonly float[] SearchRadii = { 30f, 60f };
         private const float ProbeMaxDistance = 32f; // matches TrainAI's own FindPathPosition call
 
         // Same rationale as AircraftGateAssignmentPatch.SaturationThreshold - "every nearby
-        // candidate already has this many trains assigned" is treated as saturated. This also
-        // gates TrainSpawnThrottlePatch (via IsStationLikelySaturated), so it's the actual lever
-        // for "城際火車入城流量限制" - lowering it makes stations count as saturated sooner, both
-        // refusing to force a train onto an already-busy platform and skipping new incoming
-        // intercity train spawns toward that station.
+        // candidate already has this many trains assigned" is treated as saturated. Lowering it
+        // makes stations count as saturated sooner, i.e. this patch stops forcing a train onto an
+        // already-busy platform and leaves vanilla's choice alone.
+        //
+        // Until 2026-09-09 this also gated an intercity train spawn throttle, which kept a cached
+        // saturation reading per station so a spawn decision elsewhere could consult it. That
+        // feature was removed as off-purpose (12 - 開發準則, 準則 14) and the cache went with it -
+        // this threshold is now read at the point of use only.
         //
         // TUNED (2026-08-14, tightened per request): 40 -> 25.
         // "每個功能中的調整設定及數據可以拆開以及詳細調整" (2026-08-15): now a slider
@@ -87,44 +81,6 @@ namespace AIImprove
         // default as a station nothing has ever pathed to. Saturation that is real gets refreshed
         // by the trains already in the city; saturation that has passed stops being enforced on
         // its own, with nothing needing to remember to clear it.
-        private struct SaturationReading
-        {
-            public bool Saturated;
-            public uint Frame;
-        }
-
-        // ~4096 simulation frames. If no train has pathed to a station in that long, whatever we
-        // last saw there is too old to refuse a spawn on.
-        private const uint SaturationReadingLifetimeFrames = 4096U;
-
-        private static readonly System.Collections.Generic.Dictionary<ushort, SaturationReading> StationSaturated =
-            new System.Collections.Generic.Dictionary<ushort, SaturationReading>();
-
-        public static bool IsStationLikelySaturated(ushort stationBuildingId)
-        {
-            SaturationReading reading;
-            if (!StationSaturated.TryGetValue(stationBuildingId, out reading) || !reading.Saturated)
-            {
-                return false;
-            }
-
-            uint now = ColossalFramework.Singleton<SimulationManager>.instance.m_currentFrameIndex;
-            if (now - reading.Frame <= SaturationReadingLifetimeFrames)
-            {
-                return true;
-            }
-
-            // Expired. Drop it rather than leaving a permanently-false entry behind, and say so:
-            // if this line appears repeatedly for one station, the station is being refused
-            // spawns purely on readings that keep going stale, which is itself the bug returning.
-            StationSaturated.Remove(stationBuildingId);
-            Log.Verbose(
-                "[AIImprove] Saturation reading for station " + stationBuildingId + " expired (" +
-                (now - reading.Frame) + " frames old) - treating it as unknown rather than " +
-                "saturated, so incoming intercity trains are no longer refused on a stale reading.");
-            return false;
-        }
-
         private static bool IsRealStation(ushort buildingId)
         {
             if (buildingId == 0)
@@ -275,12 +231,6 @@ namespace AIImprove
             }
 
             bool saturated = bestOccupancy >= SaturationThreshold;
-            StationSaturated[targetBuilding] = new SaturationReading
-            {
-                Saturated = saturated,
-                Frame = ColossalFramework.Singleton<SimulationManager>.instance.m_currentFrameIndex,
-            };
-
             if (saturated)
             {
                 if (Log.VerboseEnabled)

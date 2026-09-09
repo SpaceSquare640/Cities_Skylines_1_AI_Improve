@@ -17,8 +17,10 @@
     // field, which is not necessarily vanilla's value, and the observed results include a minibus
     // at 5000 seats and a taxi at 500. Unregistered code is one line away from running again.
     //
-    // IF FULLER HELICOPTERS ARE WANTED: the supported shape is IntercityBusPreloadPatch - write
-    // Vehicle.m_transferSize as a percentage of the vehicle's own real capacity. Ask first.
+    // IF FULLER HELICOPTERS ARE WANTED: write Vehicle.m_transferSize (how many passengers are
+    // already aboard) as a percentage of the vehicle's own real capacity, never
+    // m_passengerCapacity. Nothing in the mod does this today - the one patch that did was
+    // removed on 2026-09-09 as off-purpose. Ask first.
     //
     // Its two settings keys are left in ModSettings so an existing AIImprove.cgs still loads
     // cleanly; nothing reads them any more.

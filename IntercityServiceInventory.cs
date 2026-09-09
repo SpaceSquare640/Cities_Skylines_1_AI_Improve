@@ -61,7 +61,8 @@ namespace AIImprove
                 // The first run of this (2026-09-07) reported "8 x OutsideConnectionAI / None /
                 // local" and no rail connection at all, while air and sea connections showed up
                 // with their own sub-services. That is the most likely reason no DummyTrain offer
-                // has ever reached TrainSpawnThrottlePatch - but "None" is not enough to tell a
+                // ever reached the intercity train spawn throttle (removed 2026-09-09) - but "None"
+                // is not enough to tell a
                 // highway connection from a railway one, and this project has already drawn three
                 // wrong conclusions this week from not-quite-enough evidence. The asset name and
                 // the service settle it outright.

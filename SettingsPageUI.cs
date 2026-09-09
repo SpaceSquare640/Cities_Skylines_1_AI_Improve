@@ -305,17 +305,6 @@ namespace AIImprove
                 },
             });
 
-            model.Add(new Section
-            {
-                NavKey = "nav.races",
-                Features =
-                {
-                    Toggle("feature.raceAttractiveness", ModSettings.RaceBuildingAttractivenessEnabled)
-                        .With("tune.raceAttractiveness", 100f, 400f, 10f,
-                            () => ModSettings.RaceBuildingAttractivenessPercent.value,
-                            v => ModSettings.RaceBuildingAttractivenessPercent.value = Mathf.RoundToInt(v), "%"),
-                },
-            });
 
             // The Advanced tab holds nothing but tunables, so with them hidden it would be an
             // empty page. Omit the tab rather than show one.
@@ -359,18 +348,7 @@ namespace AIImprove
                         .With("tune.rerouteDensity", 30f, 70f, 5f,
                             () => ModSettings.AircraftRerouteDensityThreshold.value,
                             v => ModSettings.AircraftRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
-                    Toggle("feature.trainSpawnThrottle", ModSettings.IntercityTrainSpawnThrottleEnabled)
-                        .With("tune.lowRidership", 0f, 200f, 5f,
-                            () => ModSettings.IntercityLowRidershipThreshold.value,
-                            v => ModSettings.IntercityLowRidershipThreshold.value = Mathf.RoundToInt(v))
-                        .With("tune.lowRidershipSkipChance", 0f, 100f, 5f,
-                            () => ModSettings.IntercityLowRidershipSkipPercent.value,
-                            v => ModSettings.IntercityLowRidershipSkipPercent.value = Mathf.RoundToInt(v), "%"),
-                    // feature.intercityBusPreload removed 2026-09-09 - the patch is disabled in
-                    // code because it stole seats from real passengers, so a toggle here could
-                    // only lie. See IntercityBusPreloadPatch.cs.
                     Toggle("feature.emergencyReroute", ModSettings.EmergencyRerouteEnabled),
-                    Toggle("feature.singleTrackDetector", ModSettings.SingleTrackConflictDetectorEnabled),
                     Toggle("feature.citizenTransportMode", ModSettings.CitizenTransportModeEnabled)
                         .With("tune.citizenWalkWeight", 0f, 100f, 1f,
                             () => ModSettings.CitizenWalkWeight.value,
@@ -1338,14 +1316,13 @@ namespace AIImprove
         {
             AddFlatGroup(helper, "緊急車輛 (Emergency)", ModSettings.FireResponseCapEnabled, ModSettings.FireIdleSeekEnabled, ModSettings.HelicopterWeatherHaltEnabled);
             AddFlatGroup(helper, "地鐵 (Metro)", ModSettings.MetroPlatformAssignmentEnabled, ModSettings.MetroRerouteEnabled);
-            AddFlatGroup(helper, "城際火車 (Intercity trains)", ModSettings.IntercityTrainPlatformAssignmentEnabled, ModSettings.IntercityTrainRerouteEnabled, ModSettings.IntercityTrainSpawnThrottleEnabled);
+            AddFlatGroup(helper, "城際火車 (Intercity trains)", ModSettings.IntercityTrainPlatformAssignmentEnabled, ModSettings.IntercityTrainRerouteEnabled);
             AddFlatGroup(helper, "飛機與機場 (Aircraft)", ModSettings.AircraftGateAssignmentEnabled, ModSettings.AircraftRerouteEnabled, ModSettings.AircraftThunderstormRefusalEnabled);
             AddFlatGroup(helper, "市內巴士與客運直升機 (Local transport)", ModSettings.LocalBusRerouteEnabled, ModSettings.PassengerHelicopterRerouteEnabled);
             AddFlatGroup(helper, "城際巴士 (Intercity buses)", ModSettings.IntercityBusRerouteEnabled);
             AddFlatGroup(helper, "貨運與船運 (Cargo & ships)", ModSettings.ShipDockAssignmentEnabled);
             AddFlatGroup(helper, "一般市內交通 (Ordinary traffic)", ModSettings.OrdinaryTrafficRerouteEnabled);
             AddFlatGroup(helper, "市民行為 (Citizens)", ModSettings.CitizenCarProbabilityEnabled, ModSettings.CitizenTaxiProbabilityEnabled, ModSettings.CitizenTransportModeEnabled);
-            AddFlatGroup(helper, "賽車 (Race cars)", ModSettings.RaceBuildingAttractivenessEnabled);
         }
 
         private static void AddFlatGroup(UIHelperBase helper, string title, params SavedBool[] settings)

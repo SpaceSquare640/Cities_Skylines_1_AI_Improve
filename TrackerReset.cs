@@ -29,7 +29,6 @@
             FlexibleReroutePatch.ResetForNewLevel();
             HoldingPatternManager.ResetForNewLevel();
             HoldingPatternPatch.ResetForNewLevel();
-            OutsideConnectionSpawnDiagnostics.ResetForNewLevel();
             VehicleSpawnPathDiagnostics.ResetForNewLevel();
             PassengerHelicopterGateAssignmentPatch.ResetForNewLevel();
             RerouteEffectDiagnostics.ResetForNewLevel();
@@ -39,8 +38,6 @@
             ShipQueueDetector.ResetForNewLevel();
             StuckRerouteTracker.ResetForNewLevel();
             ThunderstormFacilityShutdownPatch.ResetForNewLevel();
-            TrainPlatformAssignmentPatch.ResetForNewLevel();
-            TrainSingleTrackConflictDetector.ResetForNewLevel();
             TransitDwellShortenPatch.ResetForNewLevel();
             TransitStationSkipPatch.ResetForNewLevel();
             TransitStopOccupancyTracker.ResetForNewLevel();

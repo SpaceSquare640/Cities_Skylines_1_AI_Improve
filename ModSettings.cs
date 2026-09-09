@@ -147,19 +147,11 @@ namespace AIImprove
 
         /// Throttles inbound intercity train spawns when the destination is saturated or city-wide
         /// ridership is low.
-        public static readonly SavedBool IntercityTrainSpawnThrottleEnabled =
-            new SavedBool("IntercityTrainSpawnThrottleEnabled", FileName, false, true);
 
-        public static readonly SavedInt IntercityLowRidershipThreshold =
-            new SavedInt("IntercityLowRidershipThreshold", FileName, 50, true);
 
         /// Percent chance of skipping a spawn while ridership is below the threshold.
-        public static readonly SavedInt IntercityLowRidershipSkipPercent =
-            new SavedInt("IntercityLowRidershipSkipPercent", FileName, 0, true);
 
         /// Detect-and-log only; never changes train behaviour.
-        public static readonly SavedBool SingleTrackConflictDetectorEnabled =
-            new SavedBool("SingleTrackConflictDetectorEnabled", FileName, false, true);
 
         // ---------------------------------------------------------------------------------
         // Aircraft
@@ -273,19 +265,11 @@ namespace AIImprove
         public static readonly SavedInt IntercityBusRerouteDensityThreshold =
             new SavedInt("IntercityBusRerouteDensityThreshold", FileName, 50, true);
 
-        // Re-enabled 2026-09-06 at user request. Default OFF on purpose: this feature was turned
-        // off by an explicit user decision on 2026-08-14, and a mod update must never switch a
-        // deliberately-disabled feature back on behind the player's back.
-        //
-        // This is 已載客量 (how full a bus arrives), not 總載客量 (its seat capacity) - see
-        // IntercityBusPreloadPatch.cs for why the distinction matters and what went wrong when
-        // the two were conflated.
-        public static readonly SavedBool IntercityBusPreloadEnabled =
-            new SavedBool("IntercityBusPreloadEnabled", FileName, false, true);
-
-        // Upper bound as a percentage of the vehicle's real seat capacity.
-        public static readonly SavedInt IntercityBusPreloadPercent =
-            new SavedInt("IntercityBusPreloadPercent", FileName, 75, true);
+        // REMOVED (2026-09-09): IntercityBusPreloadEnabled / IntercityBusPreloadPercent - the
+        // intercity bus arrival occupancy feature, which wrote 已載客量 (how full a bus arrives)
+        // rather than 總載客量 (its seat capacity). Removed as off-purpose, not as broken: this
+        // mod exists to make the game's own AI dispatch and route better, and manufacturing
+        // passengers is neither. See 12 - 開發準則, 準則 14.
 
         // ---------------------------------------------------------------------------------
         // Ordinary city traffic
@@ -389,20 +373,15 @@ namespace AIImprove
             new SavedBool("HearseIdleSeekEnabled", FileName, true, true);
 
         // ---------------------------------------------------------------------------------
-        // Races
+        // Races - GONE ENTIRELY
         // ---------------------------------------------------------------------------------
-
+        //
         // REMOVED (2026-08-15): RaceCarSpeedEnabled / RaceCarMaxSpeed - forcing a flat top-speed
         // ceiling caused racers to lose control per user report ("修改賽車車手速度會導致車輛失控").
-        // Reverted to fully vanilla racer speed; see RaceBuildingAttractivenessPatch.cs for the
-        // one race feature that remains.
-
-        public static readonly SavedBool RaceBuildingAttractivenessEnabled =
-            new SavedBool("RaceBuildingAttractivenessEnabled", FileName, LegacyRaceCars.value, true);
-
-        /// Racetrack attractiveness multiplier, in percent (200 = double).
-        public static readonly SavedInt RaceBuildingAttractivenessPercent =
-            new SavedInt("RaceBuildingAttractivenessPercent", FileName, 200, true);
+        //
+        // REMOVED (2026-09-09): RaceBuildingAttractivenessEnabled / ...Percent - multiplying a
+        // racetrack's attractiveness is a city-balance tweak, not an AI improvement. It was the
+        // last thing keeping this category alive, so the category goes with it.
 
         // ---------------------------------------------------------------------------------
         // Shared / advanced
@@ -474,15 +453,12 @@ namespace AIImprove
             TrainStationSaturationThreshold.value = 25;
             TrainPlatformCandidateCount.value = 24;
             IntercityTrainRerouteDensityThreshold.value = 50;
-            IntercityLowRidershipThreshold.value = 50;
-            IntercityLowRidershipSkipPercent.value = 0;
             AircraftPerGateCapacity.value = 6;
             AircraftGateCandidateCount.value = 26;
             AircraftRerouteDensityThreshold.value = 50;
             PassengerHelicopterCapacityPercent.value = 200;
             LocalBusRerouteDensityThreshold.value = 50;
             IntercityBusRerouteDensityThreshold.value = 50;
-            IntercityBusPreloadPercent.value = 75;
             OrdinaryTrafficRerouteDensityThreshold.value = 50;
             CitizenCarDensityThreshold.value = 70;
             CitizenCarMaxReductionPercent.value = 60;
@@ -494,7 +470,6 @@ namespace AIImprove
             CitizenTransitWeight.value = 25;
             ShipDockCandidateCount.value = 24;
             ShipDockSaturationThreshold.value = 25;
-            RaceBuildingAttractivenessPercent.value = 200;
             RerouteCooldownSeconds.value = 40;
             RerouteCheckIntervalFrames.value = 32;
 
@@ -507,31 +482,22 @@ namespace AIImprove
                 AircraftRerouteEnabled.value = false;
             }
 
-            // Schema 3: the intercity train spawn throttle is switched off for existing configs
-            // too, on the same reasoning as aircraft rerouting in schema 2 - it is not merely
-            // unverified, it is measured dead. Across three maps and five and a half hours its
-            // Prefix never saw a single DummyTrain offer, because intercity trains are not
-            // spawned through the mechanism it attaches to. Leaving it on preserves the
-            // appearance of a choice, not a choice.
+            // Schemas 3 and 4 used to switch off the intercity train spawn throttle and the
+            // intercity bus arrival occupancy for existing configs. Both features - along with
+            // the race building attractiveness patch and the single-track conflict detector -
+            // were REMOVED outright on 2026-09-09 as off-purpose (12 - 開發準則, 準則 14), so
+            // there is nothing left to switch off and the blocks are gone with them.
             //
-            // The single-track conflict detector moved to Experimental in the same pass but is
-            // deliberately NOT forced off: it is uncertain rather than dead - it no-ops only when
-            // SingleTrainTrackAI is installed, and may well work for players without it. New
-            // installs get it off; anyone who already had it on keeps it.
-            if (previous < 3)
-            {
-                IntercityTrainSpawnThrottleEnabled.value = false;
-            }
-
-            // Schema 4: intercity bus arrival occupancy is switched off for existing configs.
-            // It was enabled when a player reported buses leaving crowded stops half empty, and
-            // it has never been validated in a real session. The mechanism first blamed for that
-            // turned out not to hold - see IntercityBusPreloadPatch.cs - so this is a precaution
-            // against an unverified feature, not a fix for a proven fault.
-            if (previous < 4)
-            {
-                IntercityBusPreloadEnabled.value = false;
-            }
+            // Their eight keys (RaceBuildingAttractivenessEnabled/Percent,
+            // IntercityBusPreloadEnabled/Percent, IntercityTrainSpawnThrottleEnabled,
+            // IntercityLowRidershipThreshold, IntercityLowRidershipSkipPercent,
+            // SingleTrackConflictDetectorEnabled) stay behind in an existing AIImprove.cgs.
+            // Nothing reads them any more, so they are inert; they are deliberately left rather
+            // than deleted, because deleting a key a player might still want if a feature ever
+            // returns is a worse trade than a few dead lines in a settings file.
+            //
+            // The version number is NOT rewound. A config that already recorded 4 must not be
+            // walked through migration 1's default rewrite a second time.
 
             SchemaVersion.value = CurrentSchemaVersion;
 
@@ -574,10 +540,6 @@ namespace AIImprove
             TrainPlatformCandidateCount.value = 24;
             IntercityTrainRerouteEnabled.value = true;
             IntercityTrainRerouteDensityThreshold.value = 50;
-            IntercityTrainSpawnThrottleEnabled.value = false;
-            IntercityLowRidershipThreshold.value = 50;
-            IntercityLowRidershipSkipPercent.value = 0;
-            SingleTrackConflictDetectorEnabled.value = false;
 
             AircraftGateAssignmentEnabled.value = true;
             AircraftPerGateCapacity.value = 6;
@@ -597,10 +559,8 @@ namespace AIImprove
             LocalBusRerouteDensityThreshold.value = 50;
             IntercityBusRerouteEnabled.value = true;
             IntercityBusRerouteDensityThreshold.value = 50;
-            IntercityBusPreloadEnabled.value = false;
             TransitDwellShortenEnabled.value = false;
             TransitUnbunchEnabled.value = false;
-            IntercityBusPreloadPercent.value = 75;
 
             OrdinaryTrafficRerouteEnabled.value = true;
             OrdinaryTrafficRerouteDensityThreshold.value = 50;
@@ -622,8 +582,6 @@ namespace AIImprove
             CitizenTaxiWeight.value = 25;
             CitizenTransitWeight.value = 25;
 
-            RaceBuildingAttractivenessEnabled.value = true;
-            RaceBuildingAttractivenessPercent.value = 200;
 
             RerouteCooldownSeconds.value = 40;
             RerouteCheckIntervalFrames.value = 32;
