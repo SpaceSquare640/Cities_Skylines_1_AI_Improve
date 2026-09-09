@@ -5,6 +5,10 @@ using UnityEngine;
 
 namespace AIImprove
 {
+    // SUPERSEDED 2026-09-09 by TransitDwellShortenPatch. This file is unregistered and kept only
+    // for the analysis in it - the two failure modes below are the reason the replacement is a
+    // different shape rather than a patched version of this one. Do not re-register it.
+
     // "全局型調整全部大眾運輸交通 AI" (2026-08-14): applies to ordinary (non-intercity) bus,
     // passenger helicopter, and metro. Intercity bus and intercity/regional train are explicitly
     // excluded per request - those already have their own separate tuning (IntercityBusPreloadPatch,

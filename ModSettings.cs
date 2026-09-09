@@ -244,6 +244,11 @@ namespace AIImprove
         // AircraftAI is the exception and no threshold can fix it: 5000 samples, maximum ever
         // observed 10.8. Air "density" is near zero by construction, so aircraft rerouting needs
         // a different signal entirely rather than a different number.
+        // Replacement for the transit station skipping disabled on 2026-08-14. Experimental and
+        // off by default per 準則 13 - it has never run in a real session.
+        public static readonly SavedBool TransitDwellShortenEnabled =
+            new SavedBool("TransitDwellShortenEnabled", FileName, false, true);
+
         public static readonly SavedBool ShowAdvancedTuning =
             new SavedBool("ShowAdvancedTuning", FileName, false, true);
 
@@ -570,6 +575,7 @@ namespace AIImprove
             IntercityBusRerouteEnabled.value = true;
             IntercityBusRerouteDensityThreshold.value = 50;
             IntercityBusPreloadEnabled.value = false;
+            TransitDwellShortenEnabled.value = false;
             IntercityBusPreloadPercent.value = 75;
 
             OrdinaryTrafficRerouteEnabled.value = true;

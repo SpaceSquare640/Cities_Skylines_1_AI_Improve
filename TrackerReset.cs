@@ -41,6 +41,7 @@
             ThunderstormFacilityShutdownPatch.ResetForNewLevel();
             TrainPlatformAssignmentPatch.ResetForNewLevel();
             TrainSingleTrackConflictDetector.ResetForNewLevel();
+            TransitDwellShortenPatch.ResetForNewLevel();
             TransitStationSkipPatch.ResetForNewLevel();
             TransitStopOccupancyTracker.ResetForNewLevel();
             WeatherDisasterDetector.ResetForNewLevel();

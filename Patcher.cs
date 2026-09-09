@@ -162,6 +162,7 @@ namespace AIImprove
             TryPatchTrainSingleTrackConflictDetector(harmony);
             TryPatchShipQueueDetector(harmony);
             TryPatchVehicleSpawnPathDiagnostics(harmony);
+            TryPatchTransitDwellShorten(harmony);
 
             Debug.Log("[AIImprove] Harmony patches applied.");
             ReportSharedMethods(harmony);
@@ -1063,6 +1064,43 @@ namespace AIImprove
                 // Purely informational; never let it affect startup.
                 Debug.LogWarning(
                     "[AIImprove] Could not enumerate shared patch targets: " + ex.Message);
+            }
+        }
+
+
+        // Replacement for the disabled transit station skipping - see TransitDwellShortenPatch.cs.
+        // CanLeave is public virtual with a single ref struct parameter, the shape this project
+        // has repeatedly confirmed is safe under Mono's JIT, unlike SimulationStep (several ref
+        // struct parameters) which cannot be patched at all.
+        private static bool TryPatchTransitDwellShorten(Harmony harmony)
+        {
+            try
+            {
+                MethodInfo original = AccessTools.Method(
+                    typeof(BusAI), "CanLeave", new[] { typeof(ushort), typeof(Vehicle).MakeByRefType() });
+
+                if (original == null)
+                {
+                    Debug.LogWarning(
+                        "[AIImprove] BusAI.CanLeave not found - game version may have changed. " +
+                        "Skipping the transit dwell patch.");
+                    return false;
+                }
+
+                MethodInfo prefix = typeof(TransitDwellShortenPatch).GetMethod(
+                    nameof(TransitDwellShortenPatch.Prefix), BindingFlags.Public | BindingFlags.Static);
+
+                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
+
+                Debug.Log("[AIImprove] Transit dwell patch applied.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    "[AIImprove] Transit dwell patch failed to apply, skipping it. Rest of the " +
+                    "mod is unaffected. Reason: " + ex.Message);
+                return false;
             }
         }
 
