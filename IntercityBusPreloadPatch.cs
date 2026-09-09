@@ -26,33 +26,36 @@ namespace AIImprove
     // player set in Advanced Vehicle Options. Composing with AVO instead of fighting it means the
     // AVO check is no longer needed either.
     //
-    // DISABLED 2026-09-09 - THIS FEATURE WAS ACTIVELY HARMFUL, and the reason is a sentence in
-    // this very file that was never checked.
+    // DISABLED 2026-09-09, pending evidence - and the first explanation given for disabling it
+    // was WRONG. Both halves are recorded here because the second mistake was made an hour after
+    // warning about the first.
     //
-    // The claim was: "m_transferSize is recomputed from scratch at the vehicle's first real stop
-    // rather than decremented arithmetically from this seed, so an inaccurate seed cannot
-    // accumulate." It was written in August, carried forward when the feature was rewritten on
-    // 2026-09-06, and it is FALSE. Decompiling BusAI.LoadPassengers shows it begins with
+    // WHAT HAPPENED: a player reported intercity buses pulling away at 31/60, 40/60 and 63/150
+    // while several hundred citizens stood at the stop. This feature was enabled in that session.
     //
-    //     int num6 = (int)data.m_transferSize;
+    // THE FIRST (WRONG) EXPLANATION: that BusAI.LoadPassengers counts up from the existing
+    // m_transferSize, so every phantom passenger seeded here permanently occupied a real seat.
+    // The first half is true - LoadPassengers does begin with `int num6 = (int)data.m_transferSize;`
+    // - but the conclusion does not follow, because reading only that method left out where the
+    // value comes from. BusAI.ArriveAtTarget calls UnloadPassengers BEFORE LoadPassengers, and
+    // unloading ends in BusAI.TransportArriveAtTarget with
     //
-    // and counts boarding citizens up from there before writing the total back. The seed is
-    // carried forward, not replaced - and boarding stops when that running total reaches
-    // m_passengerCapacity.
+    //     data.m_transferSize = (ushort)num;
     //
-    // So every phantom passenger this feature invented permanently occupied a seat that a real
-    // citizen needed, for the whole life of the vehicle. Player screenshots (2026-09-09) show
-    // exactly that: intercity buses pulling away at 31/60, 40/60 and 63/150 while several hundred
-    // citizens stand at the stop they just left.
+    // where num is counted from scratch by walking the vehicle's citizen units. The seed is
+    // therefore wiped at the vehicle's first stop. It cannot accumulate, and it cannot steal a
+    // seat beyond the first leg.
     //
-    // It cannot be fixed by tuning the number down. A seed of any size steals that many seats,
-    // and the phantoms never alight because they were never citizens. A correct version would
-    // have to create real citizen units, which is a different feature entirely.
+    // So the August claim this file used to carry - "recomputed from scratch at the vehicle's
+    // first real stop" - was substantially RIGHT, and today's correction of it was the actual
+    // error. Two methods were read where three were needed.
     //
-    // THE LESSON, which is the same one this project keeps paying for: the sentence that made
-    // this safe was a claim about the game, written without reading the game, and then trusted
-    // twice - once when the feature shipped and once when it was rebuilt. dnSpy was available on
-    // this machine the whole time.
+    // WHERE THAT LEAVES THE FEATURE: with no demonstrated mechanism linking it to the player's
+    // screenshots. It stays off, but as an unverified suspicion rather than a proven cause - it
+    // was enabled when the problem appeared, it has never been validated in a real session, and
+    // it belongs to the Experimental set where "we have never watched this work" is reason enough
+    // to leave it off. If it is ever revisited, the open question is what a phantom m_transferSize
+    // does during the first leg, before any stop clears it.
     internal static class IntercityBusPreloadPatch
     {
         // The player's slider is the upper bound. The actual figure is randomized between half of

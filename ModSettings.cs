@@ -524,10 +524,10 @@ namespace AIImprove
             }
 
             // Schema 4: intercity bus arrival occupancy is switched off for existing configs.
-            // It does not merely fail to help - every phantom passenger it seeded permanently
-            // occupied a seat a real citizen needed, because BusAI.LoadPassengers counts up from
-            // the existing m_transferSize rather than recomputing it. See
-            // IntercityBusPreloadPatch.cs.
+            // It was enabled when a player reported buses leaving crowded stops half empty, and
+            // it has never been validated in a real session. The mechanism first blamed for that
+            // turned out not to hold - see IntercityBusPreloadPatch.cs - so this is a precaution
+            // against an unverified feature, not a fix for a proven fault.
             if (previous < 4)
             {
                 IntercityBusPreloadEnabled.value = false;
