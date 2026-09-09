@@ -90,6 +90,9 @@ namespace AIImprove
         private static int keptWaiting;
         private static int held;
 
+        // How often the hold bound has had to rescue a vehicle. Should stay at zero.
+        private static int boundHits;
+
         // How many steps each vehicle has been held at its current stop. Bounds the hold, and is
         // dropped as soon as the vehicle is allowed to leave.
         private static readonly System.Collections.Generic.Dictionary<ushort, int> HoldSteps =
@@ -100,6 +103,7 @@ namespace AIImprove
             shortened = 0;
             keptWaiting = 0;
             held = 0;
+            boundHits = 0;
             HoldSteps.Clear();
         }
 
@@ -231,6 +235,27 @@ namespace AIImprove
                 // The bound, applied whether or not the bunching has cleared. See the note on
                 // guaranteed termination above.
                 HoldSteps.Remove(vehicleID);
+
+                // AND SAY SO. The bound exists so a mistake in the rule cannot strand a vehicle -
+                // but if it is actually being used, the rule IS mistaken, and that must not be
+                // silent. In August this feature's ancestor left 473 vehicles stuck and the only
+                // evidence was a player's screenshot; the safety net firing is exactly the signal
+                // that would have caught it in the log instead.
+                //
+                // Warning rather than Info, and not verbose-gated: a player's bug report should
+                // carry this whether or not they knew to turn logging on.
+                boundHits++;
+                if (boundHits <= 20 || boundHits % 100 == 0)
+                {
+                    Log.Warning(
+                        "[AIImprove] Unbunching hit its safety bound on vehicle " + vehicleID +
+                        " (line " + vehicleData.m_transportLine + ", stop " +
+                        vehicleData.m_targetBuilding + ") after " + MaxHoldSteps +
+                        " steps - it has been released, but the hold rule wanted to keep it longer " +
+                        "than is safe. Occurrence " + boundHits + ". If this repeats, the rule is " +
+                        "wrong and unbunching should be switched off.");
+                }
+
                 return false;
             }
 
@@ -287,7 +312,11 @@ namespace AIImprove
                 "[AIImprove] Transit dwell: " + total + " decision(s) - " + shortened +
                 " released early with nobody waiting, " + keptWaiting +
                 " dwelt in full with passengers still to board, " + held +
-                " held back to open a gap behind the vehicle in front.");
+                " held back to open a gap behind the vehicle in front." +
+                (boundHits == 0
+                    ? string.Empty
+                    : " WARNING: the hold safety bound fired " + boundHits + " time(s) - see the " +
+                      "warnings above; that should not happen."));
         }
     }
 }
