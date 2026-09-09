@@ -108,12 +108,38 @@ namespace AIImprove
             HoldSteps.Remove(vehicleID);
         }
 
+
+        // Cached because FindType walks every loaded assembly and this is asked per stop, per
+        // vehicle. The answer cannot change during a session.
+        private static bool? expressBusServicesPresent;
+
+        private static bool StandDownForExpressBusServices()
+        {
+            if (expressBusServicesPresent == null)
+            {
+                expressBusServicesPresent = CompanionModCompat.IsExpressBusServicesLoaded();
+
+                if (expressBusServicesPresent.Value)
+                {
+                    Debug.Log(
+                        "[AIImprove] Express Bus Services is installed, so this mod's transit " +
+                        "dwell features are standing down for the session - both decide when a " +
+                        "vehicle leaves a stop, and two mods writing the same wait counter with " +
+                        "different intentions is how transit broke here once before. Its toggles " +
+                        "will have no effect until Express Bus Services is removed.");
+                }
+            }
+
+            return expressBusServicesPresent.Value;
+        }
+
         // Prefix on BusAI.CanLeave(ushort, ref Vehicle) - a single ref struct parameter, the
         // shape this project has repeatedly confirmed is safe under Mono's JIT. Always returns
         // true: the original method still decides.
         public static bool Prefix(ushort vehicleID, ref Vehicle vehicleData)
         {
-            if ((!ModSettings.TransitDwellShortenEnabled.value &&
+            if (StandDownForExpressBusServices() ||
+                (!ModSettings.TransitDwellShortenEnabled.value &&
                  !ModSettings.TransitUnbunchEnabled.value) ||
                 vehicleData.m_transportLine == 0 ||
                 vehicleData.m_targetBuilding == 0)

@@ -51,6 +51,21 @@ namespace AIImprove
         // genuinely useful is recording, in the log, whether the player has it - bug reports
         // arrive as an output_log.txt and until now nothing in it said which companion mods were
         // present. Supported means detected, logged and documented; it is not a requirement.
+        // "我希望我們的功能是可以讓使用者直接取代 ExpressBusServices" (2026-09-09). Until this
+        // mod's transit work is a genuine replacement, the two must not both be steering the same
+        // buses. Express Bus Services decides when a vehicle departs and which stops it serves;
+        // AI_Improve's dwell shortening and unbunching decide when a vehicle departs. Running both
+        // means two mods writing the same wait counter with different intentions - which is how
+        // 2026-08-14 happened, except with two authors instead of one.
+        //
+        // So this is a hard stand-down rather than an advisory: when Express Bus Services is
+        // present, AI_Improve's transit dwell features do nothing at all, regardless of their
+        // toggles, and say so once in the log. The player keeps whichever mod they chose, and the
+        // one that arrived first at this job keeps it.
+        private const string ExpressBusServicesTypeName = "ExpressBusServices.ExpressBusServices";
+
+        public static bool IsExpressBusServicesLoaded() => FindType(ExpressBusServicesTypeName) != null;
+
         private const string RealTimeTypeName = "RealTime.Core.RealTimeMod";
 
         public static bool IsRealTimeLoaded() => FindType(RealTimeTypeName) != null;
@@ -66,6 +81,7 @@ namespace AIImprove
                 IsSingleTrainTrackAiLoaded() ? "SingleTrainTrackAI" : null,
                 IsReversibleTramAiLoaded() ? "Reversible Tram AI" : null,
                 IsAdvancedVehicleOptionsLoaded() ? "Advanced Vehicle Options" : null,
+                IsExpressBusServicesLoaded() ? "Express Bus Services (transit dwell features stand down)" : null,
                 FindType(TmceModSettingsTypeName) != null ? "Transfer Manager CE" : null,
             }.Where(name => name != null).ToArray());
 
