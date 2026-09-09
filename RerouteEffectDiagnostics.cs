@@ -28,13 +28,22 @@ namespace AIImprove
     //                describes and no existing metric can see.
     //   abandoned  - no new path arrived at all within the grace period.
     //
-    // ACCURACY CAVEAT, stated rather than hidden: the vehicle moves between the two samples, so
-    // the "before" fingerprint starts a little further back than the "after" one. A route that is
-    // genuinely unchanged can therefore fingerprint as changed if the vehicle crossed a segment
-    // boundary in between. That biases the result TOWARDS "different" - which is the safe
-    // direction here, because the finding we are testing for is "almost everything comes back
-    // identical". A high identical rate cannot be an artefact of this; a high different rate
-    // needs a closer look before being believed.
+    // THE FIRST VERSION OF THIS MEASURED WRONG (fixed 2026-09-09, same day, before its numbers
+    // were believed). It hashed the next 8 segments from the vehicle's current position in both
+    // samples. But the vehicle MOVES while the pathfinder works, so the window slides: an
+    // unchanged route sampled one position later hashes differently and was counted as "a
+    // different route". The first session reported 59% different - and that figure cannot be
+    // distinguished from "the vehicle advanced one segment", which is the ordinary case.
+    //
+    // A measurement whose bias points at the answer you were hoping for is worth less than no
+    // measurement, because it will be believed. This project has already reported a request
+    // acceptance rate as if it were an effect; doing it again with a subtly shifted window would
+    // have been the same mistake wearing a better disguise.
+    //
+    // The comparison is now position-independent: keep the actual segment sequence, and treat the
+    // new route as UNCHANGED when it is a continuation of the old one - that is, when the new
+    // sequence appears inside the old sequence starting at any offset. Only a genuine divergence
+    // counts as different.
     //
     // Verbose-gated: this is an investigation, not something a player needs (12 - 開發準則,
     // 準則 10.3 as amended on release day).
@@ -50,7 +59,7 @@ namespace AIImprove
 
         private struct Sample
         {
-            public uint Fingerprint;
+            public ushort[] Segments;
             public uint PathUnit;
             public uint Frame;
         }
@@ -80,7 +89,7 @@ namespace AIImprove
 
             Awaiting[vehicleID] = new Sample
             {
-                Fingerprint = Fingerprint(ref vehicleData),
+                Segments = ReadSegmentsAhead(ref vehicleData),
                 PathUnit = vehicleData.m_path,
                 Frame = Singleton<SimulationManager>.instance.m_currentFrameIndex,
             };
@@ -122,7 +131,7 @@ namespace AIImprove
             }
 
             Awaiting.Remove(vehicleID);
-            Record(ownerTypeName, Fingerprint(ref vehicleData) == before.Fingerprint ? 1 : 0);
+            Record(ownerTypeName, IsContinuationOf(ReadSegmentsAhead(ref vehicleData), before.Segments) ? 1 : 0);
         }
 
         private static void Record(string ownerTypeName, int outcome)
@@ -148,13 +157,12 @@ namespace AIImprove
                 " came back with the same segments, " + counts[2] + " never produced a new path.");
         }
 
-        // FNV-1a over the segment ids still ahead of the vehicle. Order matters: a route that
-        // visits the same segments in a different order is a different route.
-        private static uint Fingerprint(ref Vehicle vehicleData)
+        // The segment ids still ahead of the vehicle, in order.
+        private static ushort[] ReadSegmentsAhead(ref Vehicle vehicleData)
         {
             uint unitId = vehicleData.m_path;
             int index = vehicleData.m_pathPositionIndex >> 1;
-            uint hash = 2166136261U;
+            var segments = new List<ushort>(LookaheadPositions);
 
             for (int i = 0; i < LookaheadPositions; i++)
             {
@@ -165,10 +173,53 @@ namespace AIImprove
                     break;
                 }
 
-                hash = (hash ^ position.m_segment) * 16777619U;
+                if (position.m_segment != 0)
+                {
+                    segments.Add(position.m_segment);
+                }
             }
 
-            return hash;
+            return segments.ToArray();
+        }
+
+        // True when the new route is the old one with some leading segments already travelled -
+        // i.e. the pathfinder handed back the road the vehicle was already on. This is what makes
+        // the comparison independent of how far the vehicle moved while the path was computed,
+        // which the first version of this file got wrong.
+        private static bool IsContinuationOf(ushort[] after, ushort[] before)
+        {
+            if (after.Length == 0 || before.Length == 0)
+            {
+                // Nothing to compare. Counted as changed rather than unchanged so an empty sample
+                // can never manufacture evidence for the conclusion being tested.
+                return false;
+            }
+
+            for (int offset = 0; offset < before.Length; offset++)
+            {
+                if (before[offset] != after[0])
+                {
+                    continue;
+                }
+
+                int overlap = System.Math.Min(before.Length - offset, after.Length);
+                bool matches = true;
+                for (int i = 1; i < overlap; i++)
+                {
+                    if (before[offset + i] != after[i])
+                    {
+                        matches = false;
+                        break;
+                    }
+                }
+
+                if (matches)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

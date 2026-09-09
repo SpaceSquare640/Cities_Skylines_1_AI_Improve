@@ -165,7 +165,6 @@ namespace AIImprove
             TryPatchTransitDwellShorten(harmony);
 
             Debug.Log("[AIImprove] Harmony patches applied.");
-            ReportSharedMethods(harmony);
             // Recorded once per session so a player's output_log.txt says which of the mods this
             // one is designed to coexist with were actually present - see CompanionModCompat.
             CompanionModCompat.LogDetectedCompanions();
@@ -1026,6 +1025,17 @@ namespace AIImprove
         // the first thing to check when a feature behaves differently for one player than for
         // another, and until now a bug report gave no way to see it. One line per shared method,
         // once per session, and nothing at all in the common case where nobody else is involved.
+        // WHY THIS RUNS AT LEVEL LOAD AND NOT AFTER PatchAll (corrected 2026-09-09): the first
+        // version reported immediately after this mod's own patching, which happens at startup -
+        // before mods like TM:PE apply theirs, which they do when a city loads. It therefore
+        // found nothing every time, in a session where TM:PE, Transfer Manager CE and Express Bus
+        // Services were all installed and several of them demonstrably patch methods this mod
+        // patches. A check that runs before the thing it is checking for is not a check.
+        public static void ReportSharedMethods()
+        {
+            ReportSharedMethods(new Harmony(HarmonyId));
+        }
+
         private static void ReportSharedMethods(Harmony harmony)
         {
             try

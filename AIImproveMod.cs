@@ -29,6 +29,10 @@ namespace AIImprove
             // city can produce intercity traffic at all before blaming anything for how little of
             // it there is. See IntercityServiceInventory.cs.
             ColossalFramework.Singleton<LoadingManager>.instance.m_levelLoaded += IntercityServiceInventory.OnLevelLoaded;
+
+            // Deliberately at level load, not after patching - other mods apply their patches when
+            // a city loads, so asking at startup finds nobody. See Patcher.ReportSharedMethods.
+            ColossalFramework.Singleton<LoadingManager>.instance.m_levelLoaded += _ => Patcher.ReportSharedMethods();
             ColossalFramework.Singleton<LoadingManager>.instance.m_levelUnloaded += IngameUI.OnLevelUnloading;
 
             // Every ID-keyed tracker in this mod describes one specific city. IDs are recycled
