@@ -75,6 +75,26 @@ namespace AIImprove
         // present, AI_Improve's transit dwell features do nothing at all, regardless of their
         // toggles, and say so once in the log. The player keeps whichever mod they chose, and the
         // one that arrived first at this job keeps it.
+        // Improved Public Transport 3 BUNDLES THE WHOLE OF EXPRESS BUS SERVICES INSIDE ITSELF,
+        // under the original's own namespace (decompiled 2026-09-09: IPT3 contains
+        // ExpressBusServices.ExpressBusServices, DepartureChecker, BusStopSkippingLookupTable and
+        // the rest, unchanged). So the check above fires for IPT3 users too - which is correct,
+        // but it made the log say "Express Bus Services is installed" to a player who had
+        // unsubscribed it. That is how the 2026-09-09 session was misread as a failed unsubscribe.
+        //
+        // IPT3 is also a direct conflict in its own right, independent of the bundle: its
+        // CanLeavePatch patches CanLeave on BusAI, TrolleybusAI, TramAI, PassengerTrainAI,
+        // PassengerPlaneAI, PassengerHelicopterAI, PassengerBlimpAI, PassengerFerryAI and
+        // PassengerShipAI - which includes all three types this mod's transit dwell features
+        // attach to.
+        //
+        // Detected separately so the log can name what is actually installed.
+        private const string ImprovedPublicTransportTypeName =
+            "ImprovedPublicTransport.ImprovedPublicTransportMod";
+
+        public static bool IsImprovedPublicTransportLoaded() =>
+            FindType(ImprovedPublicTransportTypeName) != null;
+
         private const string ExpressBusServicesTypeName = "ExpressBusServices.ExpressBusServices";
 
         public static bool IsExpressBusServicesLoaded() => FindType(ExpressBusServicesTypeName) != null;
@@ -111,7 +131,10 @@ namespace AIImprove
                 IsSingleTrainTrackAiLoaded() ? "SingleTrainTrackAI" : null,
                 IsReversibleTramAiLoaded() ? "Reversible Tram AI" : null,
                 IsAdvancedVehicleOptionsLoaded() ? "Advanced Vehicle Options" : null,
-                IsExpressBusServicesLoaded() ? "Express Bus Services (transit dwell features stand down)" : null,
+                IsImprovedPublicTransportLoaded() ? "Improved Public Transport (transit dwell features stand down)" : null,
+                IsExpressBusServicesLoaded() && !IsImprovedPublicTransportLoaded()
+                    ? "Express Bus Services (transit dwell features stand down)"
+                    : null,
                 FindType(TmceModSettingsTypeName) != null ? "Transfer Manager CE" : null,
             }.Where(name => name != null).ToArray());
 

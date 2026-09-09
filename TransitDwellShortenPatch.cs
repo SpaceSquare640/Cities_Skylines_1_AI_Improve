@@ -121,16 +121,27 @@ namespace AIImprove
         {
             if (expressBusServicesPresent == null)
             {
-                expressBusServicesPresent = CompanionModCompat.IsExpressBusServicesLoaded();
+                // Improved Public Transport bundles the whole of Express Bus Services inside
+                // itself, under the original's namespace - so it is named first here, or a player
+                // who unsubscribed the standalone mod is told it is still installed. That is
+                // exactly how a 2026-09-09 session was misread as a failed unsubscribe.
+                bool ipt = CompanionModCompat.IsImprovedPublicTransportLoaded();
+                bool ebs = CompanionModCompat.IsExpressBusServicesLoaded();
+                expressBusServicesPresent = ipt || ebs;
 
                 if (expressBusServicesPresent.Value)
                 {
+                    string who = ipt
+                        ? "Improved Public Transport (which bundles Express Bus Services, and " +
+                          "separately patches CanLeave on nine vehicle AIs of its own)"
+                        : "Express Bus Services";
+
                     Debug.Log(
-                        "[AIImprove] Express Bus Services is installed, so this mod's transit " +
-                        "dwell features are standing down for the session - both decide when a " +
-                        "vehicle leaves a stop, and two mods writing the same wait counter with " +
-                        "different intentions is how transit broke here once before. Its toggles " +
-                        "will have no effect until Express Bus Services is removed.");
+                        "[AIImprove] " + who + " is installed, so this mod's transit dwell " +
+                        "features are standing down for the session - both decide when a vehicle " +
+                        "leaves a stop, and two mods writing the same wait counter with different " +
+                        "intentions is how transit broke here once before. Their toggles will " +
+                        "have no effect until it is removed.");
                 }
             }
 
