@@ -541,8 +541,16 @@ namespace AIImprove
                 "Feature on/off switches were left as they were.");
         }
 
+        // NOTE: SchemaVersion is deliberately NOT reset here. It records which one-off
+        // migrations have already run; putting it back to 0 would make them run again on the next
+        // load and silently overwrite values the player had just been restored to.
         public static void ResetAllToDefaults()
         {
+            // Added 2026-09-09. It was missed when the advanced-tuning gate was introduced four
+            // days earlier - the same omission as the two sanitation toggles on 2026-08-23. A new
+            // setting is not finished until it is in this method.
+            ShowAdvancedTuning.value = false;
+
             FireResponseCapEnabled.value = true;
             FireMaxRespondersPerBuilding.value = 20;
             FireUncapAfterMinutes.value = 15;

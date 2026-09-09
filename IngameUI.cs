@@ -133,7 +133,44 @@ namespace AIImprove
                 content, Localization.Get("button.scanBus"), EmptyVehicleAuditor.ScanIntercityBuses,
                 Localization.Get("category.intercityBus.short"));
 
+            // "UI 加入重設回預設設定" (2026-09-09). The reset lived only in the Content Manager
+            // settings page, which is not reachable without leaving the city - and the situation
+            // where a player most wants it is precisely when something this mod is doing has just
+            // made a mess of their city and they want it undone now, in place.
+            //
+            // Same confirmation prompt and the same single implementation as the settings page:
+            // this button calls ModSettings.ResetAllToDefaults, it does not reimplement it.
+            AddResetButton(content);
+
             panel.height = content.relativePosition.y + content.height + 15f;
+        }
+
+
+        private static void AddResetButton(UIComponent content)
+        {
+            UIButton button = content.AddUIComponent<UIButton>();
+            button.text = Localization.Get("header.reset");
+            button.tooltip = Localization.Get("header.reset.desc");
+            button.width = content.width;
+            button.height = 28f;
+            button.normalBgSprite = "ButtonMenu";
+            button.hoveredBgSprite = "ButtonMenuHovered";
+            button.pressedBgSprite = "ButtonMenuPressed";
+            button.textScale = 0.75f;
+
+            button.eventClick += (component, param) =>
+            {
+                ConfirmPanel.ShowModal("AI_Improve", Localization.Get("header.reset.confirm"), (comp, ret) =>
+                {
+                    if (ret != 1)
+                    {
+                        return;
+                    }
+
+                    ModSettings.ResetAllToDefaults();
+                    Debug.Log("[AIImprove] All settings reset to defaults from the in-game panel.");
+                });
+            };
         }
 
         private static void AddScanButton(
