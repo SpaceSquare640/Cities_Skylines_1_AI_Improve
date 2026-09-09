@@ -366,10 +366,9 @@ namespace AIImprove
                         .With("tune.lowRidershipSkipChance", 0f, 100f, 5f,
                             () => ModSettings.IntercityLowRidershipSkipPercent.value,
                             v => ModSettings.IntercityLowRidershipSkipPercent.value = Mathf.RoundToInt(v), "%"),
-                    Toggle("feature.intercityBusPreload", ModSettings.IntercityBusPreloadEnabled)
-                        .With("tune.intercityBusPreload", 0f, 100f, 5f,
-                            () => ModSettings.IntercityBusPreloadPercent.value,
-                            v => ModSettings.IntercityBusPreloadPercent.value = Mathf.RoundToInt(v)),
+                    // feature.intercityBusPreload removed 2026-09-09 - the patch is disabled in
+                    // code because it stole seats from real passengers, so a toggle here could
+                    // only lie. See IntercityBusPreloadPatch.cs.
                     Toggle("feature.emergencyReroute", ModSettings.EmergencyRerouteEnabled),
                     Toggle("feature.singleTrackDetector", ModSettings.SingleTrackConflictDetectorEnabled),
                     Toggle("feature.citizenTransportMode", ModSettings.CitizenTransportModeEnabled)

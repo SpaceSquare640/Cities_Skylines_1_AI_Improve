@@ -265,7 +265,7 @@ namespace AIImprove
         // multiplier, the intercity train ridership skip, and the reroute density thresholds that
         // turned out to sit above the highest density the game ever produces. A default is not a
         // fix for anyone who has already played.
-        public const int CurrentSchemaVersion = 3;
+        public const int CurrentSchemaVersion = 4;
 
         public static readonly SavedInt SchemaVersion =
             new SavedInt("SchemaVersion", FileName, 0, true);
@@ -521,6 +521,16 @@ namespace AIImprove
             if (previous < 3)
             {
                 IntercityTrainSpawnThrottleEnabled.value = false;
+            }
+
+            // Schema 4: intercity bus arrival occupancy is switched off for existing configs.
+            // It does not merely fail to help - every phantom passenger it seeded permanently
+            // occupied a seat a real citizen needed, because BusAI.LoadPassengers counts up from
+            // the existing m_transferSize rather than recomputing it. See
+            // IntercityBusPreloadPatch.cs.
+            if (previous < 4)
+            {
+                IntercityBusPreloadEnabled.value = false;
             }
 
             SchemaVersion.value = CurrentSchemaVersion;
