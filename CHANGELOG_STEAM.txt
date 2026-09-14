@@ -1,6 +1,8 @@
 ﻿[h1]2026-09-14 - Custom transport mode weights removed[/h1]
 
-A player reported two things after turning this feature on: intercity trains and intercity buses stopped carrying passengers, and citizens stopped using bicycles. Both are real, both come from the same feature, and it has been removed rather than patched.
+Two problems turned up in testing with this feature on: intercity trains and intercity buses stopped carrying passengers, and citizens stopped using bicycles. Both are real, both come from the same feature, and it has been removed rather than patched.
+
+If you had this switched on, neither of those was your city's fault.
 
 [h2]What it was doing[/h2]
 
