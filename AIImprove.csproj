@@ -122,6 +122,35 @@
     <Message Importance="high" Condition="'$(HasGit)' != 'true'" Text="AIImprove version: git unavailable, falling back to $(VersionPrefix)" />
   </Target>
 
+  <!-- Localization consistency check - see tools/check_localization.py for what it checks and why.
+       "凡是編譯器檢查不到的東西，都必然過期" (2026-09-14): dead localization keys were swept twice
+       in nine days, both times leftovers from a settings-page rebuild and from features that had
+       been removed. Nothing failed, nothing showed in game, so nobody knew until somebody looked.
+       12 - 開發準則, 準則 3 says to remove that bug class structurally rather than defend it with
+       discipline, and the most structural option available here is to make the compiler show it.
+
+       The script prints MSBuild's canonical "file(line): warning CODE: message" form, so Exec
+       turns each finding into a real build warning. That is the whole mechanism: this project
+       builds at zero warnings, so one is impossible to miss.
+
+       Same graceful-degradation shape as SetVersionFromGit above - probe for the interpreter
+       first, and ContinueOnError so a missing Python never fails somebody's build. The check is
+       for the maintainer; a contributor compiling from a source zip still gets a working DLL. -->
+  <Target Name="CheckLocalization" BeforeTargets="Build" Condition="Exists('$(MSBuildProjectDirectory)\tools\check_localization.py')">
+    <Exec Command="python --version" ConsoleToMSBuild="true" StandardOutputImportance="low"
+          StandardErrorImportance="low" ContinueOnError="true" IgnoreStandardErrorWarningFormat="true">
+      <Output TaskParameter="ExitCode" PropertyName="PythonProbeExit" />
+    </Exec>
+
+    <Exec Command="python &quot;$(MSBuildProjectDirectory)\tools\check_localization.py&quot;"
+          Condition="'$(PythonProbeExit)' == '0'"
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+          StandardOutputImportance="high" ContinueOnError="true" />
+
+    <Message Importance="low" Condition="'$(PythonProbeExit)' != '0'"
+             Text="Localization check skipped: python not on PATH." />
+  </Target>
+
   <!-- Copy the built DLL straight into the local Mods folder so the game picks it up on next launch. -->
   <Target Name="CopyToMods" AfterTargets="Build">
     <MakeDir Directories="$(CSDataPath)" Condition="!Exists('$(CSDataPath)')" />
