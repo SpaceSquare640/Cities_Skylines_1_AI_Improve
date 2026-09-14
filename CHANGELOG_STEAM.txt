@@ -1,4 +1,40 @@
-﻿[h1]2026-09-09 (later the same day) - Four features removed[/h1]
+﻿[h1]2026-09-14 - Custom transport mode weights removed[/h1]
+
+A player reported two things after turning this feature on: intercity trains and intercity buses stopped carrying passengers, and citizens stopped using bicycles. Both are real, both come from the same feature, and it has been removed rather than patched.
+
+[h2]What it was doing[/h2]
+
+"Custom transport mode weights" replaced the game's own decision about how a citizen travels with four numbers you set: Walk, Drive, Taxi, Transit. That sounds like a rebalance. It was actually a replacement - the feature skipped the game's entire vehicle-choice routine, and that routine was doing more than rolling dice.
+
+[b]Bicycles were not reduced. They were impossible.[/b] The game picks bicycles first, ahead of cars and taxis, and the replacement had no bicycle option at all. What it cost you, at the default settings:
+
+[list]
+[*] Children cycle [b]40%[/b] of the time in the base game. With this on: never.
+[*] Teenagers 30%, young adults 20%, adults 10%. All zero.
+[*] The [b]Encourage Biking[/b] city policy adds another 10%. With this on, the policy you were paying for did nothing.
+[/list]
+
+[b]Intercity services lost their passengers because the pool of citizens allowed to use public transport collapsed.[/b] The game decides who drives by age - children 0%, teens 5%, young adults 15%, adults 20%, seniors 10% - so most of your city is available to public transport. Four equal weights threw that away and gave [b]everybody[/b], children included, a 25% chance of driving and a 25% chance of taking a taxi. Worse, the 25% assigned to "Walk" were actively forbidden from boarding public transport at all.
+
+Roughly 65% of adults could use public transport before. With this feature on it was 25%, with another 25% locked out entirely. Intercity trains and buses sit at the far end of the transit network - you have to reach the station first - so a cut that size at the source arrives at the terminus as an empty platform.
+
+It also ignored the game's own "no taxi right now" rule, which the base game switches on and off by time of day, so taxis were being handed out at hours they should not have been.
+
+[h2]Why removed instead of fixed[/h2]
+
+All of the above is fixable. It still would not belong here.
+
+This mod exists to [b]revisit decisions the game already made[/b], continuously, as the city changes. This feature picked a travel mode once when a trip started and never looked at it again - the one-off optimisation this mod was written to be an alternative to. It was the same mistake as the four features removed on 2026-09-09: added because it was possible, not because it served the point.
+
+There is a correct version of this idea, and two of them are already in the mod. The [b]citizen car probability[/b] and [b]taxi probability[/b] options adjust the game's own age-based odds instead of replacing them, so children still do not drive and the biking policy still works. Those stay.
+
+[h2]What this means for your save[/h2]
+
+Nothing to do, and nothing to reset. If you had this on, citizen travel goes back to the base game's behaviour the moment you load - bicycles included, intercity passengers included. The five old settings entries stay in your configuration file, unread and harmless.
+
+If you turned this feature on and then blamed your transit network for the empty intercity platforms, you can stop redesigning it. It was this.
+
+[h1]2026-09-09 (later the same day) - Four features removed[/h1]
 
 Nothing is broken. This update takes four features out of the mod because they did not belong in it, and one of them was announced in this morning's notes - so it needs saying plainly rather than being left for someone to notice.
 

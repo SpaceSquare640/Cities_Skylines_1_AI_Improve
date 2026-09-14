@@ -101,20 +101,14 @@ namespace AIImprove
 
 
         // TM:PE ALSO PATCHES ResidentAI.GetVehicleInfo (found 2026-09-09 by the shared-patch
-        // report; previously unknown, and not mentioned anywhere in this project's compatibility
-        // notes). That is the exact method CitizenTransportModePatch replaces.
+        // report). This mod no longer touches that method at all - the custom transport weights
+        // feature that did was removed on 2026-09-14 - so there is nothing left to collide there.
         //
-        // TM:PE's is a Prefix returning bool - its TouristAI sibling, which is readable and
-        // written the same way, replaces vanilla's vehicle choice outright. Two Prefixes that
-        // both return false do not compose: whichever Harmony runs first wins and the other never
-        // executes. So with TM:PE installed, "custom citizen transport weights" and TM:PE's own
-        // vehicle choice are in a race, and one of them silently loses.
-        //
-        // Not defended against in code, deliberately. The feature is off by default and now sits
-        // in the Experimental section, so nobody has it on by accident; and picking a winner here
-        // would mean this mod deciding which of two mods the player actually wanted. What was
-        // missing was that nobody knew - the shared-patch line in the log now says so every
-        // session, and this note says so to whoever reads the code.
+        // Kept as a note because the collision was real while it lasted and the shape is worth
+        // remembering: TM:PE's is a Prefix returning bool, and two Prefixes that both return
+        // false do not compose - whichever Harmony runs first wins and the other never executes.
+        // Any future patch on a method TM:PE also prefixes has the same problem, and the
+        // shared-patch line in the log is what makes it visible.
 
         private const string RealTimeTypeName = "RealTime.Core.RealTimeMod";
 

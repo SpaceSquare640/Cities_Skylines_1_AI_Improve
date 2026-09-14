@@ -106,10 +106,6 @@ namespace AIImprove
             /// null for a card that is only tunables (the Advanced section).
             public SavedBool Toggle;
             public readonly List<Tunable> Tunables = new List<Tunable>();
-            /// Optional extra content drawn at the bottom of the card, after the sliders.
-            /// Signature: (card, x, y, width) => vertical space consumed. Used for the citizen
-            /// transport presets, which are buttons rather than a toggle or a slider.
-            public Func<UIPanel, float, float, float, float> ExtraBuilder;
         }
 
         private sealed class Section
@@ -140,12 +136,6 @@ namespace AIImprove
                 Suffix = suffix,
                 LabelQualifierKey = labelQualifierKey,
             });
-            return feature;
-        }
-
-        private static Feature WithExtra(this Feature feature, Func<UIPanel, float, float, float, float> builder)
-        {
-            feature.ExtraBuilder = builder;
             return feature;
         }
 
@@ -349,20 +339,6 @@ namespace AIImprove
                             () => ModSettings.AircraftRerouteDensityThreshold.value,
                             v => ModSettings.AircraftRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
                     Toggle("feature.emergencyReroute", ModSettings.EmergencyRerouteEnabled),
-                    Toggle("feature.citizenTransportMode", ModSettings.CitizenTransportModeEnabled)
-                        .With("tune.citizenWalkWeight", 0f, 100f, 1f,
-                            () => ModSettings.CitizenWalkWeight.value,
-                            v => ModSettings.CitizenWalkWeight.value = Mathf.RoundToInt(v))
-                        .With("tune.citizenDriveWeight", 0f, 100f, 1f,
-                            () => ModSettings.CitizenDriveWeight.value,
-                            v => ModSettings.CitizenDriveWeight.value = Mathf.RoundToInt(v))
-                        .With("tune.citizenTaxiWeight", 0f, 100f, 1f,
-                            () => ModSettings.CitizenTaxiWeight.value,
-                            v => ModSettings.CitizenTaxiWeight.value = Mathf.RoundToInt(v))
-                        .With("tune.citizenTransitWeight", 0f, 100f, 1f,
-                            () => ModSettings.CitizenTransitWeight.value,
-                            v => ModSettings.CitizenTransitWeight.value = Mathf.RoundToInt(v))
-                        .WithExtra(AddCitizenTransportPresets),
                 },
             });
 
@@ -918,11 +894,6 @@ namespace AIImprove
                 }
             }
 
-            if (feature.ExtraBuilder != null)
-            {
-                y += feature.ExtraBuilder(card, CardPadding, y, innerWidth);
-            }
-
             card.height = y + CardPadding - 4f;
         }
 
@@ -1045,91 +1016,6 @@ namespace AIImprove
         private static string FormatValue(Tunable tunable, float value)
         {
             return Mathf.RoundToInt(value).ToString() + tunable.Suffix;
-        }
-
-        private struct CitizenTransportPreset
-        {
-            public readonly string LabelKey;
-            public readonly int Walk;
-            public readonly int Drive;
-            public readonly int Taxi;
-            public readonly int Transit;
-
-            public CitizenTransportPreset(string labelKey, int walk, int drive, int taxi, int transit)
-            {
-                LabelKey = labelKey;
-                Walk = walk;
-                Drive = drive;
-                Taxi = taxi;
-                Transit = transit;
-            }
-        }
-
-        // "直接套用模板［我想總共會有 4 個模板］" (2026-08-15). Percentages sum to 100 for
-        // readability, though CitizenTransportModePatch normalizes whatever four values it finds.
-        private static readonly CitizenTransportPreset[] CitizenTransportPresets =
-        {
-            new CitizenTransportPreset("preset.balanced", 30, 25, 5, 40),
-            new CitizenTransportPreset("preset.transitOriented", 25, 10, 5, 60),
-            new CitizenTransportPreset("preset.carDependent", 15, 60, 10, 15),
-            new CitizenTransportPreset("preset.walkable", 55, 5, 5, 35),
-        };
-
-        private static float AddCitizenTransportPresets(UIPanel card, float x, float y, float width)
-        {
-            UILabel caption = card.AddUIComponent<UILabel>();
-            caption.text = Localization.Get("preset.label");
-            caption.textScale = 0.75f;
-            caption.textColor = LabelTextColor;
-            caption.relativePosition = new Vector3(x, y);
-
-            // BUG FOUND VIA THE HTML MOCK-UP (2026-09-07): all four buttons used to sit in one
-            // row, which gave each of them about 122px. Measured against the real strings, four
-            // languages need more than that - Russian and French 158px, Spanish 147px, German
-            // 130px - so the labels were clipped in every one of them. The audit had recorded
-            // this as German and Russian only; the mock-up showed it was twice as widespread,
-            // and cost nothing to check because it did not need the game.
-            //
-            // Two columns instead of four roughly doubles the width available per button, which
-            // clears the longest measured string with room to spare in every language.
-            const int columns = 2;
-            const float gap = 6f;
-            const float buttonHeight = 26f;
-
-            float buttonY = y + 20f;
-            float buttonWidth = (width - (gap * (columns - 1))) / columns;
-
-            for (int i = 0; i < CitizenTransportPresets.Length; i++)
-            {
-                CitizenTransportPreset preset = CitizenTransportPresets[i];
-
-                UIButton button = card.AddUIComponent<UIButton>();
-                button.text = Localization.Get(preset.LabelKey);
-                button.width = buttonWidth;
-                button.height = buttonHeight;
-                button.textScale = 0.68f;
-                StyleAccentButton(button);
-                button.relativePosition = new Vector3(
-                    x + ((buttonWidth + gap) * (i % columns)),
-                    buttonY + ((buttonHeight + gap) * (i / columns)));
-                button.eventClick += (component, param) =>
-                {
-                    ModSettings.CitizenWalkWeight.value = preset.Walk;
-                    ModSettings.CitizenDriveWeight.value = preset.Drive;
-                    ModSettings.CitizenTaxiWeight.value = preset.Taxi;
-                    ModSettings.CitizenTransitWeight.value = preset.Transit;
-
-                    // The four sliders above show the old positions until they are rebuilt.
-                    if (currentRoot != null && currentHelper != null)
-                    {
-                        RebuildInPlace(currentRoot, currentHelper);
-                    }
-                };
-            }
-
-            // Caption + as many button rows as the presets need, plus the trailing gap.
-            int rows = (CitizenTransportPresets.Length + columns - 1) / columns;
-            return 20f + (rows * (buttonHeight + gap));
         }
 
         // ------------------------------------------------------------------------------------
@@ -1322,7 +1208,7 @@ namespace AIImprove
             AddFlatGroup(helper, "城際巴士 (Intercity buses)", ModSettings.IntercityBusRerouteEnabled);
             AddFlatGroup(helper, "貨運與船運 (Cargo & ships)", ModSettings.ShipDockAssignmentEnabled);
             AddFlatGroup(helper, "一般市內交通 (Ordinary traffic)", ModSettings.OrdinaryTrafficRerouteEnabled);
-            AddFlatGroup(helper, "市民行為 (Citizens)", ModSettings.CitizenCarProbabilityEnabled, ModSettings.CitizenTaxiProbabilityEnabled, ModSettings.CitizenTransportModeEnabled);
+            AddFlatGroup(helper, "市民行為 (Citizens)", ModSettings.CitizenCarProbabilityEnabled, ModSettings.CitizenTaxiProbabilityEnabled);
         }
 
         private static void AddFlatGroup(UIHelperBase helper, string title, params SavedBool[] settings)

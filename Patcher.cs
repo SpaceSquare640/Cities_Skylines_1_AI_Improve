@@ -69,7 +69,10 @@ namespace AIImprove
             TryPatchSanitationIdleSeek(harmony, typeof(HearseAI), typeof(SanitationIdleSeekPatch.Hearse));
             TryPatchCitizenCarProbability(harmony);
             TryPatchCitizenTaxiProbability(harmony);
-            TryPatchCitizenTransportMode(harmony);
+            // TryPatchCitizenTransportMode(harmony) - REMOVED 2026-09-14 after a player report.
+            // The two patches above are the surviving, correct way to influence citizen mode
+            // choice: they are Postfixes that scale vanilla's own age-tiered result. The removed
+            // one was a Prefix that skipped the whole method. See CHANGELOG_STEAM.txt.
             TryPatchHelicopterWeatherHalt(harmony);
             // TryPatchTrainPassengerCapacity(harmony) - DISABLED (2026-08-14) per user request
             // ("取消對城際火車及城際巴士的乘客改動"). File kept in place, not deleted, in case
@@ -487,43 +490,6 @@ namespace AIImprove
             {
                 Debug.LogWarning(
                     "[AIImprove] Citizen taxi probability patch failed to apply, skipping it. Rest " +
-                    "of the mod is unaffected. Reason: " + ex.Message);
-                return false;
-            }
-        }
-
-        // Replaces vanilla's own layered car/bike/taxi/electric-car dice rolls with a single
-        // weighted Walk/Drive/Taxi/Transit pick - see CitizenTransportModePatch.cs. GetVehicleInfo
-        // is protected, hence BindingFlags.NonPublic; skips the original (Prefix returns false)
-        // only when ModSettings.CitizenTransportModeEnabled is on.
-        private static bool TryPatchCitizenTransportMode(Harmony harmony)
-        {
-            try
-            {
-                MethodInfo original = AccessTools.Method(
-                    typeof(ResidentAI),
-                    "GetVehicleInfo",
-                    new[] { typeof(ushort), typeof(CitizenInstance).MakeByRefType(), typeof(bool), typeof(VehicleInfo).MakeByRefType() });
-
-                if (original == null)
-                {
-                    Debug.LogWarning(
-                        "[AIImprove] ResidentAI.GetVehicleInfo not found - game version may have " +
-                        "changed. Skipping citizen transport mode patch.");
-                    return false;
-                }
-
-                MethodInfo prefix = typeof(CitizenTransportModePatch).GetMethod(
-                    nameof(CitizenTransportModePatch.Prefix), BindingFlags.Public | BindingFlags.Static);
-                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
-
-                Debug.Log("[AIImprove] Citizen transport mode patch applied.");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning(
-                    "[AIImprove] Citizen transport mode patch failed to apply, skipping it. Rest " +
                     "of the mod is unaffected. Reason: " + ex.Message);
                 return false;
             }

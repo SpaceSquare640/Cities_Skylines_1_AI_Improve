@@ -306,38 +306,13 @@ namespace AIImprove
         public static readonly SavedInt CitizenTaxiFlatBonus =
             new SavedInt("CitizenTaxiFlatBonus", FileName, 2, true);
 
-        // ---------------------------------------------------------------------------------
-        // Citizen transport mode ("更好的市民 AI", 2026-08-15)
-        // ---------------------------------------------------------------------------------
+        // Citizen transport mode - REMOVED 2026-09-14 (player report).
         //
-        // Four relative weights (not required to sum to 100 - normalized at roll time) that
-        // decide, per citizen trip, which of Walk / Drive / Taxi / Transit that citizen ends up
-        // using. Originally requested as 7 separate sliders (walk, drive, taxi, bus, metro,
-        // train, other transit) - collapsed to one combined "Transit" weight because vanilla has
-        // no point where a citizen picks a specific public transport type; the pathfinder mixes
-        // whatever lines are available lane-by-lane. See CitizenTransportModePatch.cs for exactly
-        // what each of the 4 categories forces vs. merely allows.
-        //
-        // Default OFF: unlike the other Citizens toggles (which only nudge vanilla's own
-        // probabilities), this one fully replaces ResidentAI's vehicle-choice decision while
-        // active, including bypassing CitizenCarProbabilityEnabled/CitizenTaxiProbabilityEnabled
-        // above. Defaulting it on would silently overwrite existing saves' citizen behavior with
-        // an arbitrary distribution, which the "off = vanilla" contract elsewhere in this mod
-        // does not allow.
-        public static readonly SavedBool CitizenTransportModeEnabled =
-            new SavedBool("CitizenTransportModeEnabled", FileName, false, true);
-
-        public static readonly SavedInt CitizenWalkWeight =
-            new SavedInt("CitizenWalkWeight", FileName, 25, true);
-
-        public static readonly SavedInt CitizenDriveWeight =
-            new SavedInt("CitizenDriveWeight", FileName, 25, true);
-
-        public static readonly SavedInt CitizenTaxiWeight =
-            new SavedInt("CitizenTaxiWeight", FileName, 25, true);
-
-        public static readonly SavedInt CitizenTransitWeight =
-            new SavedInt("CitizenTransitWeight", FileName, 25, true);
+        // Four weights (Walk/Drive/Taxi/Transit) that replaced ResidentAI's whole
+        // vehicle-choice method. Removed rather than fixed: it assigned a mode once at
+        // trip start and never revisited it, which is the one-off optimisation this mod
+        // exists NOT to do. The five saved entries stay in AIImprove.cgs, unread and
+        // harmless. See CHANGELOG_STEAM.txt for what it was doing wrong.
 
         // ---------------------------------------------------------------------------------
         // Cargo / ships ("繼續深入研究 TransferManager 供需配對" led to finding this gap,
@@ -464,10 +439,6 @@ namespace AIImprove
             CitizenCarMaxReductionPercent.value = 60;
             CitizenTaxiMultiplierPercent.value = 150;
             CitizenTaxiFlatBonus.value = 2;
-            CitizenWalkWeight.value = 25;
-            CitizenDriveWeight.value = 25;
-            CitizenTaxiWeight.value = 25;
-            CitizenTransitWeight.value = 25;
             ShipDockCandidateCount.value = 24;
             ShipDockSaturationThreshold.value = 25;
             RerouteCooldownSeconds.value = 40;
@@ -575,12 +546,6 @@ namespace AIImprove
             CitizenTaxiProbabilityEnabled.value = true;
             CitizenTaxiMultiplierPercent.value = 150;
             CitizenTaxiFlatBonus.value = 2;
-
-            CitizenTransportModeEnabled.value = false;
-            CitizenWalkWeight.value = 25;
-            CitizenDriveWeight.value = 25;
-            CitizenTaxiWeight.value = 25;
-            CitizenTransitWeight.value = 25;
 
 
             RerouteCooldownSeconds.value = 40;
