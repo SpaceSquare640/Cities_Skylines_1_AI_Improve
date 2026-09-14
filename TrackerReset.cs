@@ -30,7 +30,6 @@
             FlexibleReroutePatch.ResetForNewLevel();
             HoldingPatternManager.ResetForNewLevel();
             HoldingPatternPatch.ResetForNewLevel();
-            VehicleSpawnPathDiagnostics.ResetForNewLevel();
             PassengerHelicopterGateAssignmentPatch.ResetForNewLevel();
             RerouteEffectDiagnostics.ResetForNewLevel();
             RerouteFailureDiagnostics.ResetForNewLevel();

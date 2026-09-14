@@ -16,21 +16,24 @@ spawn time.
 
 ## What it improves
 
-- **Emergency vehicles** - path-cost-ignoring dispatch, a real per-building
-  responder cap, idle vehicles that check for nearby fires first.
+- **Emergency vehicles** - a real per-building responder cap, idle vehicles
+  that check for nearby fires first, and optional mid-journey rerouting
+  around congestion (off by default).
 - **Trains, intercity trains, and metro** - occupancy-aware platform
-  assignment, mid-journey rerouting, throughput-aware spawn throttling.
+  assignment, mid-journey rerouting.
 - **Aircraft** - occupancy-aware gate assignment, mid-flight rerouting,
   thunderstorm response (airports refuse landings and departures,
   emergency helicopters stay grounded, for the duration of the storm).
-- **Buses, passenger helicopters** - dynamic rerouting, boosted
-  helicopter capacity.
+- **Buses, passenger helicopters** - dynamic rerouting, occupancy-aware
+  landing-point assignment.
 - **Ordinary city traffic** - every road vehicle reroutes around real-time
   congestion mid-journey, not just once at trip start.
 - **Citizens** - less likely to drive into already-congested destinations;
   taxi usage boosted as the alternative.
-- **Race cars** - one consistent top-speed ceiling for every racer,
-  with vanilla's cornering behavior left intact.
+- **Ships** - occupancy-aware dock assignment for cargo ships and ferries.
+
+This mod does not change any vehicle's passenger capacity, and does not
+adjust building stats or city balance.
 
 **See the [Wiki](https://github.com/SpaceSquare640/Cities_Skylines_1_AI_Improve/wiki)
 for the full, detailed feature list and compatibility notes** (soft
@@ -44,8 +47,9 @@ Every feature category above can be switched on or off individually, and
 several values are adjustable. There are two places to configure the mod:
 
 - **Full settings** - `ESC` → Options → Content Manager → Mods → **AI_Improve**.
-  Tabbed page with all nine category toggles, tuning sliders (race car speed
-  cap, fire responders per building, intercity train throttle threshold), a
+  Tabbed page with every feature toggle grouped by transport mode, tuning
+  sliders (fire responders per building, reroute density thresholds, gate and
+  platform capacities), a search box that filters across all sections, a
   language selector, and links.
 - **Quick panel** - the **AI_Improve** button on the
   [UnifiedUI](https://steamcommunity.com/sharedfiles/filedetails/?id=2966990700)
