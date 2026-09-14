@@ -21,6 +21,7 @@
         {
             AircraftGateAssignmentPatch.ResetForNewLevel();
             AirTrafficControlManager.ResetForNewLevel();
+            ArrivalTrackingPatch.ResetForNewLevel();
             DensityDistributionDiagnostics.ResetForNewLevel();
             EmergencyDispatchTracker.ResetForNewLevel();
             EmergencyIgnoreCostsPatch.ResetForNewLevel();

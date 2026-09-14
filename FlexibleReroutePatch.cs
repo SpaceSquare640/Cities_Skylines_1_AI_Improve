@@ -76,6 +76,21 @@ namespace AIImprove
                 return;
             }
 
+            // MEASUREMENT GAP CLOSED (2026-09-12): this file has two reroute paths and the
+            // "did the route actually change" diagnostic was wired into only the other one
+            // (TryRerouteViaSelf - road vehicles, buses, passenger helicopters). TryReroute is
+            // what TrainAI and AircraftAI go through, which is precisely the A3 subject, so for
+            // trains and aircraft the project could still only report that a request was
+            // accepted - the exact metric 14 - 現況總表 (A00) says has never been an answer.
+            //
+            // Deliberately ahead of the cooldown check below: a vehicle that has just been
+            // rerouted is ON cooldown, so anything placed after that gate would never see the
+            // answer to the request it is waiting for. Staggered like everything else here.
+            if (SimulationStagger.ShouldRunThisFrame(vehicleID))
+            {
+                RerouteEffectDiagnostics.CheckAfter(ownerTypeName, vehicleID, ref vehicleData);
+            }
+
             // REVISED (2026-08-13): used to pick source vs target based on Vehicle.Flags.GoingBack,
             // mirroring a pattern borrowed from the emergency-vehicle dispatch code. dnSpy showed
             // that's not how the base VehicleAI.StartPathFind(ushort, ref Vehicle) - which TrainAI
@@ -107,6 +122,11 @@ namespace AIImprove
             {
                 return;
             }
+
+            // Fingerprint the route we are about to replace, so a later tick can tell whether the
+            // pathfinder actually returned a different one - see RerouteEffectDiagnostics for why
+            // "the request was accepted" has never been an answer to that.
+            RerouteEffectDiagnostics.RecordBefore(vehicleID, ref vehicleData);
 
             Vector3 endPos = Singleton<BuildingManager>.instance.m_buildings.m_buffer[targetBuilding].m_position;
             Vector3 startPos = vehicleData.m_targetPos3;

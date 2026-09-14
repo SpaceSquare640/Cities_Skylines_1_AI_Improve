@@ -847,9 +847,14 @@ namespace AIImprove
                     return false;
                 }
 
-                MethodInfo postfix = patchWrapperType.GetMethod("Postfix", BindingFlags.Public | BindingFlags.Static);
+                // A PREFIX, not a postfix (A0, 2026-09-12). The outbound arrival - the only moment
+                // worth timing - is visible solely before the original runs: ArriveAtTarget
+                // rewrites the flags via SetTarget, and the one path that used to satisfy the old
+                // postfix's filter calls ReleaseVehicle first, which wipes the dispatch timestamp
+                // the postfix then went looking for. See ArrivalTrackingPatch.cs.
+                MethodInfo prefix = patchWrapperType.GetMethod("Prefix", BindingFlags.Public | BindingFlags.Static);
 
-                harmony.Patch(original, postfix: new HarmonyMethod(postfix));
+                harmony.Patch(original, prefix: new HarmonyMethod(prefix));
 
                 Debug.Log("[AIImprove] Arrival tracking patch applied for " + vehicleAiType.Name + ".");
                 return true;
