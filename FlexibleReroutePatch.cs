@@ -166,11 +166,23 @@ namespace AIImprove
             return method;
         }
 
-        // BusAI.m_targetBuilding does NOT consistently mean "a Building ID" the way it does for
-        // TrainAI/AircraftAI - dnSpy showed BusAI's own StartPathFind(ushort, ref Vehicle) picks
-        // between three different interpretations of that field (a real Building when GoingBack
-        // or DummyTraffic, but a NetManager node ID for a normal transport-line-following bus,
-        // which is what a real intercity bus is). Re-deriving that branching ourselves here would
+        // m_targetBuilding does NOT consistently mean "a Building ID" - dnSpy showed BusAI's own
+        // StartPathFind(ushort, ref Vehicle) picks between three different interpretations of that
+        // field (a real Building when GoingBack or DummyTraffic, but a NetManager node ID for a
+        // normal transport-line-following bus, which is what a real intercity bus is).
+        //
+        // CORRECTED 2026-09-16. This note used to say "the way it does for TrainAI/AircraftAI",
+        // implying those two were safe to resolve by hand. They are not: PassengerTrainAI and
+        // PassengerPlaneAI branch exactly the same three ways, node id included. That aside was
+        // never checked against either class, and because it read as settled it kept trains and
+        // aircraft on the hand-resolved path for a month - where half of every train's reroute
+        // requests failed on a destination position read out of the wrong array. See Train.Postfix.
+        //
+        // The same quirk then turned up a third time in PassengerHelicopterAI and was written up
+        // there too, still without anyone revisiting the claim about trains. 12 - 開發準則 準則 4
+        // ("推論不是證據") applies to comments: an unverified aside gets quoted back as fact.
+        //
+        // Re-deriving that branching ourselves here would
         // risk resolving the wrong position and rerouting the bus somewhere nonsensical. Instead,
         // this reflectively calls BusAI's own 2-arg StartPathFind(ushort, ref Vehicle) - the exact
         // same convenience method vanilla itself uses to restart pathfinding toward "wherever this
@@ -278,9 +290,68 @@ namespace AIImprove
             }
         }
 
+        // SWITCHED TO THE SELF-StartPathFind PATH (2026-09-16), after a live session finally
+        // measured what trains were doing: 99 reroute attempts, 50 of them failing outright,
+        // against 688 attempts and ZERO failures for road vehicles going through
+        // TryRerouteViaSelf. That asymmetry was the clue.
+        //
+        // TryReroute resolves the destination itself:
+        //
+        //     Vector3 endPos = BuildingManager.m_buildings.m_buffer[targetBuilding].m_position;
+        //
+        // and PassengerTrainAI.StartPathFind(ushort, ref Vehicle) shows why that is wrong. It
+        // branches three ways on the same field:
+        //
+        //     GoingBack     -> m_buildings[m_targetBuilding]   (a Building)
+        //     DummyTraffic  -> m_buildings[m_targetBuilding]   (a Building)
+        //     otherwise     -> m_nodes[m_targetBuilding]       (a NetManager NODE)
+        //
+        // A train following a transport line takes the third branch, so m_targetBuilding is a
+        // node id. Indexing the building array with it yields an unrelated building, or an empty
+        // slot at (0,0,0) - and FindPathPosition then finds no track within 32m of that point, so
+        // StartPathFind returns false. That is the 50%. PassengerPlaneAI is identical.
+        //
+        // THE PART WORTH REMEMBERING: this project already knew about this quirk. It found it in
+        // BusAI, wrote it up in FindSelfStartPathFind, and fixed buses by calling vanilla's own
+        // 2-arg overload. It found it again in PassengerHelicopterAI and fixed that the same way.
+        // But that first note also asserted m_targetBuilding means a Building "the way it does for
+        // TrainAI/AircraftAI" - an aside nobody checked, which is the entire reason trains and
+        // aircraft were left on the broken path for a month. An unverified claim in a comment gets
+        // quoted back as established fact; 12 - 開發準則 準則 4 applies to comments too.
+        //
+        // Platform assignment is unaffected: the 2-arg overload calls the 4-arg, which calls the
+        // 6-arg that TrainPlatformAssignmentPatch hooks, so that patch still runs - as does
+        // TM:PE's, which the shared-patch log shows on the same method. The only thing that
+        // changes is who computes endPos, and vanilla computes it correctly.
+        //
+        // Resolved per runtime type rather than once for TrainAI, because the overrides differ:
+        // PassengerTrainAI has its own, CargoTrainAI has its own, MetroTrainAI inherits
+        // PassengerTrainAI's, and TrainAI itself declares none. Same shape as Car.Postfix.
         internal static class Train
         {
-            private static readonly MethodInfo StartPathFindMethod = FindStartPathFind(typeof(TrainAI));
+            // Locked for the reason CompanionModCompat.FindType spells out: a Dictionary written
+            // concurrently can spin forever inside a resize instead of throwing, and that shows up
+            // as a frozen game with an empty log. Taken once per distinct train AI type and then
+            // never again, so it costs nothing.
+            private static readonly object CacheLock = new object();
+
+            private static readonly System.Collections.Generic.Dictionary<Type, MethodInfo> SelfStartPathFindCache =
+                new System.Collections.Generic.Dictionary<Type, MethodInfo>();
+
+            private static MethodInfo GetSelfStartPathFind(Type vehicleAiType)
+            {
+                lock (CacheLock)
+                {
+                    MethodInfo method;
+                    if (!SelfStartPathFindCache.TryGetValue(vehicleAiType, out method))
+                    {
+                        method = FindSelfStartPathFind(vehicleAiType);
+                        SelfStartPathFindCache[vehicleAiType] = method; // cache null too
+                    }
+
+                    return method;
+                }
+            }
 
             public static void Postfix(ushort vehicleID, TrainAI __instance, ref Vehicle data)
             {
@@ -301,10 +372,28 @@ namespace AIImprove
                     ? ModSettings.MetroRerouteDensityThreshold.value
                     : ModSettings.IntercityTrainRerouteDensityThreshold.value;
 
-                TryReroute(nameof(TrainAI), StartPathFindMethod, __instance, vehicleID, ref data, densityThreshold);
+                TryRerouteViaSelf(
+                    nameof(TrainAI), GetSelfStartPathFind(__instance.GetType()), __instance,
+                    vehicleID, ref data, densityThreshold);
             }
         }
 
+        // STILL ON THE HAND-RESOLVED PATH, KNOWINGLY (2026-09-16). PassengerPlaneAI has the exact
+        // same three-way m_targetBuilding branching PassengerTrainAI does - decompiled, node id
+        // and all - so every word of Train.Postfix's note applies here too. Aircraft were not
+        // switched over with the trains for two reasons:
+        //
+        //   1. It would change nothing observable yet. Measured taxiway congestion peaks at 15.8
+        //      against a threshold of 30 - 99.8% of 62,500 samples sat in the 0-9 bucket - so this
+        //      reroute path does not fire at all. Fixing destination resolution for a feature that
+        //      never triggers buys no evidence, and 準則 5 wants evidence.
+        //   2. HoldingPatternPatch.TryUpdateHolding shares StartPathFindMethod with this call and
+        //      drives the holding-pattern behaviour off the same 6-arg overload. Rerouting aircraft
+        //      through the 2-arg overload would need that interaction worked out first, and there
+        //      is no reason to spend that risk on a path with no measurable output.
+        //
+        // So: a known defect, deliberately unfixed, recorded rather than left to be rediscovered.
+        // If the threshold question is ever solved, fix this at the same time - not before.
         internal static class Aircraft
         {
             private static readonly MethodInfo StartPathFindMethod = FindStartPathFind(typeof(AircraftAI));
@@ -344,19 +433,31 @@ namespace AIImprove
         // this covers every car in the city.
         internal static class Car
         {
+            // LOCK ADDED 2026-09-16 (準則 2, same shape as Train.GetSelfStartPathFind). This cache
+            // had none, and it is written from the hottest Postfix in the project - every road
+            // vehicle in the city. CompanionModCompat.FindType documents the failure mode: a
+            // concurrently written Dictionary can loop forever inside a resize rather than
+            // throwing, which presents as a frozen game with nothing in the log. Found while
+            // adding the equivalent cache for trains; fixing only the new one would have left the
+            // busier instance of the same hazard in place.
+            private static readonly object CacheLock = new object();
+
             private static readonly System.Collections.Generic.Dictionary<Type, MethodInfo> StartPathFindCache =
                 new System.Collections.Generic.Dictionary<Type, MethodInfo>();
 
             private static MethodInfo GetSelfStartPathFind(Type vehicleAiType)
             {
-                MethodInfo method;
-                if (!StartPathFindCache.TryGetValue(vehicleAiType, out method))
+                lock (CacheLock)
                 {
-                    method = FindSelfStartPathFind(vehicleAiType);
-                    StartPathFindCache[vehicleAiType] = method; // cache null too - avoid re-resolving every call
-                }
+                    MethodInfo method;
+                    if (!StartPathFindCache.TryGetValue(vehicleAiType, out method))
+                    {
+                        method = FindSelfStartPathFind(vehicleAiType);
+                        StartPathFindCache[vehicleAiType] = method; // cache null too - avoid re-resolving every call
+                    }
 
-                return method;
+                    return method;
+                }
             }
 
             // Emergency vehicles reroute more eagerly than ordinary traffic: an ambulance sitting
