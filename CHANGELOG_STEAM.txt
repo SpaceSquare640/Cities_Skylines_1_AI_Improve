@@ -24,6 +24,12 @@ If your railways do get busy and you notice a difference either way, that is gen
 
 Nothing else you will notice in game. The README and the description on this page were corrected - they were still advertising several features that had been removed weeks earlier, including a race car speed setting removed back in August for causing crashes. Some unused translation strings were deleted, and the build now refuses to quietly accumulate more of them.
 
+[h2]Catching up: four features removed on 2026-09-09[/h2]
+
+These notes were written at the time but never made it onto this page, so they are summarised here rather than left unannounced. Removed: the [b]racetrack attractiveness multiplier[/b], [b]intercity buses arriving already carrying passengers[/b], the [b]intercity train spawn throttle[/b], and [b]single-track railway conflict detection[/b]. None of the four was doing measurable work - two were attached to mechanisms the game does not use the way we assumed, one manufactured passengers who were never simulated, and one duplicated what Single Train Track AI already does better. Nothing you were relying on changed behaviour, and no save needs anything done to it. Their old settings entries sit unread in your configuration file.
+
+The full write-up, including why a mod that only ever announces additions is not telling you how it is maintained, is in CHANGELOG_STEAM.txt in the repository.
+
 [h1]2026-09-14 - Custom transport mode weights removed[/h1]
 
 Two problems turned up in testing with this feature on: intercity trains and intercity buses stopped carrying passengers, and citizens stopped using bicycles. Both are real, both come from the same feature, and it has been removed rather than patched.
