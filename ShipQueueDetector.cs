@@ -184,9 +184,29 @@ namespace AIImprove
             }
 
             lastReportFrame = frame;
+
+            // ReportQueues exists only to produce Log.Verbose lines - it aggregates every stuck
+            // ship, then concatenates a message per dock. With verbose logging off (the default)
+            // all of that work was thrown away inside Log.Verbose. The project convention is that
+            // the CALLER guards message-building, not Log itself; this was the one place left that
+            // didn't. lastReportFrame is still advanced above, so flipping verbose on mid-session
+            // starts reporting from the next window rather than immediately.
+            if (!Log.VerboseEnabled)
+            {
+                return;
+            }
+
             ReportQueues(frame);
         }
 
+        // Only ever called with verbose logging on (see the guard at the call site).
+        //
+        // The six Group* collections below, and RemovalScratch, are SCRATCH: every one of them is
+        // Clear()ed at the top of the pass that uses it and repopulated from StuckShips, so they
+        // never carry state between reports. That is why the disable/unload path clears StuckShips
+        // and LastReportedLength but leaves these alone - there is nothing stale in them to leak,
+        // and the retained capacity is the point (it avoids re-growing the same buckets every
+        // report window). Do not "fix" that asymmetry by adding them to the cleanup path.
         private static void ReportQueues(uint frame)
         {
             GroupCount.Clear();

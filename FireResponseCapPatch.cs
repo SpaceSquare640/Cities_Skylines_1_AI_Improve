@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using ColossalFramework;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace AIImprove
@@ -72,6 +73,54 @@ namespace AIImprove
         {
             TmcePuntStreak.Remove(buildingId);
         }
+
+        // The streak dictionary only ever had two ways out: a successful assignment at that
+        // building, or ResetForNewLevel. Neither fires for the common ending - the fire simply
+        // goes out while TMCE is still punting, and that building's entry sits there until the
+        // save is unloaded. Bounded (one int per building ID, and IDs are a fixed pool) and
+        // harmless to correctness, because a building ID reused by a new fire gets its stale
+        // streak cleared by ResetPuntStreak on the first successful assignment. Still a leak, and
+        // a stale streak can make a genuinely new fire look starved for one dispatch.
+        //
+        // Swept lazily rather than on a timer: the sweep costs one array read per tracked
+        // building and only runs once the dictionary is larger than any plausible set of
+        // simultaneously-burning buildings, so in a normal city it never runs at all.
+        private const int PuntStreakSweepThreshold = 64;
+
+        private static void SweepExtinguishedPuntStreaks()
+        {
+            if (TmcePuntStreak.Count <= PuntStreakSweepThreshold)
+            {
+                return;
+            }
+
+            Building[] buildings = Singleton<BuildingManager>.instance.m_buildings.m_buffer;
+            PuntStreakSweepScratch.Clear();
+
+            foreach (KeyValuePair<ushort, int> pair in TmcePuntStreak)
+            {
+                if (buildings[pair.Key].m_fireIntensity == 0)
+                {
+                    PuntStreakSweepScratch.Add(pair.Key);
+                }
+            }
+
+            for (int i = 0; i < PuntStreakSweepScratch.Count; i++)
+            {
+                TmcePuntStreak.Remove(PuntStreakSweepScratch[i]);
+            }
+
+            if (Log.VerboseEnabled)
+            {
+                Log.Verbose(
+                    "[AIImprove] Dropped " + PuntStreakSweepScratch.Count + " Transfer Manager CE punt " +
+                    "streak entries for buildings that are no longer burning; " + TmcePuntStreak.Count +
+                    " still tracked.");
+            }
+        }
+
+        // Scratch - cleared at the top of every sweep, never read outside it.
+        private static readonly List<ushort> PuntStreakSweepScratch = new List<ushort>();
 
         private static bool TmceIsStarvingBuilding(ushort buildingId)
         {
@@ -158,6 +207,8 @@ namespace AIImprove
             {
                 return;
             }
+
+            SweepExtinguishedPuntStreaks();
 
             if (FireResponseTracker.TryAssign(isCopter, vehicleID, targetBuilding))
             {

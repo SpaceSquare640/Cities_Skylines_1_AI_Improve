@@ -1200,24 +1200,82 @@ namespace AIImprove
         // building. Deliberately a degraded view, not a second full UI to maintain.
         private static void BuildFlatFallback(UIHelperBase helper)
         {
-            AddFlatGroup(helper, "緊急車輛 (Emergency)", ModSettings.FireResponseCapEnabled, ModSettings.FireIdleSeekEnabled, ModSettings.HelicopterWeatherHaltEnabled);
-            AddFlatGroup(helper, "地鐵 (Metro)", ModSettings.MetroPlatformAssignmentEnabled, ModSettings.MetroRerouteEnabled);
-            AddFlatGroup(helper, "城際火車 (Intercity trains)", ModSettings.IntercityTrainPlatformAssignmentEnabled, ModSettings.IntercityTrainRerouteEnabled);
-            AddFlatGroup(helper, "飛機與機場 (Aircraft)", ModSettings.AircraftGateAssignmentEnabled, ModSettings.AircraftRerouteEnabled, ModSettings.AircraftThunderstormRefusalEnabled);
-            AddFlatGroup(helper, "市內巴士與客運直升機 (Local transport)", ModSettings.LocalBusRerouteEnabled, ModSettings.PassengerHelicopterRerouteEnabled);
-            AddFlatGroup(helper, "城際巴士 (Intercity buses)", ModSettings.IntercityBusRerouteEnabled);
-            AddFlatGroup(helper, "貨運與船運 (Cargo & ships)", ModSettings.ShipDockAssignmentEnabled);
-            AddFlatGroup(helper, "一般市內交通 (Ordinary traffic)", ModSettings.OrdinaryTrafficRerouteEnabled);
-            AddFlatGroup(helper, "市民行為 (Citizens)", ModSettings.CitizenCarProbabilityEnabled, ModSettings.CitizenTaxiProbabilityEnabled);
+            // REWRITTEN 2026-09-18. Two things were wrong with the old version, and both only
+            // ever hurt the people already having a bad time - this page exists precisely because
+            // the real settings page failed to build.
+            //
+            // 1. Every checkbox was labelled `title + " #" + (i + 1)`, so a player saw three
+            //    identical rows reading "緊急車輛 (Emergency) #1 / #2 / #3" with no way to tell
+            //    which switch was which. Labels now come from the same localization keys the real
+            //    page uses, so they read as actual feature names in the player's language.
+            // 2. Group headings were hardcoded bilingual strings, ignoring the nine translations
+            //    this mod ships. They use nav.* keys now.
+            // 3. It exposed 17 of the 23 toggles. Sanitation and the Experimental features had no
+            //    row at all, so a player stuck on this page could not switch them off - which is
+            //    the one thing a fallback page has to be able to do. All 23 are here now.
+            //
+            // Still deliberately degraded: no sliders, no search, no descriptions. The point is
+            // that every switch is reachable and identifiable, not that it is pleasant.
+            AddFlatGroup(helper, "nav.citizens",
+                T("feature.citizenCar", ModSettings.CitizenCarProbabilityEnabled),
+                T("feature.citizenTaxi", ModSettings.CitizenTaxiProbabilityEnabled));
+
+            AddFlatGroup(helper, "nav.emergency",
+                T("feature.fireResponseCap", ModSettings.FireResponseCapEnabled),
+                T("feature.fireIdleSeek", ModSettings.FireIdleSeekEnabled),
+                T("feature.helicopterWeatherHalt", ModSettings.HelicopterWeatherHaltEnabled));
+
+            AddFlatGroup(helper, "nav.sanitation",
+                T("feature.garbageIdleSeek", ModSettings.GarbageIdleSeekEnabled),
+                T("feature.hearseIdleSeek", ModSettings.HearseIdleSeekEnabled));
+
+            AddFlatGroup(helper, "nav.road",
+                T("feature.trafficReroute", ModSettings.OrdinaryTrafficRerouteEnabled),
+                T("feature.localBusReroute", ModSettings.LocalBusRerouteEnabled),
+                T("feature.intercityBusReroute", ModSettings.IntercityBusRerouteEnabled));
+
+            AddFlatGroup(helper, "nav.rail",
+                T("feature.metroPlatform", ModSettings.MetroPlatformAssignmentEnabled),
+                T("feature.metroReroute", ModSettings.MetroRerouteEnabled),
+                T("feature.trainPlatform", ModSettings.IntercityTrainPlatformAssignmentEnabled),
+                T("feature.trainReroute", ModSettings.IntercityTrainRerouteEnabled));
+
+            AddFlatGroup(helper, "nav.aviation",
+                T("feature.aircraftGate", ModSettings.AircraftGateAssignmentEnabled),
+                T("feature.aircraftThunderstorm", ModSettings.AircraftThunderstormRefusalEnabled),
+                T("feature.helicopterGate", ModSettings.PassengerHelicopterGateAssignmentEnabled),
+                T("feature.helicopterReroute", ModSettings.PassengerHelicopterRerouteEnabled));
+
+            AddFlatGroup(helper, "nav.shipping",
+                T("feature.shipDock", ModSettings.ShipDockAssignmentEnabled));
+
+            AddFlatGroup(helper, "nav.experimental",
+                T("feature.transitDwell", ModSettings.TransitDwellShortenEnabled),
+                T("feature.transitUnbunch", ModSettings.TransitUnbunchEnabled),
+                T("feature.aircraftReroute", ModSettings.AircraftRerouteEnabled),
+                T("feature.emergencyReroute", ModSettings.EmergencyRerouteEnabled));
         }
 
-        private static void AddFlatGroup(UIHelperBase helper, string title, params SavedBool[] settings)
+        // net35 has no ValueTuple, so a two-field struct plus a short factory keeps the table
+        // above readable without a dozen `new FallbackToggle(...)` spellings.
+        private struct FallbackToggle
         {
-            UIHelperBase group = helper.AddGroup(title);
-            for (int i = 0; i < settings.Length; i++)
+            public string LabelKey;
+            public SavedBool Setting;
+        }
+
+        private static FallbackToggle T(string labelKey, SavedBool setting)
+        {
+            return new FallbackToggle { LabelKey = labelKey, Setting = setting };
+        }
+
+        private static void AddFlatGroup(UIHelperBase helper, string groupKey, params FallbackToggle[] toggles)
+        {
+            UIHelperBase group = helper.AddGroup(Localization.Get(groupKey));
+            for (int i = 0; i < toggles.Length; i++)
             {
-                SavedBool setting = settings[i];
-                group.AddCheckbox(title + " #" + (i + 1), setting.value, value => setting.value = value);
+                SavedBool setting = toggles[i].Setting;
+                group.AddCheckbox(Localization.Get(toggles[i].LabelKey), setting.value, value => setting.value = value);
             }
         }
     }
