@@ -1,4 +1,30 @@
-﻿[h1]2026-09-14 - Custom transport mode weights removed[/h1]
+﻿[h1]2026-09-16 - Trains can actually find a different route now[/h1]
+
+Half of every rerouting request a train made was failing before it reached the pathfinder. Road vehicles in the same session made 688 requests and failed none. Both go through the same feature, so that gap was the clue.
+
+[h2]What was wrong[/h2]
+
+When this mod decides a train should look for another way around congestion, it has to tell the game where the train is going. It was reading the train's destination field as a building. For a train running a transport line that field is not a building - it is a track node, and reading it as a building lands on some unrelated building somewhere else in the city, or on nothing at all. The game then looked for track within 32m of that wrong point, found none, and refused the request.
+
+So the feature was firing. It just never got as far as asking the question.
+
+Trains now hand the job to the game's own routine, which already knows how to read that field three different ways depending on what the train is doing. That is the same approach buses have used here for a while.
+
+[h2]What you should see[/h2]
+
+Trains that reconsider their route when the line ahead is congested, instead of silently failing to. Platform assignment is unchanged, and so is everything TM:PE does - the only thing that changed is who works out the destination.
+
+[h2]Being straight about this one[/h2]
+
+[b]This fix has not been confirmed in a live city yet.[/b] The test session after it went in happened to be on a save where the railways never got congested enough to trigger a single reroute, so there was nothing to measure. The reasoning behind the fix is solid and came from decompiling the game, but "we understand why it was broken" is not the same as "we watched it work."
+
+If your railways do get busy and you notice a difference either way, that is genuinely useful to hear about.
+
+[h2]Also in this build[/h2]
+
+Nothing else you will notice in game. The README and the description on this page were corrected - they were still advertising several features that had been removed weeks earlier, including a race car speed setting removed back in August for causing crashes. Some unused translation strings were deleted, and the build now refuses to quietly accumulate more of them.
+
+[h1]2026-09-14 - Custom transport mode weights removed[/h1]
 
 Two problems turned up in testing with this feature on: intercity trains and intercity buses stopped carrying passengers, and citizens stopped using bicycles. Both are real, both come from the same feature, and it has been removed rather than patched.
 
