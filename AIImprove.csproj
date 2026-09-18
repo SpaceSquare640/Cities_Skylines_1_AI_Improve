@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net35</TargetFramework>
@@ -26,6 +26,29 @@
     <!-- Cities: Skylines install folder. Override in a local .user file if your install path differs. -->
     <CSInstallPath>H:\SteamLibrary\steamapps\common\Cities_Skylines</CSInstallPath>
   </PropertyGroup>
+
+  <!-- DEVELOPMENT TOOLS GATE.
+
+       The SDK's default glob compiles every .cs under the project, so dev/ would ship unless it is
+       explicitly removed first - the Remove below is what makes this a gate rather than a comment.
+       Verified both ways after writing it: `dotnet build` produces a DLL with no DevTriggerExtension
+       type in it, `dotnet build -p:DevTools=true` produces one that has it and warns while doing so.
+
+       `#if DEBUG` cannot be used for this. Measured 2026-09-18: this project has no Configuration
+       handling at all, so DefineConstants is always "TRACE;DEBUG;NETFRAMEWORK;NET35;" and
+       CopyToMods copies unconditionally - the DLL that goes to the Workshop is a DEBUG build. A
+       `#if DEBUG` block would be shipped to every player. -->
+  <ItemGroup>
+    <Compile Remove="dev/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(DevTools)' == 'true'">
+    <Compile Include="dev/**/*.cs" />
+  </ItemGroup>
+
+  <Target Name="WarnDevTools" BeforeTargets="Build" Condition="'$(DevTools)' == 'true'">
+    <Warning Text="DevTools=true: this DLL contains the dev trigger panel and must NOT be uploaded to the Workshop. Rebuild without -p:DevTools=true before releasing." />
+  </Target>
 
   <ItemGroup>
     <!-- Game managed assemblies. HintPath points at the actual game install; not copied to output. -->

@@ -19,10 +19,46 @@ namespace AIImprove
         public static void ResetForNewLevel()
         {
             LastReportedFlags.Clear();
+
+            // Cleared here on purpose. The override below is the one piece of dev-only plumbing
+            // that DOES ship, so it must not be able to survive into a city it was not set for.
+            // Note the interaction this creates for whoever is using the dev panel: the
+            // Ctrl+Shift+R hotkey calls TrackerReset.ResetAll(), which lands here, so forcing a
+            // tracker reset also switches the storm override back off. That is the correct
+            // behaviour - it is exactly the "stale flag from a previous city" case - but it will
+            // look like the override turned itself off if you do not know why.
+            forceThunderstormActive = false;
+        }
+
+        // DEV-ONLY OVERRIDE, AND THE ONLY DEV PLUMBING IN THE SHIPPED DLL.
+        //
+        // Written by nothing except dev/DevTriggerPanel.cs, which is not compiled into the
+        // released build (see AIImprove.csproj, DevTools). In a player's copy this field is
+        // therefore false at every moment of its existence: there is no settings UI for it, no
+        // SavedBool backing it, no Harmony patch that writes it and no code path in the shipped
+        // assembly that assigns anything but the `false` on the line above.
+        //
+        // It is here rather than inside the dev file because IsThunderstormActive must consult it,
+        // and that method ships. Ten lines of permanently-false field is the price of keeping the
+        // other ninety lines out of the DLL entirely.
+        private static bool forceThunderstormActive;
+
+        internal static bool ForceThunderstormActive
+        {
+            get { return forceThunderstormActive; }
+            set { forceThunderstormActive = value; }
         }
 
         public static bool IsThunderstormActive()
         {
+            // Ahead of the DLC gate deliberately: the point of the override is to exercise the
+            // three consumers on a machine that may not own Natural Disasters, and the DLC gate
+            // below would otherwise return false before the override was ever read.
+            if (forceThunderstormActive)
+            {
+                return true;
+            }
+
             // Skip the scan entirely without Natural Disasters (2026-08-14, per user request to
             // DLC-gate the remaining features). This is the one gate that buys something real:
             // every caller sits on a hot path - HelicopterWeatherHaltPatch runs on each emergency
