@@ -46,10 +46,7 @@ namespace AIImprove
         // remembered per class - see 12 - 開發準則, 準則 3.
         public static void ResetForNewLevel()
         {
-            lock (PuntStreakLock)
-            {
-                TmcePuntStreak.Clear();
-            }
+            TmcePuntStreak.Clear();
         }
 
         private static bool loggedFirstCall;
@@ -70,30 +67,42 @@ namespace AIImprove
         // does. Resets the moment a real assignment succeeds there again (fire went out, cap
         // lifted after the uncap timer, or TMCE finally did pick somewhere else on its own).
         private const int TmceStarvationThreshold = 8;
-        // ADDED 2026-09-18 AFTER REVIEW. SetTarget is patched as a Prefix on FireTruckAI and
-        // FireCopterAI (Patcher.cs), and Cities: Skylines steps vehicle AI across several
-        // simulation threads - so every line below can run on more than one thread at once. That
-        // was survivable while this dictionary only saw TryGetValue / indexer-set / Remove, which
-        // is why it went unlocked for a month. It stopped being survivable the moment
-        // SweepExtinguishedPuntStreaks started ENUMERATING it: a foreach over a Dictionary that
-        // another thread writes throws "Collection was modified", and in Mono a concurrent resize
-        // can spin instead of throwing - a frozen game with an empty log, exactly what
-        // FlexibleReroutePatch's CacheLock note describes.
+        // THREADING, VERIFIED 2026-09-18 (do not re-derive this from comments elsewhere).
         //
-        // The lesson worth keeping: point access and enumeration are not the same risk. Adding a
-        // single foreach converted a dormant assumption into a live race. Every access to
-        // TmcePuntStreak and PuntStreakSweepScratch now goes through this lock; if you add
-        // another, it goes through it too.
-        private static readonly object PuntStreakLock = new object();
-
+        // A lock was added here earlier the same day on the belief that Cities: Skylines steps
+        // vehicle AI across several simulation threads, so a foreach over this dictionary could
+        // race another thread's write. That belief was inherited from comments in this repo and
+        // never checked. Checked now, against the installed assemblies:
+        //
+        //   - Assembly-CSharp has `m_simulationThread` (singular). There is no plural form and no
+        //     per-thread index field: vehicle AI is stepped by ONE simulation thread.
+        //   - `PathFindThread` does exist - the game is multi-threaded, but for PATHFINDING, not
+        //     for stepping vehicle AI. Conflating those two is what produced the wrong belief.
+        //   - ICities exposes OnBeforeSimulationTick/OnAfterSimulationTick alongside OnUpdate,
+        //     which would be pointless if OnUpdate already ran on the simulation thread.
+        //   - SimulationManager.AddAction exists precisely so other threads can queue work onto
+        //     the simulation thread.
+        //
+        // So every access below runs on the simulation thread, one at a time, and the lock was
+        // protecting against something that cannot happen. It is gone. Removing it matters more
+        // for the comment than the nanoseconds: a lock with no reason reads as evidence that a
+        // reason exists, and the next person would have copied the pattern.
+        //
+        // WHEN A LOCK IS ACTUALLY NEEDED HERE: only if something on the MAIN thread starts
+        // touching this state while the simulation runs. That is real - it is why
+        // EmergencyDispatchTracker and AirTrafficControlManager are locked (both are read by the
+        // in-game UI and by diagnostics), and it is why dev/DevTriggerPanel.cs marshals its reset
+        // through SimulationManager.AddAction instead of calling it from OnUpdate.
+        //
+        // ResetForNewLevel is safe unlocked for a reason worth knowing: its two callers are
+        // m_levelUnloaded (simulation stopped) and AIImproveMod.OnDisabled, which calls
+        // Patcher.UnpatchAll() BEFORE TrackerReset.ResetAll() - by the time the clear runs, the
+        // simulation thread can no longer be inside any of our patched code.
         private static readonly Dictionary<ushort, int> TmcePuntStreak = new Dictionary<ushort, int>();
 
         private static void ResetPuntStreak(ushort buildingId)
         {
-            lock (PuntStreakLock)
-            {
-                TmcePuntStreak.Remove(buildingId);
-            }
+            TmcePuntStreak.Remove(buildingId);
         }
 
         // The streak dictionary only ever had two ways out: a successful assignment at that
@@ -124,66 +133,54 @@ namespace AIImprove
 
         private static void SweepExtinguishedPuntStreaks()
         {
+            // The frame gate is NOT about threading (see the threading note above - this all runs
+            // on the one simulation thread). It is about frequency: PuntStreakSweepThreshold gates
+            // whether the sweep runs at all, not how often. Without this, a city with 65+ buildings
+            // burning at once - a mass-fire event, which is exactly what a thunderstorm produces -
+            // put a full dictionary walk on EVERY fire truck dispatch, each one finding nothing to
+            // remove because every tracked building really was still on fire.
             uint frame = Singleton<SimulationManager>.instance.m_currentFrameIndex;
             if (frame - lastPuntStreakSweepFrame < PuntStreakSweepIntervalFrames)
             {
                 return;
             }
 
-            int removed;
-            int remaining;
+            lastPuntStreakSweepFrame = frame;
 
-            lock (PuntStreakLock)
+            if (TmcePuntStreak.Count <= PuntStreakSweepThreshold)
             {
-                // Re-read the frame counter inside the lock rather than trusting the check above:
-                // two threads can both pass it before either has written, and doing the whole
-                // sweep twice back-to-back is precisely the cost this gate exists to avoid.
-                if (frame - lastPuntStreakSweepFrame < PuntStreakSweepIntervalFrames)
-                {
-                    return;
-                }
-
-                lastPuntStreakSweepFrame = frame;
-
-                if (TmcePuntStreak.Count <= PuntStreakSweepThreshold)
-                {
-                    return;
-                }
-
-                Building[] buildings = Singleton<BuildingManager>.instance.m_buildings.m_buffer;
-                PuntStreakSweepScratch.Clear();
-
-                foreach (KeyValuePair<ushort, int> pair in TmcePuntStreak)
-                {
-                    if (buildings[pair.Key].m_fireIntensity == 0)
-                    {
-                        PuntStreakSweepScratch.Add(pair.Key);
-                    }
-                }
-
-                for (int i = 0; i < PuntStreakSweepScratch.Count; i++)
-                {
-                    TmcePuntStreak.Remove(PuntStreakSweepScratch[i]);
-                }
-
-                removed = PuntStreakSweepScratch.Count;
-                remaining = TmcePuntStreak.Count;
+                return;
             }
 
-            // Outside the lock on purpose - string concatenation while holding a lock that every
-            // fire truck dispatch in the city contends for is the kind of thing that turns a
-            // correctness fix into a stutter.
-            if (removed > 0 && Log.VerboseEnabled)
+            Building[] buildings = Singleton<BuildingManager>.instance.m_buildings.m_buffer;
+            PuntStreakSweepScratch.Clear();
+
+            // Collected first and removed after: a Dictionary cannot be modified while it is being
+            // enumerated, even on a single thread. Same shape as FireResponseTracker's StaleBuildings.
+            foreach (KeyValuePair<ushort, int> pair in TmcePuntStreak)
+            {
+                if (buildings[pair.Key].m_fireIntensity == 0)
+                {
+                    PuntStreakSweepScratch.Add(pair.Key);
+                }
+            }
+
+            for (int i = 0; i < PuntStreakSweepScratch.Count; i++)
+            {
+                TmcePuntStreak.Remove(PuntStreakSweepScratch[i]);
+            }
+
+            if (PuntStreakSweepScratch.Count > 0 && Log.VerboseEnabled)
             {
                 Log.Verbose(
-                    "[AIImprove] Dropped " + removed + " Transfer Manager CE punt streak entries " +
-                    "for buildings that are no longer burning; " + remaining + " still tracked.");
+                    "[AIImprove] Dropped " + PuntStreakSweepScratch.Count + " Transfer Manager CE " +
+                    "punt streak entries for buildings that are no longer burning; " +
+                    TmcePuntStreak.Count + " still tracked.");
             }
         }
 
-        // Scratch - cleared at the top of every sweep, never read outside it. Guarded by
-        // PuntStreakLock like the dictionary it serves: it is one shared static List, so two
-        // threads sweeping at once would Clear() it out from under each other.
+        // Scratch - cleared at the top of every sweep, never read outside it. Safe as a single
+        // shared static because only the simulation thread ever reaches it.
         private static readonly List<ushort> PuntStreakSweepScratch = new List<ushort>();
 
         private static bool TmceIsStarvingBuilding(ushort buildingId)
@@ -194,13 +191,9 @@ namespace AIImprove
             // Deliberately not growing it for a building whose fire has since gone out - callers
             // only reach here while that building is an active, capped dispatch target.
             int streak;
-            lock (PuntStreakLock)
-            {
-                TmcePuntStreak.TryGetValue(buildingId, out streak);
-                streak++;
-                TmcePuntStreak[buildingId] = streak;
-            }
-
+            TmcePuntStreak.TryGetValue(buildingId, out streak);
+            streak++;
+            TmcePuntStreak[buildingId] = streak;
             return streak > TmceStarvationThreshold;
         }
 

@@ -81,12 +81,22 @@ namespace AIImprove.Dev
             // answering it still needs a real second save load. Half the verification, not all of
             // it - recorded that way in 14 - 現況總表 too, so this does not get filed as "done".
             //
-            // MARSHALLED, NOT CALLED DIRECTLY (fixed 2026-09-18 after review). ResetAll() Clear()s
-            // 23 collections, and its only real call sites are m_levelUnloaded and OnDisabled -
-            // both points where vehicle AI has stopped stepping. Calling it straight from here ran
-            // it in a live city with every simulation thread working, so a fire truck's SetTarget
-            // prefix could be mid-lookup in a dictionary that this thread was clearing. The tool
-            // built to verify a fix would have been corrupting the state it was verifying.
+            // MARSHALLED, NOT CALLED DIRECTLY (fixed 2026-09-18 after review). This is a genuine
+            // cross-thread hazard, and worth being precise about, because a sibling claim made the
+            // same day turned out to be wrong.
+            //
+            // IThreadingExtension.OnUpdate runs on the MAIN thread - that is why ICities offers
+            // OnBeforeSimulationTick/OnAfterSimulationTick separately, and why
+            // SimulationManager.AddAction exists at all. The simulation thread keeps stepping
+            // vehicle AI while OnUpdate runs. ResetAll() Clear()s 23 collections that the
+            // simulation thread reads and writes from our patches, so calling it straight from
+            // here meant a fire truck's SetTarget prefix could be mid-lookup in a dictionary this
+            // thread was clearing. The tool built to verify a fix would have been corrupting the
+            // state it was verifying.
+            //
+            // Note what is NOT the reason: there is only one simulation thread, so vehicle AI
+            // never races itself. Main thread against simulation thread is the real axis, and it
+            // is the only one. See the threading note in FireResponseCapPatch.cs.
             //
             // AddAction queues the delegate onto the simulation thread, which runs it between
             // simulation steps - the same kind of quiet moment the real call sites get.

@@ -329,28 +329,33 @@ namespace AIImprove
         // PassengerTrainAI's, and TrainAI itself declares none. Same shape as Car.Postfix.
         internal static class Train
         {
-            // Locked for the reason CompanionModCompat.FindType spells out: a Dictionary written
-            // concurrently can spin forever inside a resize instead of throwing, and that shows up
-            // as a frozen game with an empty log. Taken once per distinct train AI type and then
-            // never again, so it costs nothing.
-            private static readonly object CacheLock = new object();
-
+            // NOT LOCKED, AND THAT IS THE CORRECTION (2026-09-18). A lock was added here earlier
+            // the same day, citing CompanionModCompat.FindType's note that a concurrently written
+            // Dictionary can spin forever inside a resize instead of throwing. That failure mode is
+            // real; the premise that it could happen here was not. Verified against the installed
+            // assemblies: Assembly-CSharp has m_simulationThread (singular, no plural form),
+            // PathFindThread is a separate pool we do not patch into, and ICities offers
+            // OnBeforeSimulationTick/OnAfterSimulationTick precisely because OnUpdate is a
+            // different thread. Vehicle AI is stepped by exactly ONE thread, this cache is reached
+            // only from this Postfix, and so it can only ever be touched by that thread.
+            //
+            // The cost was not theoretical: the lock was taken on EVERY call, not just the cold
+            // one. See the threading note in FireResponseCapPatch.cs for the evidence and for the
+            // cases where a lock IS needed (main thread reading tracker state, e.g.
+            // EmergencyDispatchTracker and AirTrafficControlManager - those keep theirs).
             private static readonly System.Collections.Generic.Dictionary<Type, MethodInfo> SelfStartPathFindCache =
                 new System.Collections.Generic.Dictionary<Type, MethodInfo>();
 
             private static MethodInfo GetSelfStartPathFind(Type vehicleAiType)
             {
-                lock (CacheLock)
+                MethodInfo method;
+                if (!SelfStartPathFindCache.TryGetValue(vehicleAiType, out method))
                 {
-                    MethodInfo method;
-                    if (!SelfStartPathFindCache.TryGetValue(vehicleAiType, out method))
-                    {
-                        method = FindSelfStartPathFind(vehicleAiType);
-                        SelfStartPathFindCache[vehicleAiType] = method; // cache null too
-                    }
-
-                    return method;
+                    method = FindSelfStartPathFind(vehicleAiType);
+                    SelfStartPathFindCache[vehicleAiType] = method; // cache null too
                 }
+
+                return method;
             }
 
             public static void Postfix(ushort vehicleID, TrainAI __instance, ref Vehicle data)
@@ -440,24 +445,33 @@ namespace AIImprove
             // throwing, which presents as a frozen game with nothing in the log. Found while
             // adding the equivalent cache for trains; fixing only the new one would have left the
             // busier instance of the same hazard in place.
-            private static readonly object CacheLock = new object();
-
+            // NOT LOCKED, AND THAT IS THE CORRECTION (2026-09-18). A lock was added here earlier
+            // the same day, citing CompanionModCompat.FindType's note that a concurrently written
+            // Dictionary can spin forever inside a resize instead of throwing. That failure mode is
+            // real; the premise that it could happen here was not. Verified against the installed
+            // assemblies: Assembly-CSharp has m_simulationThread (singular, no plural form),
+            // PathFindThread is a separate pool we do not patch into, and ICities offers
+            // OnBeforeSimulationTick/OnAfterSimulationTick precisely because OnUpdate is a
+            // different thread. Vehicle AI is stepped by exactly ONE thread, this cache is reached
+            // only from this Postfix, and so it can only ever be touched by that thread.
+            //
+            // The cost was not theoretical: the lock was taken on EVERY call, not just the cold
+            // one. See the threading note in FireResponseCapPatch.cs for the evidence and for the
+            // cases where a lock IS needed (main thread reading tracker state, e.g.
+            // EmergencyDispatchTracker and AirTrafficControlManager - those keep theirs).
             private static readonly System.Collections.Generic.Dictionary<Type, MethodInfo> StartPathFindCache =
                 new System.Collections.Generic.Dictionary<Type, MethodInfo>();
 
             private static MethodInfo GetSelfStartPathFind(Type vehicleAiType)
             {
-                lock (CacheLock)
+                MethodInfo method;
+                if (!StartPathFindCache.TryGetValue(vehicleAiType, out method))
                 {
-                    MethodInfo method;
-                    if (!StartPathFindCache.TryGetValue(vehicleAiType, out method))
-                    {
-                        method = FindSelfStartPathFind(vehicleAiType);
-                        StartPathFindCache[vehicleAiType] = method; // cache null too - avoid re-resolving every call
-                    }
-
-                    return method;
+                    method = FindSelfStartPathFind(vehicleAiType);
+                    StartPathFindCache[vehicleAiType] = method; // cache null too - avoid re-resolving every call
                 }
+
+                return method;
             }
 
             // Emergency vehicles reroute more eagerly than ordinary traffic: an ambulance sitting
