@@ -46,7 +46,10 @@ namespace AIImprove
         // remembered per class - see 12 - 開發準則, 準則 3.
         public static void ResetForNewLevel()
         {
-            TmcePuntStreak.Clear();
+            lock (PuntStreakLock)
+            {
+                TmcePuntStreak.Clear();
+            }
         }
 
         private static bool loggedFirstCall;
@@ -67,11 +70,30 @@ namespace AIImprove
         // does. Resets the moment a real assignment succeeds there again (fire went out, cap
         // lifted after the uncap timer, or TMCE finally did pick somewhere else on its own).
         private const int TmceStarvationThreshold = 8;
+        // ADDED 2026-09-18 AFTER REVIEW. SetTarget is patched as a Prefix on FireTruckAI and
+        // FireCopterAI (Patcher.cs), and Cities: Skylines steps vehicle AI across several
+        // simulation threads - so every line below can run on more than one thread at once. That
+        // was survivable while this dictionary only saw TryGetValue / indexer-set / Remove, which
+        // is why it went unlocked for a month. It stopped being survivable the moment
+        // SweepExtinguishedPuntStreaks started ENUMERATING it: a foreach over a Dictionary that
+        // another thread writes throws "Collection was modified", and in Mono a concurrent resize
+        // can spin instead of throwing - a frozen game with an empty log, exactly what
+        // FlexibleReroutePatch's CacheLock note describes.
+        //
+        // The lesson worth keeping: point access and enumeration are not the same risk. Adding a
+        // single foreach converted a dormant assumption into a live race. Every access to
+        // TmcePuntStreak and PuntStreakSweepScratch now goes through this lock; if you add
+        // another, it goes through it too.
+        private static readonly object PuntStreakLock = new object();
+
         private static readonly Dictionary<ushort, int> TmcePuntStreak = new Dictionary<ushort, int>();
 
         private static void ResetPuntStreak(ushort buildingId)
         {
-            TmcePuntStreak.Remove(buildingId);
+            lock (PuntStreakLock)
+            {
+                TmcePuntStreak.Remove(buildingId);
+            }
         }
 
         // The streak dictionary only ever had two ways out: a successful assignment at that
@@ -87,39 +109,81 @@ namespace AIImprove
         // simultaneously-burning buildings, so in a normal city it never runs at all.
         private const int PuntStreakSweepThreshold = 64;
 
+        // ADDED 2026-09-18 AFTER REVIEW. The threshold above gates whether the sweep runs, not how
+        // often. Without this second gate, a city with 65+ buildings burning at once - a mass-fire
+        // event, which is exactly what a thunderstorm produces - put a full dictionary walk on
+        // EVERY fire truck dispatch, each one finding nothing to remove because every tracked
+        // building really was still on fire. Worst possible moment for per-dispatch work, and the
+        // original comment claimed the opposite was happening.
+        //
+        // 512 frames matches ShipQueueDetector's report interval. Unsigned subtraction so the wrap
+        // of m_currentFrameIndex is benign, same idiom as there.
+        private const uint PuntStreakSweepIntervalFrames = 512U;
+
+        private static uint lastPuntStreakSweepFrame;
+
         private static void SweepExtinguishedPuntStreaks()
         {
-            if (TmcePuntStreak.Count <= PuntStreakSweepThreshold)
+            uint frame = Singleton<SimulationManager>.instance.m_currentFrameIndex;
+            if (frame - lastPuntStreakSweepFrame < PuntStreakSweepIntervalFrames)
             {
                 return;
             }
 
-            Building[] buildings = Singleton<BuildingManager>.instance.m_buildings.m_buffer;
-            PuntStreakSweepScratch.Clear();
+            int removed;
+            int remaining;
 
-            foreach (KeyValuePair<ushort, int> pair in TmcePuntStreak)
+            lock (PuntStreakLock)
             {
-                if (buildings[pair.Key].m_fireIntensity == 0)
+                // Re-read the frame counter inside the lock rather than trusting the check above:
+                // two threads can both pass it before either has written, and doing the whole
+                // sweep twice back-to-back is precisely the cost this gate exists to avoid.
+                if (frame - lastPuntStreakSweepFrame < PuntStreakSweepIntervalFrames)
                 {
-                    PuntStreakSweepScratch.Add(pair.Key);
+                    return;
                 }
+
+                lastPuntStreakSweepFrame = frame;
+
+                if (TmcePuntStreak.Count <= PuntStreakSweepThreshold)
+                {
+                    return;
+                }
+
+                Building[] buildings = Singleton<BuildingManager>.instance.m_buildings.m_buffer;
+                PuntStreakSweepScratch.Clear();
+
+                foreach (KeyValuePair<ushort, int> pair in TmcePuntStreak)
+                {
+                    if (buildings[pair.Key].m_fireIntensity == 0)
+                    {
+                        PuntStreakSweepScratch.Add(pair.Key);
+                    }
+                }
+
+                for (int i = 0; i < PuntStreakSweepScratch.Count; i++)
+                {
+                    TmcePuntStreak.Remove(PuntStreakSweepScratch[i]);
+                }
+
+                removed = PuntStreakSweepScratch.Count;
+                remaining = TmcePuntStreak.Count;
             }
 
-            for (int i = 0; i < PuntStreakSweepScratch.Count; i++)
-            {
-                TmcePuntStreak.Remove(PuntStreakSweepScratch[i]);
-            }
-
-            if (Log.VerboseEnabled)
+            // Outside the lock on purpose - string concatenation while holding a lock that every
+            // fire truck dispatch in the city contends for is the kind of thing that turns a
+            // correctness fix into a stutter.
+            if (removed > 0 && Log.VerboseEnabled)
             {
                 Log.Verbose(
-                    "[AIImprove] Dropped " + PuntStreakSweepScratch.Count + " Transfer Manager CE punt " +
-                    "streak entries for buildings that are no longer burning; " + TmcePuntStreak.Count +
-                    " still tracked.");
+                    "[AIImprove] Dropped " + removed + " Transfer Manager CE punt streak entries " +
+                    "for buildings that are no longer burning; " + remaining + " still tracked.");
             }
         }
 
-        // Scratch - cleared at the top of every sweep, never read outside it.
+        // Scratch - cleared at the top of every sweep, never read outside it. Guarded by
+        // PuntStreakLock like the dictionary it serves: it is one shared static List, so two
+        // threads sweeping at once would Clear() it out from under each other.
         private static readonly List<ushort> PuntStreakSweepScratch = new List<ushort>();
 
         private static bool TmceIsStarvingBuilding(ushort buildingId)
@@ -130,9 +194,13 @@ namespace AIImprove
             // Deliberately not growing it for a building whose fire has since gone out - callers
             // only reach here while that building is an active, capped dispatch target.
             int streak;
-            TmcePuntStreak.TryGetValue(buildingId, out streak);
-            streak++;
-            TmcePuntStreak[buildingId] = streak;
+            lock (PuntStreakLock)
+            {
+                TmcePuntStreak.TryGetValue(buildingId, out streak);
+                streak++;
+                TmcePuntStreak[buildingId] = streak;
+            }
+
             return streak > TmceStarvationThreshold;
         }
 

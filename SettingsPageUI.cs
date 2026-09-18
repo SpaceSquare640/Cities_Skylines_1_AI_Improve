@@ -1271,11 +1271,36 @@ namespace AIImprove
 
         private static void AddFlatGroup(UIHelperBase helper, string groupKey, params FallbackToggle[] toggles)
         {
-            UIHelperBase group = helper.AddGroup(Localization.Get(groupKey));
+            UIHelperBase group = helper.AddGroup(SafeLabel(groupKey));
             for (int i = 0; i < toggles.Length; i++)
             {
                 SavedBool setting = toggles[i].Setting;
-                group.AddCheckbox(Localization.Get(toggles[i].LabelKey), setting.value, value => setting.value = value);
+                group.AddCheckbox(SafeLabel(toggles[i].LabelKey), setting.value, value => setting.value = value);
+            }
+        }
+
+        // ADDED 2026-09-18 AFTER REVIEW. This page is reached from Build()'s catch, so its whole
+        // job is to survive whatever killed the real page - and BuildContent's heaviest dependency
+        // is Localization, the same one this page started using when it was rewritten to show real
+        // feature names. A duplicate key anywhere in Localization.Strings throws at type
+        // initialization and every Get() after it throws TypeInitializationException: BuildContent
+        // dies, control reaches the catch, and the fallback would have died the same way with
+        // nothing left to catch it - no settings page at all, worse than the "#1 / #2 / #3" labels
+        // it replaced. tools/check_localization.py catches duplicates (LOC005), but it runs with
+        // ContinueOnError and only when python is on PATH, so it is a convenience, not a guarantee.
+        //
+        // The key itself is a decent last-resort label: "feature.trainReroute" at least identifies
+        // the switch, which is the one thing this page has to do.
+        private static string SafeLabel(string key)
+        {
+            try
+            {
+                return Localization.Get(key);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[AIImprove] Fallback page could not localize \"" + key + "\": " + ex);
+                return key;
             }
         }
     }
