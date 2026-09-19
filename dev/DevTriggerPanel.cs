@@ -35,29 +35,50 @@ namespace AIImprove.Dev
         private bool resetHeld;
         private bool stormHeld;
 
-        // HEARTBEAT (added 2026-09-19). On 2026-09-19 the log showed no DEV: lines at all, and
-        // nothing in it could distinguish "the user never pressed the keys" from "the keys were
-        // pressed and something ate them". It turned out to be the former, but only because the
-        // user could be asked - a log from a week ago cannot answer that question.
+        // HEARTBEAT (added 2026-09-19, diagnostic table corrected the same day).
         //
-        // The counters below make the log answer it. The useful one is not updateCount (that only
-        // proves OnUpdate runs); it is modifierFrames against rFrames/tFrames:
+        // On 2026-09-19 the log showed no DEV: lines at all, and nothing in it could distinguish
+        // "the user never pressed the keys" from "the keys were pressed and something ate them".
+        // It turned out to be the former, but only because the user could be asked - a log from a
+        // week ago cannot answer that question.
         //
-        //   all zero              -> OnUpdate is not running, or Input is not reaching us at all
-        //   updates>0, modifier=0 -> we run, but Ctrl+Shift never arrived - another mod in the
-        //                            pack is almost certainly consuming the combo
-        //   modifier>0, r/t = 0   -> the combo arrives but the letter does not; try other keys
-        //   all non-zero, no DEV: -> the edge latch or the action itself is broken, look there
+        // HOW TO READ IT. The first row is the one the original version of this table got wrong:
+        //
+        //   no heartbeat line at all   -> OnUpdate is not being called. The counters cannot report
+        //                                 this, because printing them requires OnUpdate to run;
+        //                                 silence IS the signal, and it is the loudest one here.
+        //   window updates > 0,
+        //     window Ctrl+Shift = 0    -> we run, but the combo never arrived in that window -
+        //                                 another mod in the pack is almost certainly consuming it
+        //   window Ctrl+Shift > 0,
+        //     window R/T = 0           -> the combo arrives but the letter does not; try other keys
+        //   all non-zero, no DEV: line -> the edge latch or the action itself is broken, look there
+        //
+        // WINDOW vs TOTAL, and why both. Counters reset after every heartbeat, so "window" means
+        // the last HeartbeatIntervalSeconds only. The first version reported cumulative totals
+        // alone, which quietly could not answer the question the message asks: once you press
+        // Ctrl+Shift even once, a cumulative count stays non-zero forever, so a press at minute 40
+        // of a long session is indistinguishable from one at minute 2. The window figure puts the
+        // spike in the interval you actually pressed. Totals are kept alongside because "did this
+        // ever arrive, at all" is still worth one glance.
         //
         // Counted on the raw keys without the modifier, deliberately: a mod that swallows
         // Ctrl+Shift+R may still leave plain R visible, and that difference is the diagnosis.
         private const float HeartbeatIntervalSeconds = 120f;
 
         private float sinceHeartbeat;
-        private int updateCount;
-        private int modifierFrames;
-        private int rFrames;
-        private int tFrames;
+
+        // Reset after each heartbeat.
+        private int windowUpdates;
+        private int windowModifier;
+        private int windowR;
+        private int windowT;
+
+        // Never reset.
+        private int totalUpdates;
+        private int totalModifier;
+        private int totalR;
+        private int totalT;
 
         public override void OnCreated(IThreading threading)
         {
@@ -96,24 +117,33 @@ namespace AIImprove.Dev
             HandleEdge(modifier && r, ref resetHeld, ForceTrackerReset);
             HandleEdge(modifier && t, ref stormHeld, ToggleThunderstormOverride);
 
-            updateCount++;
+            windowUpdates++;
+            totalUpdates++;
+
             if (modifier)
             {
-                modifierFrames++;
+                windowModifier++;
+                totalModifier++;
             }
 
             if (r)
             {
-                rFrames++;
+                windowR++;
+                totalR++;
             }
 
             if (t)
             {
-                tFrames++;
+                windowT++;
+                totalT++;
             }
 
-            // Real time, not simulation time: the panel must prove it is alive while the game is
-            // paused too, which is exactly when someone is most likely to be reaching for a hotkey.
+            // Real time, not simulation time: simulationTimeDelta is 0 while the game is paused,
+            // which would freeze the heartbeat exactly when someone is most likely to be reaching
+            // for a hotkey. Whether OnUpdate is called AT ALL while paused is expected but not
+            // verified - and pleasingly, this feature answers that itself: pause for two minutes
+            // and see whether a heartbeat still appears. Write the answer down when you know it
+            // rather than leaving this comment to be inherited as fact (see 2026-09-18).
             sinceHeartbeat += realTimeDelta;
             if (sinceHeartbeat < HeartbeatIntervalSeconds)
             {
@@ -122,9 +152,16 @@ namespace AIImprove.Dev
 
             sinceHeartbeat = 0f;
             Debug.Log(
-                "[AIImprove] DEV heartbeat: " + updateCount + " updates, Ctrl+Shift held on " +
-                modifierFrames + " frame(s), R on " + rFrames + ", T on " + tFrames +
-                ". If you pressed a hotkey and saw no DEV: line, these numbers say where it was lost.");
+                "[AIImprove] DEV heartbeat - this window: " + windowUpdates + " updates, Ctrl+Shift on " +
+                windowModifier + " frame(s), R on " + windowR + ", T on " + windowT +
+                " | totals: " + totalUpdates + " / " + totalModifier + " / " + totalR + " / " + totalT +
+                ". Pressed a hotkey and saw no DEV: line? The WINDOW figures for the interval you " +
+                "pressed in say where it was lost. No heartbeat line at all means OnUpdate is not running.");
+
+            windowUpdates = 0;
+            windowModifier = 0;
+            windowR = 0;
+            windowT = 0;
         }
 
         private static void HandleEdge(bool pressed, ref bool held, System.Action action)
