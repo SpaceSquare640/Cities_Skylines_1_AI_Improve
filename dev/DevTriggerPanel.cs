@@ -35,6 +35,30 @@ namespace AIImprove.Dev
         private bool resetHeld;
         private bool stormHeld;
 
+        // HEARTBEAT (added 2026-09-19). On 2026-09-19 the log showed no DEV: lines at all, and
+        // nothing in it could distinguish "the user never pressed the keys" from "the keys were
+        // pressed and something ate them". It turned out to be the former, but only because the
+        // user could be asked - a log from a week ago cannot answer that question.
+        //
+        // The counters below make the log answer it. The useful one is not updateCount (that only
+        // proves OnUpdate runs); it is modifierFrames against rFrames/tFrames:
+        //
+        //   all zero              -> OnUpdate is not running, or Input is not reaching us at all
+        //   updates>0, modifier=0 -> we run, but Ctrl+Shift never arrived - another mod in the
+        //                            pack is almost certainly consuming the combo
+        //   modifier>0, r/t = 0   -> the combo arrives but the letter does not; try other keys
+        //   all non-zero, no DEV: -> the edge latch or the action itself is broken, look there
+        //
+        // Counted on the raw keys without the modifier, deliberately: a mod that swallows
+        // Ctrl+Shift+R may still leave plain R visible, and that difference is the diagnosis.
+        private const float HeartbeatIntervalSeconds = 120f;
+
+        private float sinceHeartbeat;
+        private int updateCount;
+        private int modifierFrames;
+        private int rFrames;
+        private int tFrames;
+
         public override void OnCreated(IThreading threading)
         {
             base.OnCreated(threading);
@@ -54,12 +78,53 @@ namespace AIImprove.Dev
             bool modifier = (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
                             (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
 
-            // Edge-triggered by hand rather than with GetKeyDown, because OnUpdate is called from
-            // the simulation thread on some frames and Unity's per-frame input state can be read
-            // more than once for a single physical press. Latching on our own bool makes one press
-            // do one thing regardless.
-            HandleEdge(modifier && Input.GetKey(KeyCode.R), ref resetHeld, ForceTrackerReset);
-            HandleEdge(modifier && Input.GetKey(KeyCode.T), ref stormHeld, ToggleThunderstormOverride);
+            // CORRECTED 2026-09-19. This used to say the latch was needed "because OnUpdate is
+            // called from the simulation thread on some frames" - the same wrong premise that
+            // produced two retracted findings on 2026-09-18, left behind in this file while the
+            // comment 30 lines below already stated the verified model. Two contradicting claims
+            // in one file is worse than either alone, because whichever one you read first looks
+            // authoritative. OnUpdate runs on the MAIN thread, once per frame.
+            //
+            // The hand-rolled latch stays, for a reason that survives the correction: ICities does
+            // not contractually pin OnUpdate to exactly one call per Unity input frame, and
+            // GetKeyDown is only true on the frame the key goes down. Latching on our own bool
+            // makes one physical press do one thing whatever the call cadence turns out to be.
+            // Cheap insurance for a dev tool; not a claim about threads.
+            bool r = Input.GetKey(KeyCode.R);
+            bool t = Input.GetKey(KeyCode.T);
+
+            HandleEdge(modifier && r, ref resetHeld, ForceTrackerReset);
+            HandleEdge(modifier && t, ref stormHeld, ToggleThunderstormOverride);
+
+            updateCount++;
+            if (modifier)
+            {
+                modifierFrames++;
+            }
+
+            if (r)
+            {
+                rFrames++;
+            }
+
+            if (t)
+            {
+                tFrames++;
+            }
+
+            // Real time, not simulation time: the panel must prove it is alive while the game is
+            // paused too, which is exactly when someone is most likely to be reaching for a hotkey.
+            sinceHeartbeat += realTimeDelta;
+            if (sinceHeartbeat < HeartbeatIntervalSeconds)
+            {
+                return;
+            }
+
+            sinceHeartbeat = 0f;
+            Debug.Log(
+                "[AIImprove] DEV heartbeat: " + updateCount + " updates, Ctrl+Shift held on " +
+                modifierFrames + " frame(s), R on " + rFrames + ", T on " + tFrames +
+                ". If you pressed a hotkey and saw no DEV: line, these numbers say where it was lost.");
         }
 
         private static void HandleEdge(bool pressed, ref bool held, System.Action action)
