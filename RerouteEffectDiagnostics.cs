@@ -5,11 +5,23 @@ namespace AIImprove
 {
     // Does a reroute actually produce a DIFFERENT route?
     //
-    // This is the question 14 - 現況總表 (A00) said had to be answered before anything else, and
-    // it is the one this project keeps not answering. Every figure collected so far measures
-    // whether the path REQUEST was accepted - 469 accepted in one session, 17,377 in another at
-    // 99% - and that number says only that a request was queued. It says nothing about whether
-    // the pathfinder came back with a different set of segments.
+    // ANSWERED, BY THIS FILE (status updated 2026-09-19). For road vehicles it is yes: the
+    // 2026-09-19 session reported CargoTruckAI 2,200 completed reroutes, 1,697 of them producing
+    // a different route, 0 producing no new path at all - with comparable ratios for intercity
+    // buses and taxis. 14 - 現況總表 section 11 has the figures. Trains have still never produced
+    // a single sample (five consecutive sessions), so nothing here speaks for them.
+    //
+    // The paragraph below used to end "and it is the one this project keeps not answering",
+    // written while that was true. It is left in past tense rather than deleted because the
+    // reasoning is why this file exists, and because a comment that quietly keeps asserting an
+    // open question after it closes is its own small trap - the same one that had
+    // dev/DevTriggerPanel.cs telling readers to check a note that by then said the opposite.
+    //
+    // WHAT THE QUESTION WAS. 14 - 現況總表 (A00) said it had to be answered before anything else,
+    // and for a long time it was not. Every figure collected before this file measured whether
+    // the path REQUEST was accepted - 469 accepted in one session, 17,377 in another at 99% - and
+    // that number says only that a request was queued. It says nothing about whether the
+    // pathfinder came back with a different set of segments.
     //
     //   "我們一直在量測「請求成功率」，而不是「路徑是否真的變了」."
     //

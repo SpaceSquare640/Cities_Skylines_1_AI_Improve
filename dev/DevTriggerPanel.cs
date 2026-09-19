@@ -176,12 +176,28 @@ namespace AIImprove.Dev
 
         private static void ForceTrackerReset()
         {
-            // WHAT THIS PROVES, AND WHAT IT DOES NOT. It proves all 23 ResetForNewLevel() calls in
-            // TrackerReset.ResetAll() run without throwing - which is the part that has never once
-            // been exercised. It does NOT prove that ResetAll is actually *reached* when a city is
-            // unloaded; that is a question about the registration site in AIImproveMod, and
-            // answering it still needs a real second save load. Half the verification, not all of
-            // it - recorded that way in 14 - 現況總表 too, so this does not get filed as "done".
+            // WHAT THIS IS FOR NOW (updated 2026-09-19 - the earlier text here is why).
+            //
+            // It used to say this proved only half the thing: that the 23 ResetForNewLevel() calls
+            // do not throw, but not that m_levelUnloaded actually reaches ResetAll - and that
+            // answering the second half "still needs a real second save load". It also told the
+            // reader that 14 - 現況總表 recorded it the same way, so nobody should file it as done.
+            //
+            // The second half was answered a few hours later, on the 2026-09-19 evening session:
+            // the user loaded a second save and the log shows
+            // `935,858ms | [AIImprove] Per-city tracker state cleared for level unload.` with no
+            // exception around it. The registration site works. 14 - 現況總表 section 12 records
+            // it as closed, which is the opposite of what the old text here claimed that note said.
+            //
+            // That is the reason for this rewrite, and it is worth naming: a comment that
+            // cross-references a document is MORE dangerous when it goes stale, not less. "the
+            // note says so too" reads as corroboration, so the reader stops checking - and here
+            // the two had already diverged. If you change a verification status in the notes,
+            // grep the source for comments that cite it.
+            //
+            // So what is the hotkey for now? Re-running those 23 calls on demand, without having
+            // to quit to the menu and load another city. That is a convenience, no longer the
+            // only way to learn anything - which also means it is fine if it stays unpressed.
             //
             // MARSHALLED, NOT CALLED DIRECTLY (fixed 2026-09-18 after review). This is a genuine
             // cross-thread hazard, and worth being precise about, because a sibling claim made the
