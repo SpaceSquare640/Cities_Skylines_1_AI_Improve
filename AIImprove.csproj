@@ -23,8 +23,13 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <!-- Where the compiled DLL is auto-copied to after each build, so the game can load it directly. -->
     <CSDataPath>$(LOCALAPPDATA)\Colossal Order\Cities_Skylines\Addons\Mods\AIImprove</CSDataPath>
-    <!-- Cities: Skylines install folder. Override in a local .user file if your install path differs. -->
-    <CSInstallPath>H:\SteamLibrary\steamapps\common\Cities_Skylines</CSInstallPath>
+    <!-- Cities: Skylines install folder. Override in a local .user file if your install path differs.
+         MOVED 2026-09-25: was H:\SteamLibrary\... until the game was reinstalled into the default
+         Steam library on C:. The H: drive is no longer present at all, so this is a real move, not a
+         drive letter that will come back - Steam's libraryfolders.vdf still listed H: while the
+         folder was gone, which is what the build failure looked like from the inside (MSB3245 on all
+         four game assemblies, then a wall of CS0246). -->
+    <CSInstallPath>C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines</CSInstallPath>
   </PropertyGroup>
 
   <!-- DEVELOPMENT TOOLS GATE.
