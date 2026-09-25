@@ -82,8 +82,41 @@ namespace AIImprove
 
         public static void ResetForNewLevel()
         {
+            FlushFinalReports();
             Awaiting.Clear();
             Results.Clear();
+        }
+
+        // ADDED 2026-09-23. Report() only fires on exact multiples of ReportEvery, so a vehicle
+        // type that finishes a whole city with fewer than 50 completions is never reported at all -
+        // its data is collected, counted, and then thrown away by the Clear() above.
+        //
+        // That is not hypothetical. The 2026-09-19 three-hour session produced the first train
+        // reroutes this project has ever recorded: 13 requests, all accepted. The effect of those
+        // 13 - whether the route actually CHANGED, which is the whole point of this file and the
+        // A00 question - was invisible, purely because 13 < 50. Five sessions were spent waiting
+        // for trains to appear, and when they finally did, the reporting threshold ate the answer.
+        //
+        // Same shape as the heartbeat table bug fixed on 2026-09-19: a diagnostic whose own
+        // mechanics hide the case you most need it for. Rare types are exactly the ones worth
+        // measuring, because the common ones report constantly.
+        //
+        // Flushed unconditionally rather than only for types below the threshold: one guaranteed
+        // final line per type per city is easier to reason about than a condition that has to be
+        // right, and a duplicate line for a type that happened to land on a multiple of 50 costs
+        // nothing. ResetForNewLevel is reached on level unload, on OnDisabled, and from the dev
+        // panel's hotkey - all of them moments where a closing total is what you want.
+        private static void FlushFinalReports()
+        {
+            foreach (KeyValuePair<string, int[]> pair in Results)
+            {
+                int[] counts = pair.Value;
+                int total = counts[0] + counts[1] + counts[2];
+                if (total > 0)
+                {
+                    LogResult(pair.Key, counts, total, true);
+                }
+            }
         }
 
         public static void ReleaseVehicle(ushort vehicleID)
@@ -163,10 +196,16 @@ namespace AIImprove
                 return;
             }
 
+            LogResult(ownerTypeName, counts, total, false);
+        }
+
+        private static void LogResult(string ownerTypeName, int[] counts, int total, bool final)
+        {
             Log.Info(
-                "[AIImprove] Reroute effect (" + ownerTypeName + "): " + total + " completed - " +
-                counts[0] + " produced a different route, " + counts[1] +
-                " came back with the same segments, " + counts[2] + " never produced a new path.");
+                "[AIImprove] Reroute effect (" + ownerTypeName + ")" + (final ? " FINAL" : "") +
+                ": " + total + " completed - " + counts[0] + " produced a different route, " +
+                counts[1] + " came back with the same segments, " + counts[2] +
+                " never produced a new path.");
         }
 
         // The segment ids still ahead of the vehicle, in order.

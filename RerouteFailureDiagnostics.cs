@@ -43,6 +43,19 @@ namespace AIImprove
         // remembered per class - see 12 - 開發準則, 準則 3.
         public static void ResetForNewLevel()
         {
+            // See RerouteEffectDiagnostics.FlushFinalReports for the full reasoning. Same defect
+            // here, and arguably worse: Report() fires on multiples of Failed, so a type that
+            // finishes a city having attempted 13 reroutes with ZERO failures never produces a
+            // line at all - and "13 attempts, 0 failures" is a genuinely good result that the
+            // reporting rule made invisible. That is precisely what trains did on 2026-09-19.
+            foreach (KeyValuePair<string, Counters> pair in ByOwnerType)
+            {
+                if (pair.Value.Attempts > 0)
+                {
+                    Report(pair.Key, pair.Value, true);
+                }
+            }
+
             ByOwnerType.Clear();
         }
 
@@ -123,11 +136,11 @@ namespace AIImprove
 
             if (counters.Failed % ReportEveryFailures == 0)
             {
-                Report(ownerTypeName, counters);
+                Report(ownerTypeName, counters, false);
             }
         }
 
-        private static void Report(string ownerTypeName, Counters counters)
+        private static void Report(string ownerTypeName, Counters counters, bool final)
         {
             float acceptedPercent = counters.Attempts > 0
                 ? counters.Accepted * 100f / counters.Attempts
@@ -137,7 +150,7 @@ namespace AIImprove
                 : 0f;
 
             Log.Verbose(
-                "[AIImprove] Reroute stats (" + ownerTypeName + "): " +
+                "[AIImprove] Reroute stats (" + ownerTypeName + ")" + (final ? " FINAL" : "") + ": " +
                 counters.Attempts + " attempts, " + counters.Accepted + " accepted (" +
                 acceptedPercent.ToString("F0") + "%), " + counters.Failed + " failed. Of the failures: " +
                 counters.FailedWithTargetPosBeyondSnapRadius + " had m_targetPos3 beyond the " +
