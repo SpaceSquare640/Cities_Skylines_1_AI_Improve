@@ -29,6 +29,7 @@
             FireResponseTracker.ResetForNewLevel();
             FlexibleReroutePatch.ResetForNewLevel();
             HoldingPatternManager.ResetForNewLevel();
+            LaneBottleneckDetector.ResetForNewLevel();
             HoldingPatternPatch.ResetForNewLevel();
             PassengerHelicopterGateAssignmentPatch.ResetForNewLevel();
             RerouteEffectDiagnostics.ResetForNewLevel();

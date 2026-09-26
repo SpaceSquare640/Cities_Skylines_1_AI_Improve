@@ -339,6 +339,7 @@ namespace AIImprove
                             () => ModSettings.AircraftRerouteDensityThreshold.value,
                             v => ModSettings.AircraftRerouteDensityThreshold.value = Mathf.RoundToInt(v)),
                     Toggle("feature.emergencyReroute", ModSettings.EmergencyRerouteEnabled),
+                    Toggle("feature.laneBottleneck", ModSettings.LaneBottleneckDetectionEnabled),
                 },
             });
 
@@ -1253,7 +1254,8 @@ namespace AIImprove
                 T("feature.transitDwell", ModSettings.TransitDwellShortenEnabled),
                 T("feature.transitUnbunch", ModSettings.TransitUnbunchEnabled),
                 T("feature.aircraftReroute", ModSettings.AircraftRerouteEnabled),
-                T("feature.emergencyReroute", ModSettings.EmergencyRerouteEnabled));
+                T("feature.emergencyReroute", ModSettings.EmergencyRerouteEnabled),
+                T("feature.laneBottleneck", ModSettings.LaneBottleneckDetectionEnabled));
         }
 
         // net35 has no ValueTuple, so a two-field struct plus a short factory keeps the table

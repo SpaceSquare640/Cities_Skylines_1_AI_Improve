@@ -524,6 +524,14 @@ namespace AIImprove
                     return;
                 }
 
+                // Sampled HERE, before the reroute toggles below and before the per-vehicle
+                // cooldown check inside TryRerouteViaSelf - and that ordering is the whole point.
+                // A vehicle that just rerouted sits on a 40-second cooldown and returns early, so
+                // sampling any later would hide vehicles sitting in a queue, which are exactly
+                // what the detector exists to find. It has its own toggle (off by default) and
+                // returns immediately when disabled. See LaneBottleneckDetector.cs.
+                LaneBottleneckDetector.Observe(vehicleID, ref data);
+
                 // This wrapper covers "一般市內交通" (private cars, taxis, cargo trucks), local
                 // buses, and intercity buses (BusAI is a CarAI subtype) - each is its own toggle
                 // and density threshold now (2026-08-15, per user request to split every feature

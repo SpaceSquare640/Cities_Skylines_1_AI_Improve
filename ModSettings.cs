@@ -100,6 +100,15 @@ namespace AIImprove
         /// Default OFF per 12 - 開發準則 準則 1: this changes emergency vehicle behavior, and new
         /// behavior ships off until it has been verified in a real city. Flip the default once
         /// there is evidence it helps.
+        /// <summary>
+        /// Detect-and-log only: finds junctions where a lane queues solid while an adjacent lane
+        /// sits empty AND the two lanes' turn arrows have nothing in common - i.e. the free lane
+        /// is a dead end for that queue. Off by default per 12 - 開發準則 準則 1; it writes nothing
+        /// but log lines, but it is a diagnostic, not something a player needs running.
+        /// </summary>
+        public static readonly SavedBool LaneBottleneckDetectionEnabled =
+            new SavedBool("LaneBottleneckDetectionEnabled", FileName, false, true);
+
         public static readonly SavedBool EmergencyRerouteEnabled =
             new SavedBool("EmergencyRerouteEnabled", FileName, false, true);
 
