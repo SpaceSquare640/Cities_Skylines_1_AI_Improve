@@ -92,6 +92,12 @@ namespace AIImprove.Dev
                 "produced with -p:DevTools=true and must not be uploaded to the Workshop. " +
                 "Ctrl+Shift+R = force TrackerReset.ResetAll(). Ctrl+Shift+T = toggle the " +
                 "thunderstorm override.");
+
+            // The probe applies its own Harmony patch rather than being registered by Patcher.cs,
+            // for the same isolation reason this whole folder exists: the shipping build must not
+            // name any type in here. It edits live vehicle paths on purpose - see LateMergeProbe.cs
+            // before concluding anything from a session that ran with it armed.
+            LateMergeProbe.Install();
         }
 
         public override void OnUpdate(float realTimeDelta, float simulationTimeDelta)
